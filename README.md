@@ -136,6 +136,21 @@ err := router.GETAction(
 
 Для собственной логики до и после action контроллер переопределяет `BeforeAction` и `AfterAction`. Ошибка `BeforeAction` отменяет вызов; `AfterAction` получает ошибку action и может вернуть дополнительную ошибку. Контроллер и зависимости action разрешаются через DI для каждого запроса. Те же методы `GETAction`, `POSTAction` и `HandleAction` доступны у групп маршрутов.
 
+## HTTP responses
+
+`Context` предоставляет единый API для основных форматов ответа:
+
+```go
+return ctx.HTML(http.StatusOK, "<h1>Chitu</h1>")
+return ctx.JSON(http.StatusOK, value)
+return ctx.XML(http.StatusOK, value)
+return ctx.Stream(http.StatusOK, "text/csv; charset=utf-8", reader)
+return ctx.File(http.StatusOK, "storage/report.pdf")
+return ctx.Download(http.StatusOK, "storage/report.pdf", "report.pdf")
+```
+
+JSON и XML полностью сериализуются до отправки HTTP-статуса, поэтому ошибка кодирования ещё может быть преобразована централизованным `ErrorHandler` в корректный ответ `500`. Для файлов автоматически выставляются `Content-Type`, `Content-Length` и `Last-Modified`; `Download` дополнительно формирует безопасный `Content-Disposition: attachment`. Ошибки чтения и записи возвращаются обработчику с сохранением исходной причины для `errors.Is`/`errors.As`. После начала ответа повторная запись через `Context` отклоняется, а стандартный error handler не дописывает второе тело.
+
 ## Конфигурация
 
 Конфигурация загружается в типизированную структуру. Более поздние источники имеют приоритет: JSON → `.env` → окружение процесса.

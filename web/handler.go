@@ -38,6 +38,9 @@ func (e *HTTPError) Error() string {
 func (e *HTTPError) Unwrap() error { return e.Err }
 
 func defaultErrorHandler(context *Context, err error) {
+	if context.Written() {
+		return
+	}
 	status := http.StatusInternalServerError
 	message := http.StatusText(status)
 	var httpError *HTTPError

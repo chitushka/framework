@@ -30,7 +30,7 @@
 - [x] HTTP-приложение, request/response и цепочка middleware: HTTP context, JSON, redirect, middleware, обработка ошибок, управляемый `http.Server` и graceful shutdown.
 - [x] URL Manager: статические и параметризованные маршруты, имена, генерация URL, вложенные группы, общие middleware, host/domain-шаблоны и регулярные ограничения.
 - [x] Контроллеры, actions, BeforeAction/AfterAction и DI аргументов.
-- [ ] HTML/JSON/XML/file/stream responses и обработка ошибок.
+- [x] HTML/JSON/XML/file/stream responses и обработка ошибок.
 - [ ] Views, layouts, widgets и безопасная передача состояния в Vue.
 
 ## Этап 3. Данные
@@ -60,4 +60,4 @@
 
 ## Ближайший инкремент
 
-Расширить HTTP responses: HTML, JSON, XML, files и streams, унифицировать обработку ошибок записи ответа.
+Реализовать views, layouts, widgets и безопасную передачу серверного состояния в Vue.
