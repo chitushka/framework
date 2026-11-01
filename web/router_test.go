@@ -160,3 +160,143 @@ func TestRouterValidationAndCustomErrorHandler(t *testing.T) {
 		t.Fatalf("custom error handler: %v, %d", received, response.Code)
 	}
 }
+
+func TestRouteGroupsApplyPrefixAndMiddleware(t *testing.T) {
+	router := web.NewRouter()
+	var calls []string
+	mark := func(name string) web.Middleware {
+		return func(next web.Handler) web.Handler {
+			return func(context *web.Context) error {
+				calls = append(calls, name)
+				return next(context)
+			}
+		}
+	}
+	if err := router.Use(mark("global")); err != nil {
+		t.Fatal(err)
+	}
+	err := router.Group("/api", func(api *web.Group) error {
+		if err := api.Use(mark("api")); err != nil {
+			return err
+		}
+		return api.Group("/v1", func(v1 *web.Group) error {
+			if err := v1.Use(mark("v1")); err != nil {
+				return err
+			}
+			return v1.GET("/users", func(context *web.Context) error {
+				calls = append(calls, "handler")
+				return context.NoContent(http.StatusNoContent)
+			})
+		})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/users", nil))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("получен статус %d", response.Code)
+	}
+	want := []string{"global", "api", "v1", "handler"}
+	if !reflect.DeepEqual(calls, want) {
+		t.Fatalf("неверный порядок: %v", calls)
+	}
+}
+
+func TestRouterMatchesConstraintsAndDomainParameters(t *testing.T) {
+	router := web.NewRouter()
+	err := router.GET("/users/{id}", func(context *web.Context) error {
+		return context.JSON(http.StatusOK, map[string]string{
+			"tenant": context.Param("tenant"),
+			"id":     context.Param("id"),
+		})
+	},
+		web.WithHost("{tenant}.example.test"),
+		web.Where("tenant", `[a-z][a-z0-9-]*`),
+		web.Where("id", `[0-9]+`),
+		web.WithName("tenant.users.view"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "http://acme.example.test/users/42", nil)
+	request.Host = "acme.example.test:8080"
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"tenant":"acme"`) {
+		t.Fatalf("неверный ответ: %d %s", response.Code, response.Body.String())
+	}
+
+	for _, target := range []string{
+		"http://acme.example.test/users/not-a-number",
+		"http://other.test/users/42",
+	} {
+		response = httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, target, nil))
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("%s: получен статус %d", target, response.Code)
+		}
+	}
+
+	generated, err := router.URL("tenant.users.view", map[string]string{"tenant": "acme", "id": "42"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if generated != "//acme.example.test/users/42" {
+		t.Fatalf("неверный URL: %s", generated)
+	}
+	if _, err := router.URL("tenant.users.view", map[string]string{"tenant": "bad.name", "id": "42"}); err == nil {
+		t.Fatal("ожидалась ошибка host-параметра")
+	}
+	if _, err := router.URL("tenant.users.view", map[string]string{"tenant": "acme", "id": "abc"}); err == nil {
+		t.Fatal("ожидалась ошибка ограничения")
+	}
+}
+
+func TestGroupCanApplyHostToRoutes(t *testing.T) {
+	router := web.NewRouter()
+	err := router.Group("/admin", func(group *web.Group) error {
+		if err := group.Host("admin.example.test"); err != nil {
+			return err
+		}
+		return group.GET("/dashboard", func(context *web.Context) error {
+			return context.NoContent(http.StatusNoContent)
+		})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "http://admin.example.test/admin/dashboard", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("получен статус %d", response.Code)
+	}
+	request = httptest.NewRequest(http.MethodGet, "http://public.example.test/admin/dashboard", nil)
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("получен статус %d", response.Code)
+	}
+}
+
+func TestAdvancedRouteValidation(t *testing.T) {
+	router := web.NewRouter()
+	handler := func(*web.Context) error { return nil }
+	for name, err := range map[string]error{
+		"invalid regexp":   router.GET("/items/{id}", handler, web.Where("id", "[")),
+		"unknown param":    router.GET("/items/{id}", handler, web.Where("other", ".+")),
+		"duplicate param":  router.GET("/items/{id}", handler, web.WithHost("{id}.example.test")),
+		"invalid host":     router.GET("/host", handler, web.WithHost("bad host")),
+		"invalid prefix":   router.Group("api", func(*web.Group) error { return nil }),
+		"nil configure":    router.Group("/api", nil),
+		"nil route option": router.GET("/nil-option", handler, nil),
+	} {
+		if err == nil {
+			t.Fatalf("%s: ожидалась ошибка", name)
+		}
+	}
+}

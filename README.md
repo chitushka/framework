@@ -74,6 +74,35 @@ if err := application.Run(ctx); err != nil {
 
 Ошибки, возникшие в `http.Server.Serve` после запуска, передаются в `Application.Run` и инициируют остановку остальных модулей.
 
+Маршруты можно объединять общим prefix, middleware и доменом:
+
+```go
+err := router.Group("/api", func(api *web.Group) error {
+    if err := api.Use(authMiddleware); err != nil {
+        return err
+    }
+    if err := api.Host("{tenant}.example.com"); err != nil {
+        return err
+    }
+    return api.GET("/users/{id}", showUser,
+        web.WithName("api.users.view"),
+        web.Where("tenant", `[a-z][a-z0-9-]*`),
+        web.Where("id", `[0-9]+`),
+    )
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+userURL, err := router.URL("api.users.view", map[string]string{
+    "tenant": "acme",
+    "id":     "42",
+})
+// userURL: //acme.example.com/api/users/42
+```
+
+Вложенные группы наследуют prefix, host и middleware родителя. Регулярные ограничения применяются как при разборе запроса, так и при обратной генерации URL.
+
 ## Конфигурация
 
 Конфигурация загружается в типизированную структуру. Более поздние источники имеют приоритет: JSON → `.env` → окружение процесса.
