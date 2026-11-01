@@ -390,6 +390,38 @@ func main() {
 
 Доступны команды `migration:create NAME`, `migration:up`, `migration:down` и `migration:status`. Общие флаги: `-dir`, `-driver`, `-dsn`, `-dialect`, `-table`; `up` и `down` принимают `-limit`. Значения подключения также читаются из `DB_DRIVER`, `DB_DSN`, `DB_DIALECT`, а настройки миграций — из `MIGRATION_DIR` и `MIGRATION_TABLE`.
 
+### Active Record
+
+Пакет `db/ar` связывает типизированный `Repository[T]` с обычной Go-структурой. Схема задаётся тегами `db`; поддерживаются составные первичные ключи, auto-ID и поле optimistic locking:
+
+```go
+type User struct {
+    ID      int64  `db:"id,primary,auto" json:"id"`
+    Email   string `db:"email" json:"email"`
+    Version int64  `db:"version,version" json:"version"`
+}
+
+func (User) TableName() string { return "users" }
+
+users, err := ar.NewRepository[User](connection, ar.Options{})
+user, err := users.FindByPK(ctx, int64(42))
+
+active, err := users.Find().
+    Where(db.Like("email", "%@example.com")).
+    OrderBy("id", db.SortDescending).
+    Limit(20).
+    All(ctx)
+
+err = users.Save(ctx, user)
+err = users.Delete(ctx, user)
+```
+
+`Insert`, `Update`, `Delete` и `Save` используют безопасный Query Builder. При обновлении поле `version` увеличивается в SQL вместе с проверкой прежнего значения; нулевой `RowsAffected` возвращает `ar.ErrStaleModel`. Репозиторий можно переключить на `*db.Transaction` через `WithExecutor`.
+
+Связи задаются через `ar.Relation`. `HasOne`/`HasMany` выполняют ленивую загрузку одной модели, а `LoadHasOne`/`LoadHasMany` загружают связи для среза родителей одним `IN`-запросом и возвращают результаты в том же порядке.
+
+Генератор строит gofmt-форматированные модели, теги и типизированные методы связей из `ar.TableSchema`. `ar.DatabaseInspector` получает столбцы и их типы через переносимый `database/sql.ColumnTypes`; первичные ключи, auto/version и связи передаются в `ar.InspectOptions`, поскольку эти метаданные не имеют единого контракта у SQL-драйверов. `Generator.GenerateFile` создаёт файл эксклюзивно и не перезаписывает существующую модель.
+
 ## Компоненты и behaviors
 
 Именованные компоненты приложения создаются лениво и по умолчанию работают как singleton:
