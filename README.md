@@ -151,6 +151,72 @@ return ctx.Download(http.StatusOK, "storage/report.pdf", "report.pdf")
 
 JSON и XML полностью сериализуются до отправки HTTP-статуса, поэтому ошибка кодирования ещё может быть преобразована централизованным `ErrorHandler` в корректный ответ `500`. Для файлов автоматически выставляются `Content-Type`, `Content-Length` и `Last-Modified`; `Download` дополнительно формирует безопасный `Content-Disposition: attachment`. Ошибки чтения и записи возвращаются обработчику с сохранением исходной причины для `errors.Is`/`errors.As`. После начала ответа повторная запись через `Context` отклоняется, а стандартный error handler не дописывает второе тело.
 
+## Views, layouts и widgets
+
+`Renderer` загружает `.html`-шаблоны из любого `fs.FS`. Логическое имя совпадает с путём без расширения:
+
+```text
+templates/
+  layouts/main.html
+  views/home.html
+  widgets/alert.html
+```
+
+Layout получает готовое содержимое view в `.Content`, а исходные данные — в `.Data`:
+
+```gotemplate
+<!doctype html>
+<html>
+  <head><title>{{.Data.Title}}</title></head>
+  <body>{{.Content}}</body>
+</html>
+```
+
+View может вызывать переиспользуемые widgets и безопасно передавать состояние Vue:
+
+```gotemplate
+<h1>{{.Title}}</h1>
+{{widget "widgets/alert" .Message}}
+{{vueState "app-state" .State}}
+```
+
+Инициализация и использование в action:
+
+```go
+renderer, err := web.NewRenderer(
+    os.DirFS("templates"),
+    web.WithDefaultLayout("layouts/main"),
+)
+if err != nil {
+    log.Fatal(err)
+}
+if err := container.Instance(renderer); err != nil {
+    log.Fatal(err)
+}
+```
+
+Action получает renderer через DI:
+
+```go
+func (controller *PageController) Home(
+    ctx *web.Context,
+    renderer *web.Renderer,
+) error {
+    data := HomeData{Title: "Home", State: initialState}
+    return ctx.Render(http.StatusOK, renderer, "views/home", data)
+}
+```
+
+Для отдельного view layout можно заменить через `web.WithLayout("layouts/admin")` или отключить через `web.WithoutLayout()`. Дополнительные функции регистрируются опцией `web.WithTemplateFuncs`. После создания `Renderer` можно безопасно использовать конкурентно.
+
+Vue читает состояние без выполнения inline JavaScript:
+
+```js
+const state = JSON.parse(document.getElementById("app-state").textContent)
+```
+
+JSON экранирует `<`, `>` и `&`, поэтому даже строка `</script>` остаётся внутри data-тега и не превращается в исполняемый HTML.
+
 ## Конфигурация
 
 Конфигурация загружается в типизированную структуру. Более поздние источники имеют приоритет: JSON → `.env` → окружение процесса.

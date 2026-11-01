@@ -31,7 +31,7 @@
 - [x] URL Manager: статические и параметризованные маршруты, имена, генерация URL, вложенные группы, общие middleware, host/domain-шаблоны и регулярные ограничения.
 - [x] Контроллеры, actions, BeforeAction/AfterAction и DI аргументов.
 - [x] HTML/JSON/XML/file/stream responses и обработка ошибок.
-- [ ] Views, layouts, widgets и безопасная передача состояния в Vue.
+- [x] Views, layouts, widgets и безопасная передача состояния в Vue.
 
 ## Этап 3. Данные
 
@@ -60,4 +60,4 @@
 
 ## Ближайший инкремент
 
-Реализовать views, layouts, widgets и безопасную передачу серверного состояния в Vue.
+Реализовать Connection поверх `database/sql`: конфигурацию пула, проверку подключения и реестр SQL-диалектов.
