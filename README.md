@@ -356,6 +356,40 @@ rows, err := query.QueryContext(ctx, connection)
 
 `SelectRaw`, `SelectRawAs` и `RawCondition` предназначены только для SQL-фрагментов, заданных разработчиком; их значения всё равно передаются отдельными аргументами через маркер `?` (`??` означает литеральный вопросительный знак). `UPDATE` и `DELETE` без `WHERE` отклоняются, пока намерение не подтверждено явным вызовом `AllRows()`.
 
+### Миграции
+
+Пакет `db/migration` загружает парные SQL-файлы из каталога миграций. Имя содержит UTC-версию и описание:
+
+```text
+migrations/
+  20261101090000_create_users.up.sql
+  20261101090000_create_users.down.sql
+```
+
+`Runner.Up` применяет ожидающие миграции по порядку, `Runner.Down` откатывает последние в обратном порядке, а `Runner.Status` возвращает состояния `pending`, `applied`, `modified` и `missing`. История хранится в таблице `chitu_migration`; SHA-256 блокирует применение и откат изменённого файла. SQL и запись истории выполняются в одной транзакции, если выбранная СУБД поддерживает транзакционный DDL.
+
+CLI встраивается в консольное приложение, где регистрируется нужный `database/sql`-драйвер:
+
+```go
+import (
+    "context"
+    "log"
+    "os"
+
+    _ "github.com/jackc/pgx/v5/stdlib"
+    "github.com/chitushka/framework/db/migration"
+)
+
+func main() {
+    cli := migration.NewCLI()
+    if err := cli.Run(context.Background(), os.Args[1:]); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+Доступны команды `migration:create NAME`, `migration:up`, `migration:down` и `migration:status`. Общие флаги: `-dir`, `-driver`, `-dsn`, `-dialect`, `-table`; `up` и `down` принимают `-limit`. Значения подключения также читаются из `DB_DRIVER`, `DB_DSN`, `DB_DIALECT`, а настройки миграций — из `MIGRATION_DIR` и `MIGRATION_TABLE`.
+
 ## Компоненты и behaviors
 
 Именованные компоненты приложения создаются лениво и по умолчанию работают как singleton:
