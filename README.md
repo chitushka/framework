@@ -330,6 +330,32 @@ err := connection.Transaction(ctx, nil, func(transaction *db.Transaction) error 
 
 Встроенные диалекты поддерживают разный синтаксис savepoints: PostgreSQL/MySQL — `SAVEPOINT` и `RELEASE SAVEPOINT`, Oracle — `SAVEPOINT`/`ROLLBACK TO`, SQL Server — `SAVE TRANSACTION`/`ROLLBACK TRANSACTION`. Сторонний диалект включает вложенность реализацией `db.SavepointDialect`; иначе `Begin` возвращает `db.ErrSavepointsUnsupported`.
 
+### Query Builder
+
+`db.QueryBuilder` неизменяем: каждый fluent-вызов возвращает независимый запрос, поэтому общую основу можно безопасно переиспользовать. Идентификаторы экранируются выбранным диалектом, а значения передаются драйверу отдельно от SQL:
+
+```go
+base := db.NewQueryBuilder(connection.Dialect()).
+    Select("u.id", "u.email").
+    From("users", "u").
+    Where(db.Eq("u.active", true))
+
+query := base.
+    AndWhere(db.In("u.role", "admin", "editor")).
+    OrderBy("u.email", db.SortAscending).
+    Limit(50)
+
+sqlText, args, err := query.Build()
+if err != nil {
+    return err
+}
+rows, err := query.QueryContext(ctx, connection)
+```
+
+Поддерживаются `SELECT`, `FROM`, типизированные `JOIN`, `WHERE`, `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT`/`OFFSET`, а также `INSERT`, `UPDATE` и `DELETE`. Условия `Eq`, `Ne`, `Gt`, `Gte`, `Lt`, `Lte`, `Like`, `In`, `NotIn`, `IsNull`, `IsNotNull`, `And`, `Or` и `Not` всегда создают placeholders. Нумерация и пагинация учитывают PostgreSQL, MySQL/MariaDB, Oracle и SQL Server; для `OFFSET` в SQL Server требуется `ORDER BY`, а один `LIMIT` преобразуется в `TOP`.
+
+`SelectRaw`, `SelectRawAs` и `RawCondition` предназначены только для SQL-фрагментов, заданных разработчиком; их значения всё равно передаются отдельными аргументами через маркер `?` (`??` означает литеральный вопросительный знак). `UPDATE` и `DELETE` без `WHERE` отклоняются, пока намерение не подтверждено явным вызовом `AllRows()`.
+
 ## Компоненты и behaviors
 
 Именованные компоненты приложения создаются лениво и по умолчанию работают как singleton:
