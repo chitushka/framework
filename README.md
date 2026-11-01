@@ -283,6 +283,53 @@ stats := connection.Stats()
 rawDB := connection.DB()
 ```
 
+### Транзакции
+
+Корневая транзакция использует `database/sql`, а вложенная — savepoint выбранного диалекта:
+
+```go
+transaction, err := connection.BeginTx(ctx, &sql.TxOptions{
+    Isolation: sql.LevelSerializable,
+})
+if err != nil {
+    return err
+}
+
+nested, err := transaction.Begin(ctx)
+if err != nil {
+    _ = transaction.Rollback()
+    return err
+}
+if _, err := nested.ExecContext(ctx, query, args...); err != nil {
+    _ = nested.Rollback()
+    _ = transaction.Rollback()
+    return err
+}
+if err := nested.Commit(); err != nil {
+    _ = transaction.Rollback()
+    return err
+}
+return transaction.Commit()
+```
+
+Для обычного кода удобнее callback API, который автоматически выполняет commit или rollback:
+
+```go
+err := connection.Transaction(ctx, nil, func(transaction *db.Transaction) error {
+    if _, err := transaction.ExecContext(ctx, firstQuery, firstArgs...); err != nil {
+        return err
+    }
+    return transaction.Transaction(ctx, func(nested *db.Transaction) error {
+        _, err := nested.ExecContext(ctx, secondQuery, secondArgs...)
+        return err
+    })
+})
+```
+
+При ошибке callback откатывается соответствующий уровень; при panic rollback выполняется перед повторным panic. Если callback оставил активную вложенную транзакцию, фреймворк откатывает всю её цепочку и возвращает lifecycle-ошибку. Пока дочерняя транзакция активна, операции родителя возвращают `db.ErrNestedTransactionActive`. Повторное завершение возвращает `db.ErrTransactionDone`.
+
+Встроенные диалекты поддерживают разный синтаксис savepoints: PostgreSQL/MySQL — `SAVEPOINT` и `RELEASE SAVEPOINT`, Oracle — `SAVEPOINT`/`ROLLBACK TO`, SQL Server — `SAVE TRANSACTION`/`ROLLBACK TRANSACTION`. Сторонний диалект включает вложенность реализацией `db.SavepointDialect`; иначе `Begin` возвращает `db.ErrSavepointsUnsupported`.
+
 ## Компоненты и behaviors
 
 Именованные компоненты приложения создаются лениво и по умолчанию работают как singleton:

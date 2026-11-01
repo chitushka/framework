@@ -30,6 +30,16 @@ type Dialect interface {
 	Placeholder(position int) string
 }
 
+// SavepointDialect расширяет Dialect синтаксисом вложенных транзакций.
+// Пустой результат ReleaseSavepointSQL означает, что СУБД не поддерживает
+// явное освобождение savepoint и он живёт до завершения внешней транзакции.
+type SavepointDialect interface {
+	Dialect
+	SavepointSQL(name string) string
+	RollbackToSavepointSQL(name string) string
+	ReleaseSavepointSQL(name string) string
+}
+
 // DialectRegistry хранит диалекты по регистронезависимому имени.
 type DialectRegistry struct {
 	mu       sync.RWMutex
@@ -142,6 +152,31 @@ func (dialect builtinDialect) QuoteIdentifier(identifier string) string {
 
 func (dialect builtinDialect) Placeholder(position int) string {
 	return dialect.placeholder(position)
+}
+
+func (dialect builtinDialect) SavepointSQL(name string) string {
+	if dialect.name == SQLServer {
+		return "SAVE TRANSACTION " + name
+	}
+	return "SAVEPOINT " + name
+}
+
+func (dialect builtinDialect) RollbackToSavepointSQL(name string) string {
+	switch dialect.name {
+	case SQLServer:
+		return "ROLLBACK TRANSACTION " + name
+	case Oracle:
+		return "ROLLBACK TO " + name
+	default:
+		return "ROLLBACK TO SAVEPOINT " + name
+	}
+}
+
+func (dialect builtinDialect) ReleaseSavepointSQL(name string) string {
+	if dialect.name == Oracle || dialect.name == SQLServer {
+		return ""
+	}
+	return "RELEASE SAVEPOINT " + name
 }
 
 func dollarPlaceholder(position int) string { return "$" + strconv.Itoa(position) }
