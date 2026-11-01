@@ -422,6 +422,41 @@ err = users.Delete(ctx, user)
 
 Генератор строит gofmt-форматированные модели, теги и типизированные методы связей из `ar.TableSchema`. `ar.DatabaseInspector` получает столбцы и их типы через переносимый `database/sql.ColumnTypes`; первичные ключи, auto/version и связи передаются в `ar.InspectOptions`, поскольку эти метаданные не имеют единого контракта у SQL-драйверов. `Generator.GenerateFile` создаёт файл эксклюзивно и не перезаписывает существующую модель.
 
+## Валидация и безопасное присваивание
+
+Пакет `validation` отделяет пользовательские нарушения правил от инфраструктурных ошибок и поддерживает разные контракты для `create`, `update` и других сценариев:
+
+```go
+type UserInput struct {
+    ID      int64  `json:"id"`
+    Email   string `json:"email"`
+    Name    string `json:"name"`
+    IsAdmin bool   `json:"is_admin"`
+}
+
+func (*UserInput) Validation() validation.Set {
+    return validation.Set{
+        Scenarios: map[string]validation.Scenario{
+            "create": {Fields: []string{"email", "name"}},
+            "update": {Fields: []string{"name"}},
+        },
+        Rules: []validation.Rule{
+            validation.Field("email", validation.Required{}).In("create"),
+            validation.Field("email", validation.Email{}),
+            validation.Field("name", validation.String{Min: 2, Max: 100}),
+        },
+    }
+}
+
+input := &UserInput{}
+assigned, err := validation.AssignModel(input, payload, "create")
+validationErrors, err := validation.ValidateModel(ctx, input, "create")
+```
+
+`Scenario.Fields` является явным allowlist: поля `id` и `is_admin` из примера никогда не присваиваются из `payload`. Сначала конвертируются все допустимые значения и только затем модель изменяется, поэтому ошибка типа или переполнение не оставляют частично заполненную структуру. Результат сообщает списки назначенных и проигнорированных ключей.
+
+Встроены правила `Required`, `String`, `Integer`, `Email`, `Match`, `Compare`, `Date`, `File`, `Safe`, а также DB-проверки `Unique` и `Exist` с безопасными параметрами Query Builder. Пользовательские правила реализуются через малый интерфейс `Validator` или `ValidatorFunc`; все нарушения накапливаются по полям в `validation.Errors`.
+
 ## Компоненты и behaviors
 
 Именованные компоненты приложения создаются лениво и по умолчанию работают как singleton:
