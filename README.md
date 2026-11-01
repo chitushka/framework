@@ -240,6 +240,49 @@ if err := loader.Load(&cfg); err != nil {
 }
 ```
 
+## Подключение к базе данных
+
+Пакет `db` использует стандартный `database/sql`. Конкретный драйвер подключается приложением через blank import, а SQL-диалект выбирается независимо от него:
+
+```go
+import _ "github.com/jackc/pgx/v5/stdlib"
+
+databaseConfig := db.Config{
+    Driver:          "pgx",
+    DSN:             "postgres://app:secret@localhost/app",
+    Dialect:         db.PostgreSQL,
+    MaxOpenConns:    20,
+    MaxIdleConns:    5,
+    ConnMaxLifetime: 30 * time.Minute,
+    ConnMaxIdleTime: 5 * time.Minute,
+    PingTimeout:     5 * time.Second,
+}
+
+connection, err := db.Open(
+    context.Background(),
+    databaseConfig,
+    db.NewDefaultDialectRegistry(),
+)
+if err != nil {
+    log.Fatal(err)
+}
+defer connection.Close()
+```
+
+`Open` создаёт и настраивает пул, а затем проверяет подключение через `PingContext`. При неудачной проверке пул закрывается. `db.Config` содержит JSON/env-теги и может напрямую загружаться через `config.Loader`; поддерживаются `DB_DRIVER`, `DB_DSN`, `DB_DIALECT`, `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`, `DB_CONN_MAX_LIFETIME`, `DB_CONN_MAX_IDLE_TIME` и `DB_PING_TIMEOUT`.
+
+Встроенный реестр содержит диалекты `db.PostgreSQL`, `db.MySQL` (также MariaDB), `db.Oracle` и `db.SQLServer`. Он отвечает за quoting идентификаторов и placeholders, но не навязывает реализацию драйвера. Для другой СУБД достаточно реализовать интерфейс `db.Dialect` и вызвать `registry.Register(customDialect)`.
+
+Connection делегирует стандартные операции и сохраняет доступ к пулу:
+
+```go
+result, err := connection.ExecContext(ctx, query, args...)
+rows, err := connection.QueryContext(ctx, query, args...)
+row := connection.QueryRowContext(ctx, query, args...)
+stats := connection.Stats()
+rawDB := connection.DB()
+```
+
 ## Компоненты и behaviors
 
 Именованные компоненты приложения создаются лениво и по умолчанию работают как singleton:
