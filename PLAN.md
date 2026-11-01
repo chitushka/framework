@@ -27,7 +27,7 @@
 
 ## Этап 2. Web
 
-- [~] HTTP-приложение, request/response и цепочка middleware: реализованы HTTP context, JSON, redirect, middleware и обработка ошибок; серверный lifecycle ещё предстоит добавить.
+- [x] HTTP-приложение, request/response и цепочка middleware: HTTP context, JSON, redirect, middleware, обработка ошибок, управляемый `http.Server` и graceful shutdown.
 - [~] URL Manager: реализованы строгие статические и параметризованные маршруты, имена и генерация URL; группы, домены и регулярные выражения ещё предстоят.
 - [ ] Контроллеры, actions, BeforeAction/AfterAction и DI аргументов.
 - [ ] HTML/JSON/XML/file/stream responses и обработка ошибок.
@@ -60,4 +60,4 @@
 
 ## Ближайший инкремент
 
-Завершить HTTP-приложение: добавить управляемый lifecycle `http.Server`, корректную graceful shutdown и интеграцию с модулем `Application`.
+Расширить URL Manager: добавить группы маршрутов с общими prefix/middleware, ограничения параметров регулярными выражениями и маршрутизацию по домену.

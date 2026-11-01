@@ -37,6 +37,12 @@ type Module interface {
 	Shutdown(context.Context) error
 }
 
+// ErrorSource позволяет модулю сообщить о критической ошибке после успешного Boot.
+// Application.Run остановит приложение и вернёт первую полученную ошибку.
+type ErrorSource interface {
+	Errors() <-chan error
+}
+
 // Application объединяет общие компоненты и модули.
 type Application struct {
 	Container  *di.Container
@@ -150,8 +156,16 @@ func (a *Application) Run(ctx context.Context) error {
 	if err := a.Start(ctx); err != nil {
 		return err
 	}
-	<-ctx.Done()
-	return a.Shutdown(context.WithoutCancel(ctx))
+	runtimeContext, cancelRuntimeWatchers := context.WithCancel(ctx)
+	defer cancelRuntimeWatchers()
+	runtimeErrors := a.runtimeErrors(runtimeContext)
+	select {
+	case <-ctx.Done():
+		return a.Shutdown(context.WithoutCancel(ctx))
+	case err := <-runtimeErrors:
+		cancelRuntimeWatchers()
+		return errors.Join(err, a.Shutdown(context.WithoutCancel(ctx)))
+	}
 }
 
 // Running сообщает, завершён ли успешный запуск приложения.
@@ -177,4 +191,35 @@ func shutdownModules(ctx context.Context, modules []Module) error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+func (a *Application) runtimeErrors(ctx context.Context) <-chan error {
+	result := make(chan error, 1)
+	a.mu.Lock()
+	modules := append([]Module(nil), a.started...)
+	a.mu.Unlock()
+	for _, module := range modules {
+		source, ok := module.(ErrorSource)
+		if !ok {
+			continue
+		}
+		errorsFromModule := source.Errors()
+		if errorsFromModule == nil {
+			continue
+		}
+		go func(errorsFromModule <-chan error) {
+			select {
+			case err, open := <-errorsFromModule:
+				if !open || err == nil {
+					return
+				}
+				select {
+				case result <- err:
+				case <-ctx.Done():
+				}
+			case <-ctx.Done():
+			}
+		}(errorsFromModule)
+	}
+	return result
 }

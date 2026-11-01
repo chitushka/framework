@@ -51,6 +51,29 @@ if err := http.ListenAndServe(":8080", router); err != nil {
 
 Handlers возвращают ошибки, а единый `ErrorHandler` преобразует их в безопасные HTTP-ответы. Это сохраняет явную обработку ошибок, принятую в Go, и выполняет роль централизованного error handler из Yii2.
 
+Для управляемого запуска и graceful shutdown сервер регистрируется как модуль приложения:
+
+```go
+server, err := web.NewServer(web.ServerConfig{
+    Address:         ":8080",
+    ShutdownTimeout: 10 * time.Second,
+}, router)
+if err != nil {
+    log.Fatal(err)
+}
+if err := application.AddModule(server); err != nil {
+    log.Fatal(err)
+}
+
+ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+defer stop()
+if err := application.Run(ctx); err != nil {
+    log.Fatal(err)
+}
+```
+
+Ошибки, возникшие в `http.Server.Serve` после запуска, передаются в `Application.Run` и инициируют остановку остальных модулей.
+
 ## Конфигурация
 
 Конфигурация загружается в типизированную структуру. Более поздние источники имеют приоритет: JSON → `.env` → окружение процесса.

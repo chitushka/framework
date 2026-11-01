@@ -138,3 +138,37 @@ func TestApplicationRegistersBuiltInComponents(t *testing.T) {
 		t.Fatalf("неверный набор компонентов: %v", application.Components.Names())
 	}
 }
+
+type runtimeModule struct {
+	testModule
+	errors chan error
+}
+
+func (m *runtimeModule) Errors() <-chan error { return m.errors }
+
+func TestApplicationRunStopsOnRuntimeError(t *testing.T) {
+	var log []string
+	want := errors.New("runtime failure")
+	module := &runtimeModule{
+		testModule: testModule{id: "runtime", log: &log},
+		errors:     make(chan error, 1),
+	}
+	application := app.New(nil, nil)
+	_ = application.AddModule(module)
+	module.errors <- want
+	if err := application.Run(context.Background()); !errors.Is(err, want) {
+		t.Fatalf("получена ошибка %v", err)
+	}
+	if !reflect.DeepEqual(log, []string{"register:runtime", "boot:runtime", "shutdown:runtime"}) {
+		t.Fatalf("неверный lifecycle: %v", log)
+	}
+}
+
+func TestApplicationRunStopsOnContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	application := app.New(nil, nil)
+	if err := application.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
