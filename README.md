@@ -73,3 +73,37 @@ if err := loader.Load(&cfg); err != nil {
     log.Fatal(err)
 }
 ```
+
+## Компоненты и behaviors
+
+Именованные компоненты приложения создаются лениво и по умолчанию работают как singleton:
+
+```go
+err := application.Components.Register("mailer", func(
+    ctx context.Context,
+    resolver component.Resolver,
+) (any, error) {
+    return NewMailer(cfg.SMTP), nil
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+mailer, err := component.GetAs[*Mailer](ctx, application.Components, "mailer")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+Аналог Yii2 behaviors реализован явными декораторами интерфейсов:
+
+```go
+service, err := behavior.Apply[UserService](
+    baseService,
+    WithAudit(auditLog),
+    WithMetrics(metrics),
+)
+if err != nil {
+    log.Fatal(err)
+}
+```

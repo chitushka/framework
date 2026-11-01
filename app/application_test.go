@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/chitushka/framework/app"
-	"github.com/chitushka/framework/di"
+	"github.com/chitushka/framework/component"
 	"github.com/chitushka/framework/event"
 )
 
@@ -20,7 +20,7 @@ type testModule struct {
 }
 
 func (m *testModule) ID() string { return m.id }
-func (m *testModule) Register(*di.Container) error {
+func (m *testModule) Register(*app.Application) error {
 	*m.log = append(*m.log, "register:"+m.id)
 	return m.registerErr
 }
@@ -121,5 +121,20 @@ func TestLifecycleHandlerCanInspectApplication(t *testing.T) {
 	})
 	if err := application.Start(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestApplicationRegistersBuiltInComponents(t *testing.T) {
+	application := app.New(nil, nil)
+	resolved, err := component.GetAs[*app.Application](context.Background(), application.Components, "app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved != application {
+		t.Fatal("реестр вернул другое приложение")
+	}
+	want := []string{"app", "components", "container", "events"}
+	if !reflect.DeepEqual(application.Components.Names(), want) {
+		t.Fatalf("неверный набор компонентов: %v", application.Components.Names())
 	}
 }

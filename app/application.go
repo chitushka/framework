@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/chitushka/framework/component"
 	"github.com/chitushka/framework/di"
 	"github.com/chitushka/framework/event"
 )
@@ -31,15 +32,16 @@ const (
 // Module представляет изолированную функциональную часть приложения.
 type Module interface {
 	ID() string
-	Register(*di.Container) error
+	Register(*Application) error
 	Boot(context.Context, *Application) error
 	Shutdown(context.Context) error
 }
 
 // Application объединяет общие компоненты и модули.
 type Application struct {
-	Container *di.Container
-	Events    *event.Bus
+	Container  *di.Container
+	Events     *event.Bus
+	Components *component.Registry
 
 	mu      sync.Mutex
 	modules []Module
@@ -55,7 +57,13 @@ func New(container *di.Container, events *event.Bus) *Application {
 	if events == nil {
 		events = event.NewBus()
 	}
-	return &Application{Container: container, Events: events}
+	components := component.New()
+	application := &Application{Container: container, Events: events, Components: components}
+	_ = components.Instance("app", application)
+	_ = components.Instance("components", components)
+	_ = components.Instance("container", container)
+	_ = components.Instance("events", events)
+	return application
 }
 
 // AddModule добавляет модуль до запуска приложения.
@@ -89,7 +97,7 @@ func (a *Application) Start(ctx context.Context) error {
 	a.mu.Unlock()
 
 	for _, module := range modules {
-		if err := module.Register(a.Container); err != nil {
+		if err := module.Register(a); err != nil {
 			a.setStopped()
 			return fmt.Errorf("app: регистрация модуля %q: %w", module.ID(), err)
 		}
