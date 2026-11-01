@@ -50,3 +50,26 @@ if err := http.ListenAndServe(":8080", router); err != nil {
 ```
 
 Handlers возвращают ошибки, а единый `ErrorHandler` преобразует их в безопасные HTTP-ответы. Это сохраняет явную обработку ошибок, принятую в Go, и выполняет роль централизованного error handler из Yii2.
+
+## Конфигурация
+
+Конфигурация загружается в типизированную структуру. Более поздние источники имеют приоритет: JSON → `.env` → окружение процесса.
+
+```go
+type Config struct {
+    Debug bool `json:"debug" env:"APP_DEBUG" envDefault:"false"`
+    DB struct {
+        Host string `json:"host" env:"DB_HOST" envRequired:"true"`
+        Port int    `json:"port" env:"DB_PORT" envDefault:"5432"`
+    } `json:"db"`
+}
+
+var cfg Config
+loader := config.New(
+    config.WithJSONFile("config/app.json"),
+    config.WithEnvFile(".env"),
+)
+if err := loader.Load(&cfg); err != nil {
+    log.Fatal(err)
+}
+```
