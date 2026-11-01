@@ -103,6 +103,39 @@ userURL, err := router.URL("api.users.view", map[string]string{
 
 Вложенные группы наследуют prefix, host и middleware родителя. Регулярные ограничения применяются как при разборе запроса, так и при обратной генерации URL.
 
+## Контроллеры и actions
+
+Контроллер обычно встраивает `BaseController`, а action объявляется обычным методом с HTTP-контекстом и зависимостями в аргументах:
+
+```go
+type UserController struct {
+    web.BaseController
+}
+
+func (controller *UserController) Show(
+    ctx *web.Context,
+    users UserRepository,
+) error {
+    user, err := users.Find(ctx.Request.Context(), ctx.Param("id"))
+    if err != nil {
+        return err
+    }
+    return ctx.JSON(http.StatusOK, user)
+}
+
+container := di.New()
+_ = container.Provide(func() *UserController { return &UserController{} })
+
+err := router.GETAction(
+    "/users/{id}",
+    container,
+    (*UserController).Show,
+    web.WithName("users.show"),
+)
+```
+
+Для собственной логики до и после action контроллер переопределяет `BeforeAction` и `AfterAction`. Ошибка `BeforeAction` отменяет вызов; `AfterAction` получает ошибку action и может вернуть дополнительную ошибку. Контроллер и зависимости action разрешаются через DI для каждого запроса. Те же методы `GETAction`, `POSTAction` и `HandleAction` доступны у групп маршрутов.
+
 ## Конфигурация
 
 Конфигурация загружается в типизированную структуру. Более поздние источники имеют приоритет: JSON → `.env` → окружение процесса.

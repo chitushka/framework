@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/chitushka/framework/di"
 )
 
 // RouteOption настраивает маршрут во время регистрации.
@@ -171,6 +173,15 @@ func (r *Router) Handle(method, pattern string, handler Handler, options ...Rout
 	return nil
 }
 
+// HandleAction registers a controller action and resolves its controller and arguments through DI.
+func (r *Router) HandleAction(method, pattern string, container *di.Container, action any, options ...RouteOption) error {
+	handler, err := NewControllerAction(container, action)
+	if err != nil {
+		return err
+	}
+	return r.Handle(method, pattern, handler, options...)
+}
+
 // GET регистрирует GET-маршрут.
 func (r *Router) GET(pattern string, handler Handler, options ...RouteOption) error {
 	return r.Handle(http.MethodGet, pattern, handler, options...)
@@ -179,6 +190,16 @@ func (r *Router) GET(pattern string, handler Handler, options ...RouteOption) er
 // POST регистрирует POST-маршрут.
 func (r *Router) POST(pattern string, handler Handler, options ...RouteOption) error {
 	return r.Handle(http.MethodPost, pattern, handler, options...)
+}
+
+// GETAction registers a GET controller action.
+func (r *Router) GETAction(pattern string, container *di.Container, action any, options ...RouteOption) error {
+	return r.HandleAction(http.MethodGet, pattern, container, action, options...)
+}
+
+// POSTAction registers a POST controller action.
+func (r *Router) POSTAction(pattern string, container *di.Container, action any, options ...RouteOption) error {
+	return r.HandleAction(http.MethodPost, pattern, container, action, options...)
 }
 
 // URL строит URL именованного маршрута. Для host-маршрута возвращается //host/path.
@@ -288,6 +309,15 @@ func (g *Group) Handle(method, pattern string, handler Handler, options ...Route
 	return g.router.Handle(method, joined, handler, groupOptions...)
 }
 
+// HandleAction registers a controller action inside the group.
+func (g *Group) HandleAction(method, pattern string, container *di.Container, action any, options ...RouteOption) error {
+	handler, err := NewControllerAction(container, action)
+	if err != nil {
+		return err
+	}
+	return g.Handle(method, pattern, handler, options...)
+}
+
 // GET регистрирует GET-маршрут внутри группы.
 func (g *Group) GET(pattern string, handler Handler, options ...RouteOption) error {
 	return g.Handle(http.MethodGet, pattern, handler, options...)
@@ -296,6 +326,16 @@ func (g *Group) GET(pattern string, handler Handler, options ...RouteOption) err
 // POST регистрирует POST-маршрут внутри группы.
 func (g *Group) POST(pattern string, handler Handler, options ...RouteOption) error {
 	return g.Handle(http.MethodPost, pattern, handler, options...)
+}
+
+// GETAction registers a GET controller action inside the group.
+func (g *Group) GETAction(pattern string, container *di.Container, action any, options ...RouteOption) error {
+	return g.HandleAction(http.MethodGet, pattern, container, action, options...)
+}
+
+// POSTAction registers a POST controller action inside the group.
+func (g *Group) POSTAction(pattern string, container *di.Container, action any, options ...RouteOption) error {
+	return g.HandleAction(http.MethodPost, pattern, container, action, options...)
 }
 
 // Group создаёт вложенную группу, наследующую host и middleware.

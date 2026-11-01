@@ -29,7 +29,7 @@
 
 - [x] HTTP-приложение, request/response и цепочка middleware: HTTP context, JSON, redirect, middleware, обработка ошибок, управляемый `http.Server` и graceful shutdown.
 - [x] URL Manager: статические и параметризованные маршруты, имена, генерация URL, вложенные группы, общие middleware, host/domain-шаблоны и регулярные ограничения.
-- [ ] Контроллеры, actions, BeforeAction/AfterAction и DI аргументов.
+- [x] Контроллеры, actions, BeforeAction/AfterAction и DI аргументов.
 - [ ] HTML/JSON/XML/file/stream responses и обработка ошибок.
 - [ ] Views, layouts, widgets и безопасная передача состояния в Vue.
 
@@ -60,4 +60,4 @@
 
 ## Ближайший инкремент
 
-Реализовать контроллеры и actions: lifecycle `BeforeAction`/`AfterAction`, разрешение контроллеров и аргументов через DI, интеграция с URL Manager.
+Расширить HTTP responses: HTML, JSON, XML, files и streams, унифицировать обработку ошибок записи ответа.
