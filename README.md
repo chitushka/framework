@@ -457,6 +457,35 @@ validationErrors, err := validation.ValidateModel(ctx, input, "create")
 
 Встроены правила `Required`, `String`, `Integer`, `Email`, `Match`, `Compare`, `Date`, `File`, `Safe`, а также DB-проверки `Unique` и `Exist` с безопасными параметрами Query Builder. Пользовательские правила реализуются через малый интерфейс `Validator` или `ValidatorFunc`; все нарушения накапливаются по полям в `validation.Errors`.
 
+## Кэширование
+
+Пакет `cache` предоставляет единый context-aware API с TTL, удалением, полной очисткой логического пространства, тегами и зависимостями. Данные хранятся как `[]byte`, поэтому тот же API подходит для результатов запросов, JSON и серверных HTML-фрагментов:
+
+```go
+backend := cache.NewMemoryBackend()
+storage, err := cache.New(backend, "main")
+if err != nil {
+    log.Fatal(err)
+}
+
+err = storage.Set(ctx, "user:42", payload, cache.Options{
+    TTL:  10 * time.Minute,
+    Tags: []string{"users", "user:42"},
+})
+
+payload, found, err := storage.Get(ctx, "user:42")
+err = storage.InvalidateTags(ctx, "users")
+```
+
+Встроенные backend-драйверы:
+
+- `NewMemoryBackend` — потокобезопасное in-process хранилище с ленивым удалением истёкших записей;
+- `NewRedisBackend` — RESP2-клиент с AUTH, SELECT, префиксом и сетевыми тайм-аутами;
+- `NewMemcachedBackend` — клиент текстового протокола с корректной относительной и абсолютной экспирацией;
+- `NewDatabaseBackend` — SQL-хранилище для PostgreSQL, MySQL/MariaDB, Oracle и SQL Server. Метод `SchemaSQL` возвращает DDL, который следует применить обычной миграцией приложения.
+
+`DependencyFunc` позволяет привязать запись к произвольному состоянию, а `DBDependency` вычисляет SHA-256 полного упорядоченного результата SQL-запроса. Для стабильного отпечатка запрос должен содержать `ORDER BY`. Вычислители зависимостей являются Go-значениями и живут в singleton-экземпляре `Store`: если запись с callback-зависимостью прочитана другим процессом, она безопасно считается устаревшей. Теги и `Clear` используют поколения в backend и поэтому работают между процессами без сканирования ключей; старые записи с ограниченным TTL удаляются самим backend, поэтому для изменяемых данных рекомендуется всегда задавать TTL.
+
 ## Компоненты и behaviors
 
 Именованные компоненты приложения создаются лениво и по умолчанию работают как singleton:

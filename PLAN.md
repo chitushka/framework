@@ -44,7 +44,7 @@
 ## Этап 4. Прикладные подсистемы
 
 - [x] Валидация и сценарии массового присваивания.
-- [ ] Cache API и драйверы Memory/Redis/Memcached/Database.
+- [x] Cache API и драйверы Memory/Redis/Memcached/Database.
 - [ ] Сессии, Identity/User, CSRF и security middleware.
 - [ ] RBAC с иерархией ролей и разрешений.
 - [ ] Queue API и воркеры.
@@ -60,4 +60,4 @@
 
 ## Ближайший инкремент
 
-Реализовать Cache API и драйверы Memory/Redis/Memcached/Database.
+Реализовать сессии, Identity/User, CSRF и security middleware.
