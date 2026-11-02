@@ -609,3 +609,57 @@ _ = router.GET("/posts/{id}/edit", editPost,
 ```
 
 В шаблон можно зарегистрировать `manager.TemplateFunc(ctx, params)` как функцию `can`. Для SQL-хранилища `DatabaseStore.SchemaSQL()` возвращает DDL, который следует применить обычной миграцией проекта.
+
+## Очереди и воркеры
+
+`queue.Queue` сериализует payload в JSON и отправляет его выбранному broker. Встроенный `MemoryBroker` подходит для разработки; `DatabaseBroker` обеспечивает межпроцессную резервируемую очередь. `RedisBroker` и `RabbitMQBroker` подключаются через малые адаптеры клиентских библиотек, не фиксируя конкретный Redis/AMQP SDK.
+
+```go
+broker := queue.NewMemoryBroker()
+jobs, err := queue.New(broker)
+if err != nil {
+    log.Fatal(err)
+}
+
+type ReportJob struct {
+    ReportID string `json:"reportId"`
+}
+
+jobID, err := jobs.Push(ctx, "report.generate", ReportJob{
+    ReportID: "monthly-2026-11",
+}, queue.Options{
+    Delay:       5 * time.Second,
+    MaxAttempts: 5,
+})
+```
+
+Worker регистрирует типизированные обработчики, выполняет несколько задач параллельно и повторяет временные ошибки:
+
+```go
+worker, err := queue.NewWorker(broker, queue.WorkerConfig{
+    Concurrency: 4,
+    OnFailure: func(failure queue.Failure) {
+        slog.Error("job failed",
+            "id", failure.Message.ID,
+            "final", failure.Final,
+            "error", failure.Err,
+        )
+    },
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+err = worker.RegisterHandler("report.generate", queue.JSONHandler(
+    func(ctx context.Context, job ReportJob) error {
+        return reports.Generate(ctx, job.ReportID)
+    },
+))
+if err != nil {
+    log.Fatal(err)
+}
+
+_ = application.AddModule(worker)
+```
+
+`DatabaseBroker.SchemaSQL()` возвращает DDL таблицы очереди для текущего диалекта. Reservation lease автоматически возвращает задачу в обработку после падения процесса. Гарантия доставки — at least once, поэтому обработчики должны быть идемпотентными. Для Redis адаптер `RedisStore` должен атомарно резервировать due-message и восстанавливать истёкшие leases; RabbitMQ-адаптер реализует `RabbitChannel` поверх выбранного AMQP-клиента.
