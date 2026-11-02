@@ -52,7 +52,7 @@
 
 ## Этап 5. Инструменты и поставка
 
-- [ ] CLI и генераторы migration/model/CRUD.
+- [x] CLI и генераторы migration/model/CRUD.
 - [ ] Vue 3 + Vite + AdminKit 3.5 и AssetBundle.
 - [ ] Структурированные логи, метрики, трассировка и debug toolbar.
 - [ ] Basic, Advanced Admin и REST API примеры.
@@ -60,4 +60,4 @@
 
 ## Ближайший инкремент
 
-Реализовать CLI и генераторы migration/model/CRUD.
+Реализовать Vue 3 + Vite + AdminKit 3.5 и AssetBundle.

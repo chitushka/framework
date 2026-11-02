@@ -86,6 +86,12 @@ CSRF middleware создаёт независимый session-bound токен, 
 
 HTTP middleware выбирает язык в порядке query parameter, cookie, `Accept-Language`, default; записывает `Content-Language`, корректно дополняет `Vary` и сохраняет явный выбор в `SameSite=Lax` cookie. Template helpers `t`/`tn` требуют явный locale, что не связывает неизменяемый глобальный `Renderer` с конкретным запросом.
 
+### `console`, `gii`
+
+`console.Application` является однократным диспетчером команд поверх обычного `app.Application`: перед выполнением команды он запускает lifecycle модулей, передаёт команде тот же component registry и всегда вызывает shutdown. Команды реализуют малый интерфейс либо задаются `CommandFunc`, регистрируются до запуска и получают context/stdout/stderr без прямого завершения процесса. `help` сортирует команды детерминированно. Стандартный toolset адаптирует существующий migration CLI и добавляет `generate:migration`, `generate:model`, `generate:crud`; SQL-драйвер остаётся выбором приложения через blank import.
+
+Генераторы читают схему через `ar.DatabaseInspector`. Migration generator строит обратимую пару `CREATE/DROP TABLE`, экранирует идентификаторы выбранным диалектом, переносит primary key, nullable и auto-increment и отклоняет небезопасный SQL type. Model generator переиспользует существующий gofmt-форматированный Active Record generator. CRUD generator создаёт JSON controller с пятью actions и регистрацией маршрутов, отдельную allowlist search model и Vue 3/AdminKit-compatible таблицу/форму. Input DTO исключает primary/auto/version поля и присваивает только явно переданные значения. Все файлы создаются эксклюзивно; предварительная проверка и rollback не оставляют частичный scaffold и не перезаписывают пользовательский код.
+
 ### `config`
 
 Загрузчик заполняет пользовательские Go-структуры и не вводит глобальное хранилище. JSON-файлы накладываются в порядке объявления, затем применяются `.env`-файлы и окружение процесса. Поля связываются явно тегами `env`, `envDefault`, `envRequired`; поддерживаются скалярные типы, duration, slices, pointers и `encoding.TextUnmarshaler`. Такой API сохраняет типобезопасность и позволяет зарегистрировать готовую конфигурацию в DI как обычный singleton.

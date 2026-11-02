@@ -730,3 +730,62 @@ items, err := translator.N(
 ```
 
 Для `html/template` доступны locale-explicit функции `t` и `tn` через `translator.TemplateFuncs()`. Их результат остаётся строкой и автоматически экранируется шаблонизатором. По умолчанию отсутствующий перевод возвращает message key; строгий режим включается через `ErrorOnMissing`.
+
+## Console и генераторы
+
+`console.Application` объединяет команды приложения и предоставляет им тот же lifecycle, DI и component registry, что использует web-приложение:
+
+```go
+func main() {
+    core := app.New(nil, nil)
+    cli := console.New(core)
+
+    if err := console.RegisterTools(cli, console.ToolOptions{}); err != nil {
+        log.Fatal(err)
+    }
+    if err := cli.Run(context.Background(), os.Args[1:]); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+Конкретный `database/sql`-драйвер регистрируется приложением через blank import. Параметры `-driver`, `-dsn`, `-dialect` можно заменить переменными `DB_DRIVER`, `DB_DSN`, `DB_DIALECT`.
+
+Встроенные команды:
+
+- `migration:create`, `migration:up`, `migration:down`, `migration:status`;
+- `generate:migration` — создаёт диалектную `CREATE/DROP TABLE` migration по метаданным таблицы;
+- `generate:model` — создаёт Active Record struct с db/json tags;
+- `generate:crud` — создаёт controller, allowlist search/input models и Vue 3/AdminKit scaffold.
+
+Примеры:
+
+```bash
+app generate:migration -driver pgx -dialect postgresql -pk id -auto id -dir migrations users
+
+app generate:model -driver pgx -dialect postgresql -pk id -auto id \
+  -package model -output internal/model/user.go users
+
+app generate:crud -driver pgx -dialect postgresql -pk id -auto id \
+  -model-package example.com/project/internal/model \
+  -package controller -output internal/controller \
+  -vue-output web/src/views/UserView.vue -route /users users
+```
+
+CRUD controller предоставляет list/show/create/update/delete JSON actions и функцию регистрации маршрутов. Генерируемый input не позволяет массово присвоить primary key, auto-ID или optimistic-lock version; search model принимает только колонки исходной схемы. Числовые и boolean Vue-поля отправляются с корректными JSON-типами. Генераторы никогда не перезаписывают существующие файлы.
+
+Пользовательская команда задаётся без наследования:
+
+```go
+_ = cli.Register(console.CommandFunc{
+    CommandName:        "report:daily",
+    CommandDescription: "build the daily report",
+    Execute: func(ctx context.Context, command *console.Context, args []string) error {
+        reports, err := component.GetAs[*ReportService](ctx, command.Application.Components, "reports")
+        if err != nil {
+            return err
+        }
+        return reports.BuildDaily(ctx)
+    },
+})
+```
