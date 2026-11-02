@@ -45,7 +45,7 @@
 
 - [x] Валидация и сценарии массового присваивания.
 - [x] Cache API и драйверы Memory/Redis/Memcached/Database.
-- [ ] Сессии, Identity/User, CSRF и security middleware.
+- [x] Сессии, Identity/User, CSRF и security middleware.
 - [ ] RBAC с иерархией ролей и разрешений.
 - [ ] Queue API и воркеры.
 - [ ] Интернационализация.
@@ -60,4 +60,4 @@
 
 ## Ближайший инкремент
 
-Реализовать сессии, Identity/User, CSRF и security middleware.
+Реализовать RBAC с иерархией ролей и разрешений.

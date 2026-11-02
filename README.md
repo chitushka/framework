@@ -519,3 +519,44 @@ if err != nil {
     log.Fatal(err)
 }
 ```
+
+## Сессии, аутентификация и CSRF
+
+Серверная сессия подключается глобальным middleware. Встроенный memory backend подходит для разработки и одного процесса; Redis и Database backends пакета `cache` подключаются через `session.NewBackend`. Для небольших stateless-сессий доступен зашифрованный `CookieStore`.
+
+```go
+sessions, err := session.New(session.NewMemoryBackend(), session.Config{
+    Name:   "sid",
+    TTL:    24 * time.Hour,
+    Secure: true,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+_ = router.Use(
+    sessions.Middleware,
+    auth.Middleware(identityLoader),
+    security.CSRF(security.CSRFConfig{}),
+    security.Headers(security.HeadersConfig{
+        ContentSecurityPolicy: "default-src 'self'",
+        HSTS: "max-age=31536000; includeSubDomains",
+    }),
+)
+```
+
+Текущие объекты доступны только в контексте запроса:
+
+```go
+currentSession := session.Must(ctx.Request.Context())
+currentUser := auth.Must(ctx.Request.Context())
+
+if err := currentUser.Login(identity); err != nil {
+    return err
+}
+return ctx.JSON(http.StatusOK, map[string]string{
+    "id": currentUser.ID(),
+})
+```
+
+CSRF-токен возвращается в заголовке `X-CSRF-Token`. Небезопасные методы должны прислать его в том же заголовке (Vue/fetch) или в поле формы `_csrf`. `Login` и `Logout` меняют идентификатор сессии; cookie имеет `HttpOnly` и `SameSite=Lax` по умолчанию.
