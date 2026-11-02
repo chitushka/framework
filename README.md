@@ -663,3 +663,70 @@ _ = application.AddModule(worker)
 ```
 
 `DatabaseBroker.SchemaSQL()` возвращает DDL таблицы очереди для текущего диалекта. Reservation lease автоматически возвращает задачу в обработку после падения процесса. Гарантия доставки — at least once, поэтому обработчики должны быть идемпотентными. Для Redis адаптер `RedisStore` должен атомарно резервировать due-message и восстанавливать истёкшие leases; RabbitMQ-адаптер реализует `RabbitChannel` поверх выбранного AMQP-клиента.
+
+## Интернационализация
+
+Каталоги переводов размещаются в любом `fs.FS` по схеме `<locale>/<category>.json`:
+
+```text
+locales/
+  en/app.json
+  ru/app.json
+```
+
+Простой текст задаётся строкой, а plural message — объектом форм:
+
+```json
+{
+  "welcome": "Привет, {{.name}}!",
+  "items": {
+    "one": "{{.count}} предмет",
+    "few": "{{.count}} предмета",
+    "many": "{{.count}} предметов",
+    "other": "{{.count}} предмета"
+  }
+}
+```
+
+Загрузка и подключение к HTTP-приложению:
+
+```go
+catalog, err := i18n.LoadFS(os.DirFS("locales"))
+if err != nil {
+    log.Fatal(err)
+}
+
+translator, err := i18n.New(catalog, i18n.Config{
+    DefaultLocale:    "en",
+    SupportedLocales: []string{"en", "ru", "fr"},
+    Fallbacks: map[string][]string{
+        "fr-CA": {"fr"},
+    },
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+_ = router.Use(i18n.Middleware(translator, i18n.MiddlewareConfig{}))
+```
+
+Middleware выбирает язык в порядке `?lang=`, cookie `lang`, `Accept-Language`, default и помещает канонический locale в контекст запроса:
+
+```go
+message, err := translator.T(
+    ctx.Request.Context(),
+    "app",
+    "welcome",
+    map[string]any{"name": user.Name},
+)
+
+items, err := translator.N(
+    ctx.Request.Context(),
+    "app",
+    "items",
+    int64(len(records)),
+    nil,
+)
+```
+
+Для `html/template` доступны locale-explicit функции `t` и `tn` через `translator.TemplateFuncs()`. Их результат остаётся строкой и автоматически экранируется шаблонизатором. По умолчанию отсутствующий перевод возвращает message key; строгий режим включается через `ErrorOnMissing`.
