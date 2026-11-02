@@ -822,6 +822,69 @@ Layout размещает стили и module preload в `head`, а scripts —
 
 В режиме разработки вместо manifest регистрируется `asset.ViteDevBundle("http://localhost:5173", "src/main.js")`: он добавляет HMR client и entry как ES modules. Общие библиотеки можно оформить отдельными bundles и перечислить в `Dependencies`; реестр обеспечит порядок, дедупликацию и обнаружит цикл.
 
+## Логи, метрики и tracing
+
+Logging построен поверх стандартного `log/slog`. Console, append-only file и произвольные targets объединяются независимо от формата и уровня:
+
+```go
+console, _ := logging.NewWriterHandler(os.Stdout, logging.FormatJSON, &slog.HandlerOptions{
+    Level: slog.LevelInfo,
+})
+file, closeLog, err := logging.OpenFileHandler("runtime/application.log", logging.FormatJSON, nil)
+if err != nil {
+    log.Fatal(err)
+}
+defer closeLog.Close()
+
+targets, _ := logging.NewMultiHandler(console, file, elasticsearchHandler)
+logger, _ := logging.New(targets)
+logger.Info("application started", "version", version)
+```
+
+`Debug`, `Info`, `Warn` и `Error` наследуются от `slog.Logger`; `Fatal` пишет запись на уровне `logging.LevelFatal` и завершает процесс. DB, Syslog, Elasticsearch или Telegram подключаются обычной реализацией `slog.Handler` и могут иметь собственный threshold.
+
+HTTP-наблюдаемость подключается снаружи router, поэтому видит в том числе 404/405 и ответы централизованного error handler:
+
+```go
+metrics, _ := observability.NewMetrics()
+tracer, _ := observability.NewTracer(otelExporterAdapter)
+
+handler := observability.HTTP(observability.HTTPConfig{
+    Logger:  logger.Logger,
+    Metrics: metrics,
+    Tracer:  tracer,
+})(router)
+
+http.Handle("/", handler)
+http.Handle("/metrics", metrics)
+```
+
+Prometheus endpoint экспортирует `chitu_http_requests_total`, `chitu_http_errors_total`, active requests и histogram времени ответа. Tracer поддерживает W3C `traceparent`; текущие trace/span ID доступны через `observability.SpanFromContext`. Exporter реализует малый `SpanExporter`, поэтому OpenTelemetry SDK подключается адаптером. Для CPU/heap/goroutine profiling доступен `observability.PprofHandler()`; endpoint необходимо размещать на закрытом listener или защищать авторизацией.
+
+## Debug toolbar
+
+Toolbar включается только в development-конфигурации:
+
+```go
+toolbar, err := debug.New(debug.Config{
+    Enabled:        environment == "development",
+    Environment:    []string{"APP_ENV", "APP_VERSION"}, // явный allowlist
+    CaptureSQLArgs: false,
+    Session: func(ctx context.Context) map[string]any {
+        user := auth.Must(ctx)
+        return map[string]any{"user_id": user.ID()}
+    },
+})
+if err != nil {
+    log.Fatal(err)
+}
+_ = router.Use(toolbar.Middleware)
+```
+
+Для запросов через `db.Connection` и `db.Transaction` SQL, duration и ошибки собираются автоматически из request context. Аргументы скрыты по умолчанию. Если приложение безопасно получило план выполнения, его можно прикрепить вызовом `debug.RecordSQLPlan(ctx, query, plan)`. Панель добавляется только в успешный несжатый HTML и показывает также route/params, память, session snapshot, разрешённые environment values и trace ID.
+
+Не включайте toolbar и pprof публично в production. Environment и session не читаются автоматически: приложение явно определяет безопасный набор значений.
+
 Пользовательская команда задаётся без наследования:
 
 ```go

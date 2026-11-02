@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"mime"
 	"net/http"
 	"os"
@@ -20,12 +21,38 @@ type Context struct {
 	Writer  http.ResponseWriter
 	Request *http.Request
 	params  map[string]string
+	route   string
+	name    string
 	written bool
 }
 
 // Param возвращает параметр пути. Для отсутствующего параметра возвращается пустая строка.
 func (c *Context) Param(name string) string {
 	return c.params[name]
+}
+
+// Params возвращает копию параметров текущего маршрута.
+func (c *Context) Params() map[string]string {
+	if c == nil {
+		return nil
+	}
+	return maps.Clone(c.params)
+}
+
+// RoutePattern возвращает зарегистрированный шаблон текущего маршрута.
+func (c *Context) RoutePattern() string {
+	if c == nil {
+		return ""
+	}
+	return c.route
+}
+
+// RouteName возвращает имя текущего маршрута или пустую строку.
+func (c *Context) RouteName() string {
+	if c == nil {
+		return ""
+	}
+	return c.name
 }
 
 // Written сообщает, была ли уже начата запись ответа через Context.

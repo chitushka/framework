@@ -119,22 +119,34 @@ func (connection *Connection) Stats() sql.DBStats { return connection.database.S
 
 // ExecContext выполняет запрос без возвращаемых строк.
 func (connection *Connection) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
-	return connection.database.ExecContext(ctx, query, args...)
+	started := time.Now()
+	result, err := connection.database.ExecContext(ctx, query, args...)
+	observeQuery(ctx, "exec", query, args, started, err)
+	return result, err
 }
 
 // QueryContext выполняет запрос, возвращающий строки.
 func (connection *Connection) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-	return connection.database.QueryContext(ctx, query, args...)
+	started := time.Now()
+	rows, err := connection.database.QueryContext(ctx, query, args...)
+	observeQuery(ctx, "query", query, args, started, err)
+	return rows, err
 }
 
 // QueryRowContext выполняет запрос одной строки.
 func (connection *Connection) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
-	return connection.database.QueryRowContext(ctx, query, args...)
+	started := time.Now()
+	row := connection.database.QueryRowContext(ctx, query, args...)
+	observeQuery(ctx, "query_row", query, args, started, nil)
+	return row
 }
 
 // PrepareContext создаёт подготовленный запрос.
 func (connection *Connection) PrepareContext(ctx context.Context, query string) (*sql.Stmt, error) {
-	return connection.database.PrepareContext(ctx, query)
+	started := time.Now()
+	statement, err := connection.database.PrepareContext(ctx, query)
+	observeQuery(ctx, "prepare", query, nil, started, err)
+	return statement, err
 }
 
 // Close закрывает пул соединений.

@@ -54,10 +54,10 @@
 
 - [x] CLI и генераторы migration/model/CRUD.
 - [x] Vue 3 + Vite + AdminKit 3.5 и AssetBundle.
-- [ ] Структурированные логи, метрики, трассировка и debug toolbar.
+- [x] Структурированные логи, метрики, трассировка и debug toolbar.
 - [ ] Basic, Advanced Admin и REST API примеры.
 - [ ] Definitive Guide, CI, lint и контроль покрытия ядра не ниже 80%.
 
 ## Ближайший инкремент
 
-Реализовать структурированные логи, метрики, трассировку и debug toolbar.
+Реализовать Basic, Advanced Admin и REST API примеры.

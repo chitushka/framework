@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 )
 
 var (
@@ -234,7 +235,10 @@ func (transaction *Transaction) ExecContext(ctx context.Context, query string, a
 	if err := transaction.ensureCurrent(); err != nil {
 		return nil, err
 	}
-	return transaction.transaction.ExecContext(ctx, query, args...)
+	started := time.Now()
+	result, err := transaction.transaction.ExecContext(ctx, query, args...)
+	observeQuery(ctx, "tx_exec", query, args, started, err)
+	return result, err
 }
 
 // QueryContext выполняет запрос в активной транзакции.
@@ -242,7 +246,10 @@ func (transaction *Transaction) QueryContext(ctx context.Context, query string, 
 	if err := transaction.ensureCurrent(); err != nil {
 		return nil, err
 	}
-	return transaction.transaction.QueryContext(ctx, query, args...)
+	started := time.Now()
+	rows, err := transaction.transaction.QueryContext(ctx, query, args...)
+	observeQuery(ctx, "tx_query", query, args, started, err)
+	return rows, err
 }
 
 // PrepareContext создаёт подготовленный запрос в активной транзакции.
@@ -250,7 +257,10 @@ func (transaction *Transaction) PrepareContext(ctx context.Context, query string
 	if err := transaction.ensureCurrent(); err != nil {
 		return nil, err
 	}
-	return transaction.transaction.PrepareContext(ctx, query)
+	started := time.Now()
+	statement, err := transaction.transaction.PrepareContext(ctx, query)
+	observeQuery(ctx, "tx_prepare", query, nil, started, err)
+	return statement, err
 }
 
 func (transaction *Transaction) ensureCurrent() error {

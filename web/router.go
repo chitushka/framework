@@ -245,7 +245,7 @@ func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			methodMatched = true
 			continue
 		}
-		context := &Context{Writer: writer, Request: request, params: params}
+		context := &Context{Writer: writer, Request: request, params: params, route: item.pattern, name: item.name}
 		handler := item.handler
 		middleware := append(append([]Middleware(nil), globalMiddleware...), item.middleware...)
 		for i := len(middleware) - 1; i >= 0; i-- {
