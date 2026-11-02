@@ -560,3 +560,52 @@ return ctx.JSON(http.StatusOK, map[string]string{
 ```
 
 CSRF-токен возвращается в заголовке `X-CSRF-Token`. Небезопасные методы должны прислать его в том же заголовке (Vue/fetch) или в поле формы `_csrf`. `Login` и `Logout` меняют идентификатор сессии; cookie имеет `HttpOnly` и `SameSite=Lax` по умолчанию.
+
+## RBAC
+
+`rbac.Manager` управляет ролями, разрешениями, их иерархией и назначениями пользователей. Для одного процесса доступен `MemoryStore`; `DatabaseStore` использует три нормализованные SQL-таблицы и поддерживает встроенные диалекты PostgreSQL, MySQL/MariaDB, Oracle и SQL Server.
+
+```go
+manager, err := rbac.New(rbac.NewMemoryStore())
+if err != nil {
+    log.Fatal(err)
+}
+
+ctx := context.Background()
+_ = manager.AddRole(ctx, "editor", "Content editor")
+_ = manager.AddPermission(ctx, "post.update", "Update a post")
+_ = manager.AddChild(ctx, "editor", "post.update")
+_ = manager.Assign(ctx, "user-42", "editor")
+
+allowed, err := manager.CheckAccess(ctx, "user-42", "post.update", nil)
+```
+
+Контекстное правило связывается с элементом по имени и получает параметры проверки:
+
+```go
+_ = manager.RegisterRule("ownsPost", rbac.RuleFunc(func(
+    ctx context.Context,
+    userID string,
+    params map[string]any,
+) (bool, error) {
+    return params["ownerID"] == userID, nil
+}))
+
+_ = manager.AddItem(ctx, rbac.Item{
+    Name: "post.update.own",
+    Kind: rbac.Permission,
+    Rule: "ownsPost",
+})
+```
+
+Для контроллеров проверка подключается route middleware. Гость получает `401`, а аутентифицированный пользователь без разрешения — `403`:
+
+```go
+_ = router.GET("/posts/{id}/edit", editPost,
+    web.WithMiddleware(rbac.Require(manager, "post.update", func(ctx *web.Context) map[string]any {
+        return map[string]any{"ownerID": loadOwnerID(ctx.Param("id"))}
+    })),
+)
+```
+
+В шаблон можно зарегистрировать `manager.TemplateFunc(ctx, params)` как функцию `can`. Для SQL-хранилища `DatabaseStore.SchemaSQL()` возвращает DDL, который следует применить обычной миграцией проекта.
