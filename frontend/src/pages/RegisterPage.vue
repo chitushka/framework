@@ -1,0 +1,3 @@
+<template>
+  <div class="card"><div class="card-body"><form><div class="mb-3"><label class="form-label">Имя</label><input class="form-control form-control-lg" autocomplete="name"></div><div class="mb-3"><label class="form-label">Email</label><input class="form-control form-control-lg" type="email" autocomplete="email"></div><div class="mb-3"><label class="form-label">Пароль</label><input class="form-control form-control-lg" type="password" autocomplete="new-password"></div><div class="d-grid gap-2 mt-3"><button class="btn btn-lg btn-primary" type="submit">Создать аккаунт</button></div><p class="text-center mt-3 mb-0">Уже зарегистрированы? <a href="/login">Войти</a></p></form></div></div>
+</template>

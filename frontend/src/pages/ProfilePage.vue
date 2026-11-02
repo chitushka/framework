@@ -1,0 +1,3 @@
+<template>
+  <div class="row"><div class="col-md-4"><div class="card"><div class="card-body text-center"><div class="display-4 mb-3">👤</div><h5 class="card-title mb-0">Администратор</h5><div class="text-muted mb-2">Системный пользователь</div></div></div></div><div class="col-md-8"><div class="card"><div class="card-header"><h5 class="card-title mb-0">Настройки профиля</h5></div><div class="card-body"><form><div class="mb-3"><label class="form-label">Имя</label><input class="form-control" value="Администратор"></div><div class="mb-3"><label class="form-label">Email</label><input type="email" class="form-control" value="admin@example.com"></div><button class="btn btn-primary" type="submit">Сохранить</button></form></div></div></div></div>
+</template>

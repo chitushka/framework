@@ -774,6 +774,54 @@ app generate:crud -driver pgx -dialect postgresql -pk id -auto id \
 
 CRUD controller предоставляет list/show/create/update/delete JSON actions и функцию регистрации маршрутов. Генерируемый input не позволяет массово присвоить primary key, auto-ID или optimistic-lock version; search model принимает только колонки исходной схемы. Числовые и boolean Vue-поля отправляются с корректными JSON-типами. Генераторы никогда не перезаписывают существующие файлы.
 
+## Vue 3, Vite, AdminKit и AssetBundle
+
+Каталог `frontend` содержит готовый Vue 3 scaffold на AdminKit 3.5.0: dashboard, профиль, вход, регистрация, восстановление пароля и страницы 404/500. Для разработки и production-сборки:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+npm run build
+```
+
+Vite пишет production-ресурсы в `public`, включая `.vite/manifest.json`. Их хэшированные имена подключаются без ручного копирования в Go-шаблоны:
+
+```go
+manifest, err := asset.LoadViteManifest(os.DirFS("public"), ".vite/manifest.json")
+if err != nil {
+    log.Fatal(err)
+}
+
+application, err := manifest.Bundle("src/main.js", "/")
+if err != nil {
+    log.Fatal(err)
+}
+
+assets := asset.NewRegistry()
+if err := assets.Register("application", application); err != nil {
+    log.Fatal(err)
+}
+
+renderer, err := web.NewRenderer(
+    os.DirFS("templates"),
+    web.WithDefaultLayout("layouts/main"),
+    web.WithTemplateFuncs(assets.TemplateFuncs("application")),
+)
+```
+
+Layout размещает стили и module preload в `head`, а scripts — перед закрытием `body`:
+
+```gotemplate
+<!doctype html>
+<html>
+  <head>{{assetHead}}</head>
+  <body>{{.Content}}{{assetBody}}</body>
+</html>
+```
+
+В режиме разработки вместо manifest регистрируется `asset.ViteDevBundle("http://localhost:5173", "src/main.js")`: он добавляет HMR client и entry как ES modules. Общие библиотеки можно оформить отдельными bundles и перечислить в `Dependencies`; реестр обеспечит порядок, дедупликацию и обнаружит цикл.
+
 Пользовательская команда задаётся без наследования:
 
 ```go

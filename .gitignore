@@ -1,2 +1,5 @@
 # Файлы настроек IDE JetBrains.
 .idea/
+.cache/
+frontend/node_modules/
+public/

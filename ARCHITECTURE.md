@@ -92,6 +92,12 @@ HTTP middleware выбирает язык в порядке query parameter, coo
 
 Генераторы читают схему через `ar.DatabaseInspector`. Migration generator строит обратимую пару `CREATE/DROP TABLE`, экранирует идентификаторы выбранным диалектом, переносит primary key, nullable и auto-increment и отклоняет небезопасный SQL type. Model generator переиспользует существующий gofmt-форматированный Active Record generator. CRUD generator создаёт JSON controller с пятью actions и регистрацией маршрутов, отдельную allowlist search model и Vue 3/AdminKit-compatible таблицу/форму. Input DTO исключает primary/auto/version поля и присваивает только явно переданные значения. Все файлы создаются эксклюзивно; предварительная проверка и rollback не оставляют частичный scaffold и не перезаписывают пользовательский код.
 
+### `asset`, Vue и Vite
+
+`asset.Registry` хранит именованные AssetBundle, разрешает их зависимости топологически, устраняет повторяющиеся ресурсы и отклоняет отсутствующие или циклические зависимости. Stylesheets и `modulepreload` выводятся в `<head>`, scripts — в конце `<body>`; URL и значения атрибутов проходят контекстное escaping `html/template`. Registry копирует входные структуры при регистрации и создаёт snapshot перед разрешением, поэтому после публикации безопасен для конкурентных рендеров. `TemplateFuncs` связывает заранее выбранные bundles с `assetHead`/`assetBody`, не принимая имена из шаблона.
+
+Production-интеграция читает `.vite/manifest.json`, рекурсивно собирает imports и CSS и сохраняет хэшированные имена Vite для cache busting. Development bundle подключает `@vite/client` и исходный entry с явно заданного HTTP(S) dev server. Готовый `frontend` использует Vue 3, Vite и зафиксированный `@adminkit/core` 3.5.0; production-файлы собираются в `public`, а manifest является контрактом между Node-сборкой и Go-приложением.
+
 ### `config`
 
 Загрузчик заполняет пользовательские Go-структуры и не вводит глобальное хранилище. JSON-файлы накладываются в порядке объявления, затем применяются `.env`-файлы и окружение процесса. Поля связываются явно тегами `env`, `envDefault`, `envRequired`; поддерживаются скалярные типы, duration, slices, pointers и `encoding.TextUnmarshaler`. Такой API сохраняет типобезопасность и позволяет зарегистрировать готовую конфигурацию в DI как обычный singleton.

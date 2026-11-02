@@ -1,0 +1,18 @@
+$brand-color: #3b7ddd;
+
+.brand-mark {
+  color: $brand-color;
+  font-weight: 700;
+}
+
+.stat-icon {
+  align-items: center;
+  background: rgba($brand-color, 0.12);
+  border-radius: 50%;
+  color: $brand-color;
+  display: inline-flex;
+  font-size: 1.25rem;
+  height: 3rem;
+  justify-content: center;
+  width: 3rem;
+}
