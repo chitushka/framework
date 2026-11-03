@@ -1,6 +1,8 @@
 # Chitu Framework
 
-Chitu — модульный веб-фреймворк с module path `github.com/chitushka/framework`. Архитектура и удобство разработки опираются на Yii2, а реализация следует идиоматическому Go без буквального переноса динамических PHP-механизмов. Проект находится на раннем этапе: сейчас доступны DI-контейнер, Event Bus и управляемый жизненный цикл модулей.
+Chitu — модульный веб-фреймворк с module path `github.com/chitushka/framework`. Архитектура и удобство разработки опираются на Yii2, а реализация следует идиоматическому Go без буквального переноса динамических PHP-механизмов. Фреймворк включает web-слой, доступ к данным, прикладные подсистемы, генераторы и production-инструменты.
+
+Последовательное руководство по проектированию, разработке, безопасности и эксплуатации находится в [Chitu Definitive Guide](docs/guide/README.md).
 
 ## Готовые примеры приложений
 
@@ -25,6 +27,10 @@ docker build --target test -t chitu-test .
 ```bash
 docker run --rm -v "$PWD:/workspace" -w /workspace golang:1.26 go test ./...
 ```
+
+## Качество
+
+Локальные проверки собраны в `Makefile`: `make test`, `make vet`, `make lint` и `make coverage`. Команда coverage контролирует взвешенное statement coverage библиотечных пакетов на уровне не ниже 80%. Те же проверки, включая race detector, выполняет [GitHub Actions workflow](.github/workflows/ci.yml).
 
 ## Минимальный пример
 
