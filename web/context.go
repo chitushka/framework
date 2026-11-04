@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"maps"
 	"mime"
 	"net"
@@ -154,7 +155,8 @@ func (c *Context) Stream(status int, contentType string, reader io.Reader) error
 	return nil
 }
 
-// File отправляет обычный файл с автоматически определённым Content-Type.
+// File sends a trusted application path. Never join client input onto a directory
+// and pass it here: use FileFromRoot for filesystem containment instead.
 func (c *Context) File(status int, path string) error {
 	return c.sendFile(status, path, "")
 }
@@ -165,6 +167,38 @@ func (c *Context) Download(status int, path, name string) error {
 		return errors.New("web: имя загружаемого файла не может быть пустым")
 	}
 	return c.sendFile(status, path, name)
+}
+
+// FileFromRoot serves a relative slash-separated client-selected path using the
+// OS traversal-resistant root. The caller owns root and must close it at shutdown.
+func (c *Context) FileFromRoot(status int, root *os.Root, name string) error {
+	return c.sendRootFile(status, root, name, "")
+}
+
+func (c *Context) DownloadFromRoot(status int, root *os.Root, name, downloadName string) error {
+	if downloadName == "" {
+		return errors.New("web: download name is required")
+	}
+	return c.sendRootFile(status, root, name, downloadName)
+}
+
+func (c *Context) sendRootFile(status int, root *os.Root, name, downloadName string) error {
+	if err := c.begin(); err != nil {
+		return err
+	}
+	if root == nil || !fs.ValidPath(name) || name == "." || strings.ContainsAny(name, "\\:\x00") {
+		return errors.New("web: invalid rooted file path")
+	}
+	for _, char := range name {
+		if char < 32 || char == 127 {
+			return errors.New("web: invalid rooted file path")
+		}
+	}
+	file, err := root.Open(name)
+	if err != nil {
+		return responseError("open rooted file", err)
+	}
+	return c.sendOpenedFile(status, file, downloadName)
 }
 
 // BindJSON decodes one JSON value, rejects unknown fields and requires a JSON media type.
@@ -199,6 +233,10 @@ func (c *Context) sendFile(status int, path, downloadName string) error {
 	if err != nil {
 		return responseError("открытие file", err)
 	}
+	return c.sendOpenedFile(status, file, downloadName)
+}
+
+func (c *Context) sendOpenedFile(status int, file *os.File, downloadName string) error {
 	defer func() { _ = file.Close() }()
 
 	info, err := file.Stat()
@@ -206,7 +244,7 @@ func (c *Context) sendFile(status int, path, downloadName string) error {
 		return responseError("получение информации о file", err)
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("web: file response требует обычный файл: %s", path)
+		return errors.New("web: file response requires a regular file")
 	}
 
 	contentType := mime.TypeByExtension(filepath.Ext(info.Name()))

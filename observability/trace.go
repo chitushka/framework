@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/chitushka/framework/web"
 )
 
 // Span описывает завершённый trace span для exporter-адаптера.
@@ -92,7 +94,11 @@ func (span *activeSpan) finish(ctx context.Context, status int, recovered any) {
 		span.span.EndedAt = time.Now()
 		span.span.Attributes["http.status_code"] = fmt.Sprint(status)
 		if recovered != nil {
-			span.span.Error = fmt.Sprint(recovered)
+			if web.IsProduction(ctx) {
+				span.span.Error = "request panic"
+			} else {
+				span.span.Error = fmt.Sprint(recovered)
+			}
 		} else if status >= 500 {
 			span.span.Error = fmt.Sprintf("HTTP %d", status)
 		}

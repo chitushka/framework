@@ -260,6 +260,7 @@ func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	r.mu.RLock()
 	limits, onError, proxy := r.limits, r.errorHandler, r.proxy
 	r.mu.RUnlock()
+	onError = requestErrorHandler(request, onError)
 	if proxy == nil {
 		if _, inherited := request.Context().Value(requestOriginKey{}).(requestOrigin); !inherited {
 			proxy = &ProxyPolicy{}
@@ -282,6 +283,7 @@ func (r *Router) serveHTTP(writer http.ResponseWriter, request *http.Request) {
 	globalMiddleware := append([]Middleware(nil), r.middleware...)
 	errorHandler := r.errorHandler
 	r.mu.RUnlock()
+	errorHandler = requestErrorHandler(request, errorHandler)
 
 	path, pathErr := requestPath(request.URL.EscapedPath())
 	if pathErr != nil {

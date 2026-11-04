@@ -58,6 +58,10 @@ func (metrics *Metrics) observe(method string, status int, duration time.Duratio
 	if metrics == nil {
 		return
 	}
+	method = metricMethod(method)
+	if status < 100 || status > 599 {
+		status = http.StatusInternalServerError
+	}
 	key := metricKey{method: method, status: status}
 	seconds := duration.Seconds()
 	metrics.mu.Lock()
@@ -74,6 +78,15 @@ func (metrics *Metrics) observe(method string, status int, duration time.Duratio
 		}
 	}
 	metrics.mu.Unlock()
+}
+
+func metricMethod(method string) string {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions, http.MethodConnect, http.MethodTrace:
+		return method
+	default:
+		return "OTHER"
+	}
 }
 
 // ServeHTTP экспортирует registry в Prometheus text exposition format.

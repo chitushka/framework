@@ -6,6 +6,12 @@ TLS reverse proxy deployment и границы ответственности о
 
 ## Конфигурация
 
+Оборачивайте публичную HTTP chain в `web.NewProductionHandler`, а для логов
+используйте `logging.NewProductionHandler`. Профиль отключает framework toolbar/pprof,
+скрывает framework error/panic details и raw paths в стандартной observability.
+Порядок middleware, ограничения redaction, rooted file API и threat-model checklist —
+в [security audit 7.6](security-audit.md). Это явная настройка, без переключения через client headers.
+
 Слои применяются от общих к специфичным: JSON, `.env`, системное окружение. После merge конфигурация декодируется в типизированную структуру, заполняет defaults и проверяет required-поля. В production не полагайтесь на `.env`; окружение процесса или secret manager имеют более ясную модель доступа.
 
 ## Cache

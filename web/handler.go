@@ -52,6 +52,13 @@ func defaultErrorHandler(context *Context, err error) {
 		status = httpError.Status
 		message = httpError.Message
 	}
+	if status < 400 || status > 599 {
+		status = http.StatusInternalServerError
+	}
+	if status >= 500 || (context.Request != nil && IsProduction(context.Request.Context())) {
+		message = http.StatusText(status)
+	}
+	context.Writer.Header().Set("Cache-Control", "no-store")
 	_ = context.JSON(status, map[string]any{
 		"error": map[string]any{
 			"status":  status,

@@ -3,9 +3,11 @@ package gii
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/format"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -71,6 +73,23 @@ func GenerateCRUD(schema ar.TableSchema, options CRUDOptions) ([]GeneratedFile, 
 	}
 	if !strings.HasPrefix(options.Route, "/") {
 		return nil, errors.New("gii: route must start with /")
+	}
+	parsed, parseErr := url.Parse(options.Route)
+	if parseErr != nil || parsed.Host != "" || parsed.Scheme != "" || parsed.RawQuery != "" || parsed.Fragment != "" || strings.ContainsAny(options.Route, "?#") {
+		return nil, errors.New("gii: route must be a local path without query or fragment")
+	}
+	for _, char := range parsed.Path {
+		if char <= 32 || char == 127 || char == '\\' {
+			return nil, errors.New("gii: invalid route character")
+		}
+	}
+	if strings.Contains(parsed.Path, "//") {
+		return nil, errors.New("gii: ambiguous route separators")
+	}
+	for _, part := range strings.Split(parsed.Path, "/") {
+		if part == "." || part == ".." {
+			return nil, errors.New("gii: invalid route segment")
+		}
 	}
 	primary := make([]ar.ColumnSchema, 0)
 	writable := make([]ar.ColumnSchema, 0)
@@ -246,7 +265,8 @@ func generateSearch(schema ar.TableSchema, o CRUDOptions) ([]byte, error) {
 func generateVue(schema ar.TableSchema, o CRUDOptions, primary, writable []ar.ColumnSchema) []byte {
 	var source bytes.Buffer
 	source.WriteString("<script setup>\nimport { onMounted, reactive, ref } from 'vue'\n\n")
-	fmt.Fprintf(&source, "const endpoint = %q\n", o.Route)
+	endpoint, _ := json.Marshal(o.Route) // JSON escapes HTML delimiters inside the SFC script.
+	fmt.Fprintf(&source, "const endpoint = %s\n", endpoint)
 	source.WriteString("const items = ref([])\nconst editing = ref(false)\nconst form = reactive({")
 	for index, column := range writable {
 		if index > 0 {

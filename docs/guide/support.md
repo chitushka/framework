@@ -78,7 +78,7 @@ HttpOnly и подходящий SameSite. Не включайте debug toolbar
 | Кража credentials/cookie, CSRF, escalation | Sessions/CSRF/RBAC, bounded Argon2id и credentials/throttling, public-key JWT verifier | Identity persistence/provider, общий limiter, TLS, secrets, MFA, permission/revocation checks |
 | Параллельные записи и повторная доставка | Savepoints, optimistic-lock API, обязательный session AtomicBackend; migration lock отсутствует | Общий атомарный session backend, обработка 409, один migration runner, идемпотентные jobs, transaction boundaries, outbox |
 | Отказ SQL/cache/broker/exporter, потеря процесса | Context/deadline API; нет полного outage/durability доказательства | Backup/restore, finite budgets, monitoring, retries с пределом, recovery процедуры |
-| Утечка secrets/PII, debug endpoint | Debug opt-in и SQL args скрыты по умолчанию | Redaction логов/payload, закрытые metrics/pprof, секреты вне кода, least privilege |
+| Утечка secrets/PII, debug endpoint | Production handler блокирует debug/pprof, скрывает framework errors/raw path/panic; production logger редактирует sensitive attrs/opaque objects | Внешний production wrapper, безопасные fixed log messages, redaction application payload/exporters, закрытые metrics, секреты вне кода, least privilege; [checklist](security-audit.md) |
 
 Не покрываются: скомпрометированный host/proxy/dependency, вредоносный модуль приложения,
 гарантия exactly-once, автоматическая compliance и защита произвольного raw SQL/HTML.

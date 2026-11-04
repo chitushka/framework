@@ -19,6 +19,7 @@ Production readiness ещё не подтверждена: сначала про
 HTTP-семантика и сетевые доказательства: [HTTP compatibility](http-compatibility.md).
 Атомарные sessions, TTL, ротация ключей и миграция: [sessions и CSRF](sessions.md).
 Passwords, login throttling и token verification: [reusable authentication](authentication.md).
+Production-профиль и threat-model checklist: [HTTP/tooling security audit](security-audit.md).
 
 ## Основная модель
 

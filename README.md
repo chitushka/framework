@@ -4,6 +4,9 @@ Chitu — модульный веб-фреймворк с module path `github.co
 
 Последовательное руководство по проектированию, разработке, безопасности и эксплуатации находится в [Chitu Definitive Guide](docs/guide/README.md).
 
+Production-профиль, secret redaction и файловые ответы с защитой от traversal:
+[HTTP/tooling security audit и checklist](docs/guide/security-audit.md).
+
 Проект до v1.0: production-ready статус ещё не подтверждён. Область проверенной совместимости
 задаёт [контракт поддержки](docs/guide/support.md); доказательства и ограничения API собраны
 в [реестре гарантий](docs/guide/guarantees.md). REQUIREMENTS описывает целевые требования.

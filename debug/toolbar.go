@@ -68,6 +68,9 @@ func (toolbar *Toolbar) Middleware(next web.Handler) web.Handler {
 		return next
 	}
 	return func(ctx *web.Context) error {
+		if web.IsProduction(ctx.Request.Context()) {
+			return next(ctx)
+		}
 		started := time.Now()
 		var before runtime.MemStats
 		runtime.ReadMemStats(&before)

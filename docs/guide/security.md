@@ -35,4 +35,7 @@ CSRF middleware обязателен для state-changing browser-запрос�
 
 ## Secrets
 
+Production-профиль, redaction, rooted files и проверенные HTTP/tooling границы
+описаны в [security audit checklist](security-audit.md).
+
 Secrets приходят из окружения или secret manager, не из репозитория. Задавайте минимальную длину ключа, сроки токенов и план ротации. Не логируйте passwords, session cookies, authorization headers и полные connection strings.

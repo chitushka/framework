@@ -196,7 +196,8 @@ func validateBundle(bundle Bundle) error {
 				return errors.New("URL ресурса не может быть пустым")
 			}
 			for name := range resource.Attributes {
-				if !attributeName.MatchString(name) || strings.EqualFold(name, "href") || strings.EqualFold(name, "src") {
+				lower := strings.ToLower(name)
+				if !attributeName.MatchString(name) || strings.HasPrefix(lower, "on") || lower == "srcdoc" || strings.EqualFold(name, "href") || strings.EqualFold(name, "src") {
 					return fmt.Errorf("некорректный атрибут %q", name)
 				}
 			}

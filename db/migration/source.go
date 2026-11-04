@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -78,7 +79,12 @@ func (source DirectorySource) Migrations(ctx context.Context) ([]Migration, erro
 	if strings.TrimSpace(source.Path) == "" {
 		return nil, errors.New("migration: source directory must not be empty")
 	}
-	entries, err := os.ReadDir(source.Path)
+	root, err := os.OpenRoot(source.Path)
+	if err != nil {
+		return nil, fmt.Errorf("migration: open directory: %w", err)
+	}
+	defer func() { _ = root.Close() }()
+	entries, err := fs.ReadDir(root.FS(), ".")
 	if err != nil {
 		return nil, fmt.Errorf("migration: read directory %q: %w", source.Path, err)
 	}
@@ -108,7 +114,7 @@ func (source DirectorySource) Migrations(ctx context.Context) ([]Migration, erro
 			item = &pair{migration: Migration{Version: matches[1], Name: matches[2]}}
 			pairs[id] = item
 		}
-		contents, err := os.ReadFile(filepath.Join(source.Path, entry.Name()))
+		contents, err := root.ReadFile(entry.Name())
 		if err != nil {
 			return nil, fmt.Errorf("migration: read %q: %w", entry.Name(), err)
 		}

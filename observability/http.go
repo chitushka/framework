@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/chitushka/framework/internal/httpwriter"
+	"github.com/chitushka/framework/web"
 )
 
 // HTTPConfig объединяет наблюдаемость одного HTTP request lifecycle.
@@ -29,10 +30,16 @@ func HTTP(config HTTPConfig) func(http.Handler) http.Handler {
 		}
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			started := time.Now()
+			path := request.URL.Path
+			method := request.Method
+			if web.IsProduction(request.Context()) {
+				path = "[redacted]"
+				method = metricMethod(method)
+			}
 			wrapped := &statusWriter{ResponseWriter: writer, status: http.StatusOK}
 			config.Metrics.begin()
-			attributes := map[string]string{"http.method": request.Method, "http.path": request.URL.Path}
-			ctx, span, traceErr := config.Tracer.start(request.Context(), request.Method+" "+request.URL.Path, request.Header.Get("traceparent"), attributes)
+			attributes := map[string]string{"http.method": method, "http.path": path}
+			ctx, span, traceErr := config.Tracer.start(request.Context(), method+" "+path, request.Header.Get("traceparent"), attributes)
 			if traceErr == nil && span != nil {
 				wrapped.Header().Set("traceparent", "00-"+span.span.TraceID+"-"+span.span.SpanID+"-01")
 				request = request.WithContext(ctx)
@@ -52,7 +59,7 @@ func HTTP(config HTTPConfig) func(http.Handler) http.Handler {
 					}
 					traceID, _, _ := SpanFromContext(request.Context())
 					config.Logger.Log(request.Context(), level, "http request",
-						"method", request.Method, "path", request.URL.Path, "status", wrapped.status,
+						"method", method, "path", path, "status", wrapped.status,
 						"bytes", wrapped.bytes, "duration", duration, "trace_id", traceID,
 					)
 				}
@@ -144,7 +151,13 @@ func PprofHandler() http.Handler {
 	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	return mux
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if web.IsProduction(request.Context()) {
+			http.NotFound(writer, request)
+			return
+		}
+		mux.ServeHTTP(writer, request)
+	})
 }
 
 // RemoteAddress возвращает host без порта для безопасного log attribute.
