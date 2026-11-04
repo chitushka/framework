@@ -3,6 +3,7 @@ package session
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -26,6 +27,21 @@ type Backend interface {
 	Delete(context.Context, string) error
 }
 
+// AtomicBackend must compare the exact loaded bytes and replace, rotate or delete
+// a record in one atomic operation shared by ALL application instances. A nil
+// expected value means the old ID must be absent; an empty newID deletes it.
+// Rotation must also reject an already occupied newID. Expired records are absent.
+// Save/Delete and CompareAndSwap must participate in the same serialization order.
+type AtomicBackend interface {
+	Backend
+	CompareAndSwap(ctx context.Context, oldID string, expected []byte, newID string, value []byte, ttl time.Duration) (bool, error)
+}
+
+var (
+	ErrConflict  = errors.New("session: concurrent update or revoked session")
+	ErrCommitted = errors.New("session: response has already committed the session")
+)
+
 // KeyValueBackend is implemented by the framework cache backends, including Redis and Database.
 type KeyValueBackend interface {
 	Get(context.Context, string) ([]byte, bool, error)
@@ -33,14 +49,36 @@ type KeyValueBackend interface {
 	Delete(context.Context, string) error
 }
 
-type keyValueAdapter struct{ backend KeyValueBackend }
+// AtomicKeyValueBackend extends a cache backend with AtomicBackend's compare,
+// expiration and cross-key rotation guarantees. Standard cache adapters do not
+// currently implement this interface.
+type AtomicKeyValueBackend interface {
+	KeyValueBackend
+	CompareAndSwap(context.Context, string, []byte, string, []byte, time.Duration) (bool, error)
+}
 
-// NewBackend adapts a cache-compatible Redis, Database, Memcached or memory backend.
+type keyValueAdapter struct{ backend AtomicKeyValueBackend }
+
+// NewBackend adapts a cache backend that also implements atomic CompareAndSwap
+// with the AtomicBackend semantics (including cross-key rotation). Plain cache
+// Get/Set/Delete implementations are rejected; they cannot prevent resurrection.
 func NewBackend(backend KeyValueBackend) (Backend, error) {
 	if backend == nil {
 		return nil, errors.New("session: key-value backend is required")
 	}
-	return &keyValueAdapter{backend: backend}, nil
+	atomic, ok := backend.(AtomicKeyValueBackend)
+	if !ok {
+		return nil, errors.New("session: cache backend requires atomic CompareAndSwap including rotation")
+	}
+	return &keyValueAdapter{backend: atomic}, nil
+}
+
+func (a *keyValueAdapter) CompareAndSwap(ctx context.Context, oldID string, expected []byte, newID string, value []byte, ttl time.Duration) (bool, error) {
+	next := ""
+	if newID != "" {
+		next = "session:" + newID
+	}
+	return a.backend.CompareAndSwap(ctx, "session:"+oldID, expected, next, value, ttl)
 }
 
 func (a *keyValueAdapter) Load(ctx context.Context, id string) ([]byte, bool, error) {
@@ -73,19 +111,49 @@ func (b *MemoryBackend) Load(ctx context.Context, id string) ([]byte, bool, erro
 	if err := ctx.Err(); err != nil {
 		return nil, false, err
 	}
-	b.mu.RLock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	entry, ok := b.entries[id]
-	b.mu.RUnlock()
 	if !ok {
 		return nil, false, nil
 	}
 	if !entry.expires.IsZero() && !b.now().Before(entry.expires) {
-		b.mu.Lock()
 		delete(b.entries, id)
-		b.mu.Unlock()
 		return nil, false, nil
 	}
 	return append([]byte(nil), entry.value...), true, nil
+}
+
+func (b *MemoryBackend) CompareAndSwap(ctx context.Context, oldID string, expected []byte, newID string, value []byte, ttl time.Duration) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	now := b.now()
+	for _, id := range []string{oldID, newID} {
+		if entry, ok := b.entries[id]; ok && !entry.expires.IsZero() && !now.Before(entry.expires) {
+			delete(b.entries, id)
+		}
+	}
+	entry, exists := b.entries[oldID]
+	if (expected == nil && exists) || (expected != nil && (!exists || !bytes.Equal(entry.value, expected))) {
+		return false, nil
+	}
+	if newID != "" && newID != oldID {
+		if _, exists := b.entries[newID]; exists {
+			return false, nil
+		}
+	}
+	delete(b.entries, oldID)
+	if newID != "" {
+		entry = memoryEntry{value: append([]byte(nil), value...)}
+		if ttl > 0 {
+			entry.expires = now.Add(ttl)
+		}
+		b.entries[newID] = entry
+	}
+	return true, nil
 }
 func (b *MemoryBackend) Save(ctx context.Context, id string, value []byte, ttl time.Duration) error {
 	if err := ctx.Err(); err != nil {
@@ -112,29 +180,39 @@ func (b *MemoryBackend) Delete(ctx context.Context, id string) error {
 
 // Config controls session lifetime and cookie security attributes.
 type Config struct {
-	Name     string
-	TTL      time.Duration
-	Path     string
-	Domain   string
-	Secure   bool
-	SameSite http.SameSite
+	Name string
+	TTL  time.Duration
+	// AbsoluteTTL bounds the complete session lifetime, including regenerated IDs.
+	// TTL is the idle lifetime. Defaults: 24 hours idle, 7 days absolute.
+	AbsoluteTTL time.Duration
+	Path        string
+	Domain      string
+	Secure      bool
+	SameSite    http.SameSite
 }
 
-// Manager loads and persists a Session for every request.
+// Manager loads and atomically persists a Session for every request. Concurrent
+// commits from the same snapshot are rejected with HTTP 409 and ErrConflict.
+// This does not roll back application side effects performed by the handler.
 type Manager struct {
-	backend Backend
+	backend AtomicBackend
 	config  Config
+	now     func() time.Time
 }
 
 func New(backend Backend, config Config) (*Manager, error) {
 	if backend == nil {
 		return nil, errors.New("session: backend is required")
 	}
+	atomic, ok := backend.(AtomicBackend)
+	if !ok {
+		return nil, errors.New("session: backend must implement AtomicBackend")
+	}
 	config, err := normalizedConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	return &Manager{backend: backend, config: config}, nil
+	return &Manager{backend: atomic, config: config, now: time.Now}, nil
 }
 
 func normalizedConfig(config Config) (Config, error) {
@@ -150,11 +228,26 @@ func normalizedConfig(config Config) (Config, error) {
 	if config.TTL < 0 {
 		return Config{}, errors.New("session: TTL cannot be negative")
 	}
+	if config.AbsoluteTTL == 0 {
+		config.AbsoluteTTL = 7 * 24 * time.Hour
+	}
+	if config.TTL < time.Second || config.AbsoluteTTL < time.Second {
+		return Config{}, errors.New("session: idle and absolute TTL must be at least one second")
+	}
 	if strings.ContainsAny(config.Name, "=;, \t\r\n") {
 		return Config{}, errors.New("session: invalid cookie name")
 	}
 	if config.SameSite == 0 {
 		config.SameSite = http.SameSiteLaxMode
+	}
+	if config.SameSite < http.SameSiteDefaultMode || config.SameSite > http.SameSiteNoneMode ||
+		(config.SameSite == http.SameSiteNoneMode && !config.Secure) ||
+		(strings.HasPrefix(config.Name, "__Secure-") && !config.Secure) ||
+		(strings.HasPrefix(config.Name, "__Host-") && (!config.Secure || config.Path != "/" || config.Domain != "")) {
+		return Config{}, errors.New("session: invalid secure cookie policy")
+	}
+	if err := cookieFromConfig(config, "", 1).Valid(); err != nil {
+		return Config{}, fmt.Errorf("session: cookie policy: %w", err)
 	}
 	return config, nil
 }
@@ -168,6 +261,11 @@ type Session struct {
 	values    map[string]json.RawMessage
 	dirty     bool
 	destroyed bool
+	committed bool
+	expected  []byte
+	created   time.Time
+	touched   time.Time
+	loaded    bool
 }
 
 func FromContext(ctx context.Context) (*Session, bool) {
@@ -198,6 +296,9 @@ func (s *Session) Set(key string, value any) error {
 	if s.destroyed {
 		return errors.New("session: session is destroyed")
 	}
+	if s.committed {
+		return ErrCommitted
+	}
 	s.values[key] = payload
 	s.dirty = true
 	return nil
@@ -223,28 +324,41 @@ func (s *Session) Get(key string, target any) (bool, error) {
 func (s *Session) Delete(key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.committed || s.destroyed {
+		return
+	}
 	if _, ok := s.values[key]; ok {
 		delete(s.values, key)
 		s.dirty = true
 	}
 }
 
-// Regenerate replaces the identifier on commit and invalidates the previous one.
+// Regenerate atomically replaces the identifier on commit, invalidates the old
+// ID, and clears the CSRF token. It preserves the original absolute lifetime.
 func (s *Session) Regenerate() error {
 	id, err := randomID()
 	if err != nil {
 		return err
 	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.committed || s.destroyed {
+		return ErrCommitted
+	}
 	s.id = id
+	// Authentication transitions must not retain the anonymous CSRF token.
+	delete(s.values, "security.csrf")
 	s.dirty = true
-	s.mu.Unlock()
 	return nil
 }
 
 // Destroy removes the session and expires its cookie.
 func (s *Session) Destroy() {
 	s.mu.Lock()
+	if s.committed {
+		s.mu.Unlock()
+		return
+	}
 	s.values = make(map[string]json.RawMessage)
 	s.destroyed = true
 	s.dirty = true
@@ -325,36 +439,29 @@ func (m *Manager) load(request *http.Request) (*Session, string, error) {
 	if !validID(id) {
 		id = ""
 	}
-	values := make(map[string]json.RawMessage)
 	if id != "" {
 		payload, found, err := m.backend.Load(request.Context(), id)
 		if err != nil {
 			return nil, "", fmt.Errorf("session: load: %w", err)
 		}
-		if found && json.Unmarshal(payload, &values) != nil {
-			_ = m.backend.Delete(request.Context(), id)
-			values = make(map[string]json.RawMessage)
-			id = ""
+		var record sessionRecord
+		if found && json.Unmarshal(payload, &record) == nil && record.valid(m.now(), m.config) && record.ID == id {
+			return &Session{id: id, values: record.Values, expected: payload, created: record.Created, touched: record.Touched, loaded: true}, id, nil
 		}
 	}
-	if id == "" {
-		var err error
-		id, err = randomID()
-		if err != nil {
-			return nil, "", err
-		}
+	// Never reuse an unknown, expired or malformed identifier supplied by a client.
+	id, err := randomID()
+	if err != nil {
+		return nil, "", err
 	}
-	return &Session{id: id, values: values}, id, nil
+	return &Session{id: id, values: make(map[string]json.RawMessage), created: m.now()}, id, nil
 }
 
 func (m *Manager) commit(ctx context.Context, writer http.ResponseWriter, s *Session, oldID string) error {
-	s.mu.RLock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.committed = true
 	id, dirty, destroyed := s.id, s.dirty, s.destroyed
-	values := make(map[string]json.RawMessage, len(s.values))
-	for key, value := range s.values {
-		values[key] = append([]byte(nil), value...)
-	}
-	s.mu.RUnlock()
 	if destroyed {
 		if err := m.backend.Delete(ctx, oldID); err != nil {
 			return fmt.Errorf("session: destroy: %w", err)
@@ -362,26 +469,53 @@ func (m *Manager) commit(ctx context.Context, writer http.ResponseWriter, s *Ses
 		http.SetCookie(writer, m.cookie("", -1))
 		return nil
 	}
-	if !dirty {
+	if !dirty && !s.loaded {
 		return nil
 	}
-	payload, err := json.Marshal(values)
+	now := m.now()
+	ttl := min(m.config.TTL, s.created.Add(m.config.AbsoluteTTL).Sub(now))
+	if ttl <= 0 || (s.loaded && !now.Before(s.touched.Add(m.config.TTL))) {
+		return web.NewHTTPError(http.StatusConflict, "session expired", ErrConflict)
+	}
+	revision, err := randomID()
+	if err != nil {
+		return err
+	}
+	payload, err := json.Marshal(sessionRecord{Version: 1, ID: id, Revision: revision, Created: s.created, Touched: now, Values: s.values})
 	if err != nil {
 		return fmt.Errorf("session: encode: %w", err)
 	}
-	if err := m.backend.Save(ctx, id, payload, m.config.TTL); err != nil {
+	swapped, err := m.backend.CompareAndSwap(ctx, oldID, s.expected, id, payload, ttl)
+	if err != nil {
 		return fmt.Errorf("session: save: %w", err)
 	}
-	if oldID != id {
-		if err := m.backend.Delete(ctx, oldID); err != nil {
-			return fmt.Errorf("session: delete old identifier: %w", err)
-		}
+	if !swapped {
+		return web.NewHTTPError(http.StatusConflict, "session changed; reload before retrying", ErrConflict)
 	}
-	http.SetCookie(writer, m.cookie(id, int(m.config.TTL.Seconds())))
-	s.mu.Lock()
+	http.SetCookie(writer, m.cookie(id, cookieAge(ttl)))
 	s.dirty = false
-	s.mu.Unlock()
 	return nil
+}
+
+// Versioned envelopes deliberately invalidate the old unbounded snapshot format.
+type sessionRecord struct {
+	Version  int                        `json:"v"`
+	ID       string                     `json:"id"`
+	Revision string                     `json:"revision"`
+	Created  time.Time                  `json:"created"`
+	Touched  time.Time                  `json:"touched"`
+	Values   map[string]json.RawMessage `json:"values"`
+}
+
+func (r sessionRecord) valid(now time.Time, config Config) bool {
+	return r.Version == 1 && validID(r.ID) && validID(r.Revision) && r.Values != nil &&
+		!r.Created.IsZero() && !r.Touched.Before(r.Created) && !now.Before(r.Touched) &&
+		now.Before(r.Created.Add(config.AbsoluteTTL)) && now.Before(r.Touched.Add(config.TTL))
+}
+
+func cookieAge(ttl time.Duration) int {
+	// Never round a positive sub-second remainder to MaxAge=0 (session cookie).
+	return max(1, int(ttl/time.Second))
 }
 
 func (m *Manager) cookie(value string, maxAge int) *http.Cookie {
@@ -403,6 +537,6 @@ func validID(value string) bool {
 	if len(value) != 43 {
 		return false
 	}
-	_, err := base64.RawURLEncoding.DecodeString(value)
-	return err == nil
+	decoded, err := base64.RawURLEncoding.Strict().DecodeString(value)
+	return err == nil && len(decoded) == 32 && base64.RawURLEncoding.EncodeToString(decoded) == value
 }

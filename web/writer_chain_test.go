@@ -411,6 +411,9 @@ func (failingSessionBackend) Save(context.Context, string, []byte, time.Duration
 	return errSessionSave
 }
 func (failingSessionBackend) Delete(context.Context, string) error { return nil }
+func (failingSessionBackend) CompareAndSwap(context.Context, string, []byte, string, []byte, time.Duration) (bool, error) {
+	return false, errSessionSave
+}
 
 func TestSessionCommitFailuresDoNotBecomeSuccessfulResponses(t *testing.T) {
 	for _, cookie := range []bool{false, true} {

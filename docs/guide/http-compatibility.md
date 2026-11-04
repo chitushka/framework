@@ -78,8 +78,9 @@ EnableFullDuplex метода у transport может возвращать http.
 
 Session изменения сохраняются перед первым final header/body, flush или hijack.
 Informational 1xx (кроме 101) не фиксируют session или окончательный status наблюдаемости.
-Изменения session должны предшествовать началу вывода; конкурентные snapshots/revocation
-по-прежнему относятся к этапу 7.4. Сбой commit до реального вывода возвращается как 500,
+Изменения session должны предшествовать началу вывода; после commit сессия заморожена.
+Конкурентные snapshots/revocation описаны в [session contract](sessions.md).
+Конфликт commit возвращает 409, backend failure до реального вывода возвращается как 500,
 а middleware восстанавливает исходный writer для error handler.
 Неотправленные representation headers (например Content-Length/Range/Encoding/ETag от файла)
 очищаются перед error handler, чтобы они не исказили framing и validators нового error body.

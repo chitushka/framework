@@ -74,7 +74,7 @@ HttpOnly и подходящий SameSite. Не включайте debug toolbar
 | Недоверенный HTTP-клиент: exhaustion, spoofed proxy/Host | Resource limits/timeouts, explicit proxy trust, host/redirect allowlists и CORS | Закрытый listener, очистка headers на proxy, точные CIDR/host/origin policies, согласованные бюджеты и проверка входа |
 | Пользовательский ввод: SQL injection, mass assignment, XSS | Параметры Query Builder, scenario allowlist, html/template и vueState; raw SQL/HTML обходят защиту | Allowlist identifiers, validation, запрет недоверенного raw SQL/HTML |
 | Кража credentials/cookie, CSRF, escalation | Session/auth/CSRF/RBAC primitives; нет password verifier и защиты от login brute force | Проверенный identity provider/verifier, TLS, secrets, throttling, permission checks |
-| Параллельные записи и повторная доставка | Savepoints, optimistic-lock API; session CAS и migration lock отсутствуют | Один migration runner, идемпотентные jobs, transaction boundaries, outbox |
+| Параллельные записи и повторная доставка | Savepoints, optimistic-lock API, обязательный session AtomicBackend; migration lock отсутствует | Общий атомарный session backend, обработка 409, один migration runner, идемпотентные jobs, transaction boundaries, outbox |
 | Отказ SQL/cache/broker/exporter, потеря процесса | Context/deadline API; нет полного outage/durability доказательства | Backup/restore, finite budgets, monitoring, retries с пределом, recovery процедуры |
 | Утечка secrets/PII, debug endpoint | Debug opt-in и SQL args скрыты по умолчанию | Redaction логов/payload, закрытые metrics/pprof, секреты вне кода, least privilege |
 

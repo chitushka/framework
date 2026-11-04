@@ -39,6 +39,9 @@ func CSRF(config CSRFConfig) web.Middleware {
 				return err
 			}
 			if !found || token == "" {
+				if !isSafe(ctx.Request.Method) {
+					return web.NewHTTPError(http.StatusForbidden, "invalid CSRF token", nil)
+				}
 				token, err = randomToken()
 				if err != nil {
 					return err
@@ -48,15 +51,23 @@ func CSRF(config CSRFConfig) web.Middleware {
 				}
 			}
 			ctx.Writer.Header().Set(config.Header, token)
+			ctx.Writer.Header().Set("Cache-Control", "no-store")
 			if isSafe(ctx.Request.Method) {
 				return next(ctx)
 			}
-			provided := ctx.Request.Header.Get(config.Header)
-			if provided == "" {
+			provided := ""
+			if headers := ctx.Request.Header.Values(config.Header); len(headers) > 0 {
+				if len(headers) == 1 {
+					provided = headers[0]
+				}
+			} else {
 				if err := ctx.Request.ParseForm(); err != nil {
 					return web.NewHTTPError(http.StatusBadRequest, "invalid form", err)
 				}
-				provided = ctx.Request.Form.Get(config.FormField)
+				// PostForm excludes query parameters and includes parsed multipart values.
+				if values := ctx.Request.PostForm[config.FormField]; len(values) == 1 {
+					provided = values[0]
+				}
 			}
 			if len(provided) != len(token) || subtle.ConstantTimeCompare([]byte(provided), []byte(token)) != 1 {
 				return web.NewHTTPError(http.StatusForbidden, "invalid CSRF token", nil)

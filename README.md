@@ -574,7 +574,7 @@ if err != nil {
 
 ## Сессии, аутентификация и CSRF
 
-Серверная сессия подключается глобальным middleware. Встроенный memory backend подходит для разработки и одного процесса; Redis и Database backends пакета `cache` подключаются через `session.NewBackend`. Для небольших stateless-сессий доступен зашифрованный `CookieStore`.
+Серверная сессия подключается глобальным middleware и требует `session.AtomicBackend`: конфликтующий commit возвращает 409, смена ID атомарна, старый снимок не восстанавливает отозванную сессию. Memory backend подходит для одного процесса; внешний общий AtomicBackend предоставляет приложение. Простые cache Get/Set/Delete adapters отклоняются. Для небольшого некритичного stateless-состояния доступен зашифрованный CookieStore с idle/absolute TTL и key rotation, без индивидуального revocation. Полный [контракт sessions/CSRF и миграция](docs/guide/sessions.md).
 
 ```go
 sessions, err := session.New(session.NewMemoryBackend(), session.Config{

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/chitushka/framework/session"
@@ -104,14 +105,15 @@ func TestCookieStoreEncryptsAndRestoresValues(t *testing.T) {
 	if get.Code != 200 || get.Body.String() != "\"admin\"\n" {
 		t.Fatalf("get = %d %q", get.Code, get.Body.String())
 	}
-	sealed, err := base64.RawURLEncoding.DecodeString(cookies[0].Value)
+	parts := strings.Split(cookies[0].Value, ".")
+	sealed, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Always alter authenticated bytes; replacing a base64 character may leave
 	// the original value unchanged or only change unused padding bits.
 	sealed[len(sealed)-1] ^= 1
-	cookies[0].Value = base64.RawURLEncoding.EncodeToString(sealed)
+	cookies[0].Value = parts[0] + "." + parts[1] + "." + base64.RawURLEncoding.EncodeToString(sealed)
 	tamperedRequest := httptest.NewRequest(http.MethodGet, "/get", nil)
 	tamperedRequest.AddCookie(cookies[0])
 	tampered := httptest.NewRecorder()

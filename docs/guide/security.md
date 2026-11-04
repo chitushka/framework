@@ -11,13 +11,14 @@
 Session backend должен быть общим для всех экземпляров приложения. Memory backend подходит только тестам и локальному запуску. Cookie должна иметь `Secure`, `HttpOnly` и подходящий `SameSite`; TLS завершается на доверенном proxy или в приложении.
 
 `auth.Middleware` устанавливается после session middleware. `Login` и `Logout` регенерируют
-session ID. Конкурентные записи, replay старого ID, key rotation и multi-instance revocation
-ещё не подтверждены (этап 7.4); snapshot записи session может перезаписать изменение другого запроса.
+session ID. AtomicBackend предотвращает перезапись конфликтующего снимка и восстановление
+отозванного ID; конфликт возвращает 409. Idle/absolute TTL и bounded cookie key rotation
+описаны в [контракте sessions/CSRF и инструкции миграции](sessions.md).
 Identity loader не должен возвращать отключённых пользователей. Password hashing/verifier,
 login throttling и production token verification предоставляет приложение (этап 7.5).
 
 `CookieStore` stateless: старую зашифрованную cookie нельзя отозвать на сервере,
-server-enforced TTL/key rotation пока отсутствуют. Для требований revocation выбирайте
+проверяются серверные idle/absolute TTL, доступна ротация ключей. Для требований revocation выбирайте
 server-side storage и проверяйте его ограничения из [реестра гарантий](guarantees.md).
 
 ## CSRF и headers
