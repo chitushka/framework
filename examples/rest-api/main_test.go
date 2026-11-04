@@ -22,7 +22,9 @@ func TestRESTAPIRequiresJWTAndCreatesArticle(t *testing.T) {
 	}
 
 	tokenResponse := httptest.NewRecorder()
-	handler.ServeHTTP(tokenResponse, httptest.NewRequest(http.MethodPost, "/v1/token", strings.NewReader(`{"client_id":"example-client","client_secret":"change-me"}`)))
+	tokenRequest := httptest.NewRequest(http.MethodPost, "/v1/token", strings.NewReader(`{"client_id":"example-client","client_secret":"change-me"}`))
+	tokenRequest.Header.Set("Content-Type", "application/json")
+	handler.ServeHTTP(tokenResponse, tokenRequest)
 	if tokenResponse.Code != http.StatusOK {
 		t.Fatalf("token status=%d body=%s", tokenResponse.Code, tokenResponse.Body.String())
 	}
@@ -35,6 +37,7 @@ func TestRESTAPIRequiresJWTAndCreatesArticle(t *testing.T) {
 
 	created := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/v1/articles", strings.NewReader(`{"title":"JWT example"}`))
+	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer "+tokenBody.AccessToken)
 	handler.ServeHTTP(created, request)
 	if created.Code != http.StatusCreated || created.Header().Get("Location") != "/v1/articles/2" {

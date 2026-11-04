@@ -43,6 +43,10 @@ func defaultErrorHandler(context *Context, err error) {
 	}
 	status := http.StatusInternalServerError
 	message := http.StatusText(status)
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		err = requestParseError(err)
+	}
 	var httpError *HTTPError
 	if errors.As(err, &httpError) {
 		status = httpError.Status

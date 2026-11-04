@@ -16,6 +16,10 @@ const (
 	defaultServerAddress     = ":8080"
 	defaultReadHeaderTimeout = 5 * time.Second
 	defaultShutdownTimeout   = 10 * time.Second
+	defaultReadTimeout       = 15 * time.Second
+	defaultWriteTimeout      = 30 * time.Second
+	defaultIdleTimeout       = 60 * time.Second
+	defaultMaxHeaderBytes    = 16 << 10
 	serverComponentName      = "web.server"
 )
 
@@ -27,6 +31,11 @@ type ServerConfig struct {
 	WriteTimeout      time.Duration
 	IdleTimeout       time.Duration
 	ShutdownTimeout   time.Duration
+	MaxHeaderBytes    int
+	RequestLimits     RequestLimits
+	// Streaming leaves WriteTimeout disabled when zero. Handlers must bound writes
+	// with http.ResponseController.SetWriteDeadline and respect request cancellation.
+	Streaming bool
 }
 
 // ServerOption настраивает HTTP-сервер.
@@ -84,13 +93,29 @@ func NewServer(config ServerConfig, handler http.Handler, options ...ServerOptio
 	if config.ShutdownTimeout == 0 {
 		config.ShutdownTimeout = defaultShutdownTimeout
 	}
+	if config.ReadTimeout == 0 {
+		config.ReadTimeout = defaultReadTimeout
+	}
+	if config.WriteTimeout == 0 && !config.Streaming {
+		config.WriteTimeout = defaultWriteTimeout
+	}
+	if config.IdleTimeout == 0 {
+		config.IdleTimeout = defaultIdleTimeout
+	}
+	if config.MaxHeaderBytes == 0 {
+		config.MaxHeaderBytes = defaultMaxHeaderBytes
+	}
 	if err := validateServerConfig(config); err != nil {
+		return nil, err
+	}
+	limited, err := NewLimitedHandler(handler, config.RequestLimits)
+	if err != nil {
 		return nil, err
 	}
 	server := &Server{
 		id:      "web",
 		config:  config,
-		handler: handler,
+		handler: limited,
 		errors:  make(chan error, 1),
 		done:    make(chan struct{}),
 	}
@@ -136,6 +161,7 @@ func (s *Server) Boot(_ context.Context, _ *app.Application) error {
 		ReadTimeout:       s.config.ReadTimeout,
 		WriteTimeout:      s.config.WriteTimeout,
 		IdleTimeout:       s.config.IdleTimeout,
+		MaxHeaderBytes:    s.config.MaxHeaderBytes,
 	}
 	s.started = true
 	s.booted = true
@@ -199,6 +225,9 @@ func (s *Server) serve(listener net.Listener, server *http.Server) {
 }
 
 func validateServerConfig(config ServerConfig) error {
+	if config.MaxHeaderBytes < 0 {
+		return errors.New("web: MaxHeaderBytes cannot be negative")
+	}
 	values := map[string]time.Duration{
 		"ReadHeaderTimeout": config.ReadHeaderTimeout,
 		"ReadTimeout":       config.ReadTimeout,

@@ -11,6 +11,7 @@ func loginAs(t *testing.T, handler http.Handler, username string) *http.Cookie {
 	t.Helper()
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(`{"username":"`+username+`"}`))
+	request.Header.Set("Content-Type", "application/json")
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || len(response.Result().Cookies()) == 0 {
 		t.Fatalf("login %s: status=%d body=%s", username, response.Code, response.Body.String())
@@ -21,6 +22,9 @@ func loginAs(t *testing.T, handler http.Handler, username string) *http.Cookie {
 func requestWithCookie(handler http.Handler, method, path, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(method, path, strings.NewReader(body))
+	if body != "" {
+		request.Header.Set("Content-Type", "application/json")
+	}
 	request.AddCookie(cookie)
 	handler.ServeHTTP(response, request)
 	return response

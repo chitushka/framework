@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 // Context объединяет HTTP-запрос, ответ и параметры найденного маршрута.
@@ -147,18 +148,26 @@ func (c *Context) Download(status int, path, name string) error {
 	return c.sendFile(status, path, name)
 }
 
-// BindJSON декодирует единственный JSON-объект и запрещает неизвестные поля.
+// BindJSON decodes one JSON value, rejects unknown fields and requires a JSON media type.
 func (c *Context) BindJSON(target any) error {
 	if target == nil {
 		return errors.New("web: target для JSON не может быть nil")
 	}
+	mediaType, _, err := mime.ParseMediaType(c.Request.Header.Get("Content-Type"))
+	isJSON := mediaType == "application/json" || (strings.HasPrefix(mediaType, "application/") && strings.HasSuffix(mediaType, "+json") && len(mediaType) > len("application/+json"))
+	if err != nil || !isJSON {
+		return NewHTTPError(http.StatusUnsupportedMediaType, "Content-Type must be application/json or application/*+json", err)
+	}
 	decoder := json.NewDecoder(c.Request.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
-		return NewHTTPError(http.StatusBadRequest, "некорректный JSON", err)
+		return requestParseError(err)
 	}
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		return NewHTTPError(http.StatusBadRequest, "тело должно содержать один JSON-объект", err)
+		if err == nil {
+			return NewHTTPError(http.StatusBadRequest, "body must contain one JSON value", nil)
+		}
+		return requestParseError(err)
 	}
 	return nil
 }

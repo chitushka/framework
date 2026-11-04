@@ -13,8 +13,8 @@
 | `event.Bus`, behavior decorators | Priority, unsubscribe, concurrent publish, typed decorators | [events](../../event/bus_test.go), [behaviors](../../behavior/behavior_test.go); нет durable event bus |
 | Config JSON/.env/env/defaults/required | Merge и typed decode | [config tests](../../config/loader_test.go); secret manager предоставляет приложение |
 | Router, controller hooks, DI, URL generation | Static/parameter/host routes, groups, named URLs | [router](../../web/router_test.go), [controllers](../../web/controller_test.go); proxy trust и полная HEAD/OPTIONS/encoded-path conformance — этап 7 |
-| BindJSON / responses | Один JSON value, неизвестные поля отклоняются; HTML/XML/file/stream | [binding](../../web/router_test.go), [responses](../../web/context_response_test.go); body limit/media-type policy не предоставляется, JSON value не обязан быть объектом |
-| HTTP server / graceful shutdown | http.Server lifecycle и явные timeout options | [server](../../web/server_test.go); нет безопасного полного timeout профиля по умолчанию, streaming wrappers проверены не во всех сочетаниях |
+| BindJSON / responses | Один JSON value, неизвестные поля отклоняются, JSON Content-Type обязателен; HTML/XML/file/stream | [binding](../../web/router_test.go), [responses](../../web/context_response_test.go), [limits](../../web/limits_test.go); вручную созданный Context требует внешнего body limiter |
+| HTTP resources / graceful shutdown | Body/form/upload limits до middleware, multipart cleanup, конечные server timeouts/header budget, explicit Streaming | [server](../../web/server_test.go), [policy](../../web/server_policy_test.go), [network/cleanup](../../web/limits_test.go); общий body ограничивается до parse, file/field metadata после bounded parsing; streaming wrappers проверены не во всех сочетаниях |
 | Views, widgets, Vue state, assets | html/template, JSON state escaping, Vite manifest | [views](../../web/view_test.go), [assets](../../asset/asset_test.go); template.HTML и произвольные URLs требуют доверенного ввода |
 | SQL Connection и dialects | database/sql pool, PostgreSQL/MySQL/Oracle/SQLServer dialects | [connection](../../db/connection_test.go), [dialects](../../db/dialect_test.go), [real SQL baseline](../../integration/services_test.go); Oracle/SQLServer только unit/fakes, drivers подключает приложение |
 | Transactions/savepoints | Callback commit/rollback, nested savepoints, panic cleanup | [transactions](../../db/transaction_test.go), [baseline](../../integration/services_test.go); DDL зависит от СУБД, full cancellation/commit-failure conformance — этап 8.2 |
@@ -36,6 +36,11 @@
 | CI и coverage ≥80% | Unit/race/vet/lint/coverage, baseline OS и integration jobs | [workflow](../../.github/workflows/ci.yml), [script](../../scripts/check-coverage.sh); coverage только statement агрегат, не доказательство security и не автоматическая branch protection |
 
 ## Воспроизведение из чистого checkout
+
+Шаг 7.1: Windows unit/vet, Linux race и coverage gate прошли (покрытие ядра 83,4%).
+Новые сетевые tests повторены пять раз; lint diff шага, включая новые файлы, — 0 замечаний.
+Проверены chunked overflow, header/body/write/idle budgets, streaming disconnect и cleanup
+multipart при success/error/panic/обрыве загрузки. Полная цепочка writer wrappers остаётся в 7.3.
 
 Локальная проверка этапа 6 (04.11.2026): Windows unit/vet, Linux unit/race/vet,
 coverage 83,1%, actionlint, обе команды интеграционного стенда и проверка Markdown links

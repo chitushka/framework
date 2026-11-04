@@ -90,11 +90,25 @@ type Router struct {
 	named        map[string]*route
 	middleware   []Middleware
 	errorHandler ErrorHandler
+	limits       RequestLimits
 }
 
 // NewRouter создаёт пустой маршрутизатор.
 func NewRouter() *Router {
-	return &Router{named: make(map[string]*route), errorHandler: defaultErrorHandler}
+	limits, _ := normalizeRequestLimits(RequestLimits{})
+	return &Router{named: make(map[string]*route), errorHandler: defaultErrorHandler, limits: limits}
+}
+
+// SetRequestLimits configures body/form/upload limits before parsing and middleware.
+func (r *Router) SetRequestLimits(limits RequestLimits) error {
+	normalized, err := normalizeRequestLimits(limits)
+	if err != nil {
+		return err
+	}
+	r.mu.Lock()
+	r.limits = normalized
+	r.mu.Unlock()
+	return nil
 }
 
 // Use добавляет глобальные middleware в порядке объявления.
@@ -227,6 +241,13 @@ func (r *Router) URL(name string, params map[string]string) (string, error) {
 
 // ServeHTTP реализует http.Handler.
 func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	r.mu.RLock()
+	limits, onError := r.limits, r.errorHandler
+	r.mu.RUnlock()
+	serveLimited(writer, request, limits, onError, r.serveHTTP)
+}
+
+func (r *Router) serveHTTP(writer http.ResponseWriter, request *http.Request) {
 	r.mu.RLock()
 	routes := append([]*route(nil), r.routes...)
 	globalMiddleware := append([]Middleware(nil), r.middleware...)

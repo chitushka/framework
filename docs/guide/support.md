@@ -53,10 +53,10 @@ Baseline deployment: один TLS reverse proxy, закрытая сеть до 
 SQL/cache/broker доступны только приложению. Это целевая схема эксплуатации, не готовый
 production профиль. Proxy завершает TLS, перенаправляет HTTP на HTTPS, проверяет Host,
 ограничивает размер headers/body, скорость и число соединений и задаёт deadlines.
-Listener приложения не должен быть доступен в обход proxy. У приложения отдельно задаются
-`ReadTimeout`, `ReadHeaderTimeout`, `WriteTimeout`, `IdleTimeout`, `MaxHeaderBytes` и
-shutdown budget; нулевые значения не означают безопасную настройку. Для streaming нужны
-отдельные timeouts и проверка writer wrappers (этап 7.3).
+Listener приложения не должен быть доступен в обход proxy. Server/Router предоставляют
+конечные body/form/upload/header limits и timeout defaults; приложение должно согласовать
+их с proxy и workload. Значения, правила streaming и пример конфигурации описаны в
+[HTTP resource policy](web.md#ограничения-ресурсов-http). Проверка всех writer wrappers — этап 7.3.
 
 Proxy удаляет входные Forwarded/X-Forwarded-* и формирует собственные значения.
 В framework пока нет trusted-proxy CIDR/host allowlist policy (этап 7.2): не используйте
@@ -69,7 +69,7 @@ HttpOnly и подходящий SameSite. Не включайте debug toolbar
 
 | Угроза / граница | Framework сейчас | Обязанность приложения/оператора |
 | --- | --- | --- |
-| Недоверенный HTTP-клиент: exhaustion, spoofed proxy/Host | HTTP primitives; автоматические limits/trusted proxy policy ещё не завершены | Закрытый listener, proxy limits, явные timeouts/origin, проверка входа |
+| Недоверенный HTTP-клиент: exhaustion, spoofed proxy/Host | Body/form/upload/header limits и конечные server timeouts; trusted proxy policy ещё не реализована | Закрытый listener, proxy limits, согласованные бюджеты/origin, проверка входа |
 | Пользовательский ввод: SQL injection, mass assignment, XSS | Параметры Query Builder, scenario allowlist, html/template и vueState; raw SQL/HTML обходят защиту | Allowlist identifiers, validation, запрет недоверенного raw SQL/HTML |
 | Кража credentials/cookie, CSRF, escalation | Session/auth/CSRF/RBAC primitives; нет password verifier и защиты от login brute force | Проверенный identity provider/verifier, TLS, secrets, throttling, permission checks |
 | Параллельные записи и повторная доставка | Savepoints, optimistic-lock API; session CAS и migration lock отсутствуют | Один migration runner, идемпотентные jobs, transaction boundaries, outbox |

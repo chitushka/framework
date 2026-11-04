@@ -109,6 +109,13 @@ if err := application.Run(ctx); err != nil {
 
 Ошибки, возникшие в `http.Server.Serve` после запуска, передаются в `Application.Run` и инициируют остановку остальных модулей.
 
+`Server` и `Router` по умолчанию ограничивают body (8 MiB), формы и uploads до прикладных
+middleware; временные multipart-файлы удаляются после handler. `BindJSON` требует JSON
+Content-Type (иначе 415), превышение body/form/upload limits возвращает 413.
+Server имеет конечные read/header/write/idle timeouts и header budget; для долгих ответов
+предусмотрен явный `Streaming` mode. Настройка `RequestLimits`, точные значения и изменения
+совместимости описаны в [HTTP resource policy](docs/guide/web.md#ограничения-ресурсов-http).
+
 Маршруты можно объединять общим prefix, middleware и доменом:
 
 ```go

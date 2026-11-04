@@ -117,13 +117,17 @@ func TestContextBindJSON(t *testing.T) {
 	})
 
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/input", bytes.NewBufferString(`{"name":"Chitu"}`)))
+	request := httptest.NewRequest(http.MethodPost, "/input", bytes.NewBufferString(`{"name":"Chitu"}`))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(response, request)
 	if response.Code != http.StatusCreated {
 		t.Fatalf("получен статус %d", response.Code)
 	}
 
 	response = httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/input", bytes.NewBufferString(`{"unknown":1}`)))
+	request = httptest.NewRequest(http.MethodPost, "/input", bytes.NewBufferString(`{"unknown":1}`))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(response, request)
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("получен статус %d", response.Code)
 	}
