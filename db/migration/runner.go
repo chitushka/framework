@@ -43,6 +43,8 @@ type Options struct {
 
 // Runner applies migrations and records each successful change atomically when
 // the selected database supports transactional DDL.
+// Runner does not acquire an inter-process lock. Callers must serialize migration
+// processes externally; databases with implicit DDL commits cannot roll back DDL.
 type Runner struct {
 	connection *frameworkdb.Connection
 	source     Source

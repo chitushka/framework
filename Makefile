@@ -1,4 +1,4 @@
-.PHONY: fmt fmt-check test vet lint coverage ci
+.PHONY: fmt fmt-check test vet lint coverage ci integration
 
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './.cache/*' -not -path './frontend/node_modules/*')
@@ -19,3 +19,6 @@ coverage:
 	sh ./scripts/check-coverage.sh coverage.out 80
 
 ci: fmt-check vet test coverage lint
+
+integration:
+	sh ./scripts/integration.sh

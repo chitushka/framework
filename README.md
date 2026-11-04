@@ -4,6 +4,10 @@ Chitu — модульный веб-фреймворк с module path `github.co
 
 Последовательное руководство по проектированию, разработке, безопасности и эксплуатации находится в [Chitu Definitive Guide](docs/guide/README.md).
 
+Проект до v1.0: production-ready статус ещё не подтверждён. Область проверенной совместимости
+задаёт [контракт поддержки](docs/guide/support.md); доказательства и ограничения API собраны
+в [реестре гарантий](docs/guide/guarantees.md). REQUIREMENTS описывает целевые требования.
+
 ## Готовые примеры приложений
 
 В каталоге [`examples`](examples/README.md) находятся три запускаемых приложения:
@@ -14,6 +18,10 @@ Chitu — модульный веб-фреймворк с module path `github.co
 
 Каждый пример отделяет сборку HTTP handler от `main`, поэтому пользовательские сценарии проверяются через `httptest`. Команды запуска, демонстрационные учётные данные и запросы приведены в [руководстве по примерам](examples/README.md).
 
+Это учебные приложения: Basic использует фиксированные credentials, Advanced Admin принимает
+только username, REST содержит самописный JWT и fallback secret. Для production authentication
+нужен отдельный проверенный verifier и хранилище пользователей.
+
 ## Проверка через Docker
 
 Локальная установка Go не требуется:
@@ -21,6 +29,17 @@ Chitu — модульный веб-фреймворк с module path `github.co
 ```bash
 docker build --target test -t chitu-test .
 ```
+
+Обязательный интеграционный baseline с настоящими PostgreSQL, MySQL, Redis, Memcached и RabbitMQ:
+
+```bash
+sh scripts/integration.sh
+```
+
+В PowerShell: `./scripts/integration.ps1`. Нужен Docker Compose v2 с Linux containers.
+Команда собирает runner, ждёт health checks и удаляет тестовые containers/volumes после
+завершения. Порты на host не публикуются. Ошибка или недоступность сервиса завершают проверку
+с ненулевым кодом; RabbitMQ пока проверяется только на уровне инфраструктуры, без queue adapter.
 
 Для интерактивной разработки:
 
@@ -579,7 +598,10 @@ CSRF-токен возвращается в заголовке `X-CSRF-Token`. �
 
 ## RBAC
 
-`rbac.Manager` управляет ролями, разрешениями, их иерархией и назначениями пользователей. Для одного процесса доступен `MemoryStore`; `DatabaseStore` использует три нормализованные SQL-таблицы и поддерживает встроенные диалекты PostgreSQL, MySQL/MariaDB, Oracle и SQL Server.
+`rbac.Manager` управляет ролями, разрешениями, их иерархией и назначениями пользователей.
+Для одного процесса доступен `MemoryStore`; `DatabaseStore` использует три нормализованные
+SQL-таблицы и генерирует SQL для встроенных диалектов PostgreSQL, MySQL, Oracle и SQL Server.
+Этот store проверен fake driver; реальный multi-process RBAC и MariaDB пока вне baseline.
 
 ```go
 manager, err := rbac.New(rbac.NewMemoryStore())
@@ -678,7 +700,13 @@ if err != nil {
 _ = application.AddModule(worker)
 ```
 
-`DatabaseBroker.SchemaSQL()` возвращает DDL таблицы очереди для текущего диалекта. Reservation lease автоматически возвращает задачу в обработку после падения процесса. Гарантия доставки — at least once, поэтому обработчики должны быть идемпотентными. Для Redis адаптер `RedisStore` должен атомарно резервировать due-message и восстанавливать истёкшие leases; RabbitMQ-адаптер реализует `RabbitChannel` поверх выбранного AMQP-клиента.
+`DatabaseBroker.SchemaSQL()` возвращает DDL таблицы очереди для текущего диалекта.
+Reservation lease позволяет повторно резервировать просроченную задачу; crash/restart
+и multi-process durability пока не подтверждены. Предполагаемая семантика — at least once,
+поэтому обработчики должны быть идемпотентными. После исчерпания попыток worker вызывает Ack;
+durable dead-letter storage отсутствует. Для Redis приложение должно реализовать `RedisStore`
+с атомарным резервированием и восстановлением leases, для RabbitMQ — `RabbitChannel` поверх
+выбранного AMQP-клиента; готовые SDK adapters пока не поставляются.
 
 ## Интернационализация
 

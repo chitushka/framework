@@ -11,7 +11,7 @@ permissions:
 jobs:
   test:
     name: Test and coverage
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
@@ -34,7 +34,7 @@ jobs:
           if-no-files-found: error
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
@@ -45,3 +45,22 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.13
+  windows:
+    name: Windows / Go 1.26
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go vet ./...
+      - run: go test ./...
+  integration:
+    name: Real service baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - name: SQL, Redis, Memcached and RabbitMQ baseline
+        run: sh scripts/integration.sh

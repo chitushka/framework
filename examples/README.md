@@ -2,6 +2,11 @@
 
 Все примеры используют только стандартную библиотеку Go и пакеты текущего модуля. Запускайте команды из корня репозитория.
 
+**Только демонстрации, не production starters.** Basic содержит фиксированные credentials
+и имя CSS-файла, Admin принимает username без пароля и теряет данные после restart,
+REST использует самописный JWT и встроенный fallback secret. Проверки `httptest` не заменяют
+browser E2E или security-аудит. Ограничения перечислены в [реестре гарантий](../docs/guide/guarantees.md).
+
 ## Basic
 
 Минимальный сайт использует server-side session, `auth.Middleware`, управляемый `web.Server` и готовую CSS-сборку AdminKit из `public`.
@@ -42,7 +47,9 @@ curl -b admin.cookie -H "Content-Type: application/json" \
 
 ## REST API
 
-JSON-only сервис выдаёт подписанный HS256 JWT по client credentials и защищает им группу `/v1`. Секрет берётся из `JWT_SECRET` и должен содержать не менее 32 байт.
+JSON-only сервис выдаёт подписанный HS256 JWT по client credentials и защищает им группу `/v1`.
+`JWT_SECRET` задаёт секрет длиной не менее 32 байт; при отсутствии переменной пример
+использует встроенный демонстрационный fallback, поэтому отсутствие env не является безопасным отказом.
 
 ```bash
 $env:JWT_SECRET = "replace-with-at-least-32-random-bytes"
@@ -58,7 +65,9 @@ curl -H "Content-Type: application/json" \
 curl -H "Authorization: Bearer TOKEN" http://localhost:8082/v1/articles
 ```
 
-JWT-реализация примера проверяет алгоритм, HMAC-подпись, обязательные claims и срок действия. Для production следует хранить client credentials и секреты вне исходного кода, включить TLS и настроить ротацию ключей.
+JWT-реализация примера проверяет алгоритм, HMAC-подпись, обязательные claims и срок действия.
+Для production замените её поддерживаемой библиотекой/verifier с issuer/audience/expiry
+policy и ротацией ключей; удалите fallback, храните credentials вне исходного кода и включите TLS.
 
 ## Проверка
 

@@ -2,4 +2,6 @@
 .idea
 .vscode
 coverage.out
+.cache
+frontend/node_modules
 

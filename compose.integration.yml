@@ -1,0 +1,79 @@
+# Test-only credentials. No ports or persistent volumes are exposed on the host.
+services:
+  postgres:
+    image: postgres:17-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
+    tmpfs:
+      - /var/lib/postgresql/data:size=256m
+    environment:
+      POSTGRES_USER: chitu
+      POSTGRES_PASSWORD: integration
+      POSTGRES_DB: chitu
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -h 127.0.0.1 -U chitu -d chitu"]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+  mysql:
+    image: mysql:8.4@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+    tmpfs:
+      - /var/lib/mysql:size=512m
+    environment:
+      MYSQL_ROOT_PASSWORD: integration-root
+      MYSQL_USER: chitu
+      MYSQL_PASSWORD: integration
+      MYSQL_DATABASE: chitu
+    healthcheck:
+      test: [CMD-SHELL, "MYSQL_PWD=integration mysql -h 127.0.0.1 -u chitu -D chitu -e 'SELECT 1'"]
+      start_period: 90s
+      interval: 2s
+      timeout: 3s
+      retries: 60
+  redis:
+    image: redis:7.4-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    command: [redis-server, --requirepass, integration, --save, "", --appendonly, "no"]
+    healthcheck:
+      test: [CMD-SHELL, "REDISCLI_AUTH=integration redis-cli ping | grep -q PONG"]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+  memcached:
+    image: memcached:1.6-alpine@sha256:6a089e37cbb8acd75c80c6c0667fe57ec54db68782fb1b3afb1d0eb265e50070
+    command: [memcached, -m, "32"]
+    healthcheck:
+      test: [CMD-SHELL, "printf 'version\r\n' | nc -w 1 127.0.0.1 11211 | grep -q VERSION"]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+  rabbitmq:
+    image: rabbitmq:4.3-alpine@sha256:b1f997f74103d08fc1f20a13890dc44fe6cfa51d528cf521b480ada988d3ffa5
+    environment:
+      RABBITMQ_DEFAULT_USER: chitu
+      RABBITMQ_DEFAULT_PASS: integration
+    healthcheck:
+      # Run as the server user so an early probe cannot create a root-owned cookie.
+      test: [CMD-SHELL, "su-exec rabbitmq rabbitmq-diagnostics -q check_running && su-exec rabbitmq rabbitmq-diagnostics -q check_port_connectivity"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+  tests:
+    build:
+      context: .
+      dockerfile: integration/Dockerfile
+    environment:
+      POSTGRES_DSN: postgres://chitu:integration@postgres:5432/chitu?sslmode=disable
+      MYSQL_DSN: chitu:integration@tcp(mysql:3306)/chitu?parseTime=true&timeout=5s&readTimeout=5s&writeTimeout=5s
+      REDIS_ADDRESS: redis:6379
+      REDIS_PASSWORD: integration
+      MEMCACHED_ADDRESS: memcached:11211
+      AMQP_URL: amqp://chitu:integration@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      memcached:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
