@@ -4,7 +4,7 @@
 
 - Реализация следует идиоматическому Go: явные зависимости и ошибки, небольшие интерфейсы на стороне потребителя, композиция вместо наследования и минимально необходимая рефлексия.
 - Yii2 служит архитектурной и DX-основой: из него заимствуются проверенные границы компонентов, жизненный цикл, модули, события, behaviors, Active Record, URL Manager и подходы Console/Gii. PHP-идиомы и динамическая магия Yii2 не переносятся буквально, если они противоречат модели Go.
-- Ядро использует только стандартную библиотеку Go.
+- Ядро использует стандартную библиотеку Go; auth делегирует Argon2id пакету golang.org/x/crypto и JWT verification библиотеке golang-jwt/jwt/v5. Версии и checksums закреплены в go.mod/go.sum, самописные password KDF/JWT signing protocols не входят в ядро.
 - Компоненты зависят от малых интерфейсов; конкретные реализации связываются в точке сборки.
 - Неявная магия ограничена проверяемой рефлексией DI-контейнера.
 - Запуск и остановка имеют явный порядок, принимают `context.Context` и возвращают ошибки.
@@ -60,9 +60,11 @@ Memory backend синхронизирован `RWMutex` и копирует ср
 
 ### `session`, `auth`, `security`
 
-`session.Manager` хранит на клиенте только криптографически случайный идентификатор, а JSON-состояние передаёт заменяемому `Backend`. `MemoryBackend` предназначен для одного процесса; `NewBackend` адаптирует минимальный key-value контракт, который уже реализуют Redis и Database backends пакета `cache`, не связывая пакеты конкретными типами. Для небольшого stateless-состояния `CookieStore` шифрует и аутентифицирует всё содержимое через AES-GCM, ограничивает размер и считает повреждённый cookie новой сессией. Запись выполняется до HTTP-заголовков. Cookie всегда имеет `HttpOnly` и `SameSite=Lax` по умолчанию, а `Secure`, domain, path и TTL задаются конфигурацией. Смена идентификатора при login/logout защищает от session fixation.
+`session.Manager` хранит на клиенте случайный идентификатор, а versioned JSON envelope — в `AtomicBackend`. CAS и перенос ID должны быть атомарны для всех экземпляров приложения; stale commit возвращает 409. MemoryBackend предназначен для одного процесса, простой cache Get/Set/Delete adapter отклоняется. Idle/absolute TTL проверяются сервером; состояние замораживается перед началом ответа. CookieStore использует AES-GCM, bounded key ring и TTL, но не предоставляет индивидуальный revocation/CAS. Cookie всегда имеет HttpOnly и default SameSite=Lax; Secure/prefix policy валидируется конфигурацией. [Контракт и миграция](docs/guide/sessions.md).
 
 `auth.Identity` содержит только стабильный строковый ID, а приложение восстанавливает доменный объект через `IdentityLoader`. Middleware создаёт отдельный `auth.User` для запроса; `Login`, `Logout`, `IsGuest`, `ID` и `Identity` не используют глобальное состояние. Отсутствующая после загрузки identity превращает сессию в гостевую. `RequireAuthenticated` и `RequireGuest` являются обычными middleware.
+
+`PasswordHasher` делегирует Argon2id библиотеке x/crypto, ограничивает costs/concurrency и использует PHC encoding. PasswordAuthenticator зависит от application CredentialStore и AttemptLimiter: проверяет credentials, выполняет dummy KDF для отсутствующих accounts и CAS rehash. Memory limiter атомарно резервирует account/client attempts с ограничением entries, внешний общий limiter предоставляет приложение. TokenVerifier отделяет bearer transport от провайдера: JWTVerifier использует golang-jwt/jwt/v5, явные algorithms/issuer/audience/typ/lifetime и атомарную замену доверенных public keys. Framework не выдаёт токены и не предоставляет identity provider; authorization/revocation остаются у приложения. [Authentication contract](docs/guide/authentication.md).
 
 CSRF middleware создаёт независимый session-bound токен, принимает его из `X-CSRF-Token` для Vue/fetch или `_csrf` для HTML-форм и сравнивает в constant time. Безопасные HTTP-методы пропускаются, остальные получают `403` при отсутствии или несовпадении токена. Middleware заголовков выставляет настраиваемые CSP, HSTS и Referrer-Policy, а также безопасные значения `X-Frame-Options` и `X-Content-Type-Options` по умолчанию. Пакеты `session`, `auth` и `security` содержат HTTP-адаптеры поверх малого публичного контракта `web.Handler`; зависимость направлена только к HTTP-слою, а `web` не знает о прикладных подсистемах.
 

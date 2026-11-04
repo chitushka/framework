@@ -14,8 +14,10 @@ Session backend должен быть общим для всех экземпл�
 session ID. AtomicBackend предотвращает перезапись конфликтующего снимка и восстановление
 отозванного ID; конфликт возвращает 409. Idle/absolute TTL и bounded cookie key rotation
 описаны в [контракте sessions/CSRF и инструкции миграции](sessions.md).
-Identity loader не должен возвращать отключённых пользователей. Password hashing/verifier,
-login throttling и production token verification предоставляет приложение (этап 7.5).
+Identity loader не должен возвращать отключённых пользователей. Argon2id hashing/rehash,
+credential verification с throttling и JWT/bearer verifier предоставляет пакет auth;
+[контракт и подключение](authentication.md). User persistence, общий limiter для нескольких
+процессов, MFA, permissions и revocation policy предоставляет приложение.
 
 `CookieStore` stateless: старую зашифрованную cookie нельзя отозвать на сервере,
 проверяются серверные idle/absolute TTL, доступна ротация ключей. Для требований revocation выбирайте

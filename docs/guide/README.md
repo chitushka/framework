@@ -18,6 +18,7 @@ Production readiness ещё не подтверждена: сначала про
 Дополнительный контракт: [proxy trust, Host, redirects и CORS](proxy.md).
 HTTP-семантика и сетевые доказательства: [HTTP compatibility](http-compatibility.md).
 Атомарные sessions, TTL, ротация ключей и миграция: [sessions и CSRF](sessions.md).
+Passwords, login throttling и token verification: [reusable authentication](authentication.md).
 
 ## Основная модель
 

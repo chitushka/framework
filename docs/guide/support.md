@@ -9,8 +9,8 @@
 
 | Компонент | Обязательная конфигурация | CI job | Область проверки |
 | --- | --- | --- | --- |
-| Go / Linux amd64 | Go 1.26.x, Ubuntu 24.04 runner | `test`, `lint` | Unit, vet, race, coverage, lint |
-| Go / Windows amd64 | Go 1.26.x, Windows Server 2025 runner | `windows` | Unit и vet; без race |
+| Go / Linux amd64 | Go 1.26.10+, ветка 1.26, Ubuntu 24.04 runner | `test`, `lint` | Unit, vet, race, coverage, lint |
+| Go / Windows amd64 | Go 1.26.10+, ветка 1.26, Windows Server 2025 runner | `windows` | Unit и vet; без race |
 | PostgreSQL | 17, Linux, pgx/v5 через database/sql | `integration` | Connection, параметры, DML/savepoint, последовательные migrations, SQL cache и queue smoke |
 | MySQL | 8.4 LTS, Linux, go-sql-driver/mysql | `integration` | Тот же набор; DDL не считается транзакционным |
 | Redis cache | 7.4, RESP2, TCP, password, DB 1 | `integration` | Binary set/get, overwrite/delete, TTL, AUTH/SELECT |
@@ -42,8 +42,10 @@
   наличие RabbitMQ в стенде не означает готовности RabbitMQBroker к эксплуатации.
 - Redis/Memcached backends не предоставляют TLS, cluster/sentinel, pooling, CAS и
   distributed stampede protection. Memcached backend не предоставляет SASL.
-- Полная SQL conformance, конкурентные migrations/AR/sessions, durable dead-letter,
-  OpenTelemetry SDK adapter, browser E2E и production authentication ещё не подтверждены.
+- Полная SQL conformance, конкурентные migrations/AR и внешние multi-process session
+  adapters, durable dead-letter, OpenTelemetry SDK adapter и browser E2E ещё не подтверждены.
+  Reusable password/JWT primitives проверены; production authentication flows starters
+  и пользовательские CredentialStore/общий AttemptLimiter требуют отдельной приёмки.
 - Frontend scaffold и три examples являются демонстрациями; они не входят в контракт
   готовых production starters. Полный список ограничений — в реестре гарантий.
 
@@ -73,7 +75,7 @@ HttpOnly и подходящий SameSite. Не включайте debug toolbar
 | --- | --- | --- |
 | Недоверенный HTTP-клиент: exhaustion, spoofed proxy/Host | Resource limits/timeouts, explicit proxy trust, host/redirect allowlists и CORS | Закрытый listener, очистка headers на proxy, точные CIDR/host/origin policies, согласованные бюджеты и проверка входа |
 | Пользовательский ввод: SQL injection, mass assignment, XSS | Параметры Query Builder, scenario allowlist, html/template и vueState; raw SQL/HTML обходят защиту | Allowlist identifiers, validation, запрет недоверенного raw SQL/HTML |
-| Кража credentials/cookie, CSRF, escalation | Session/auth/CSRF/RBAC primitives; нет password verifier и защиты от login brute force | Проверенный identity provider/verifier, TLS, secrets, throttling, permission checks |
+| Кража credentials/cookie, CSRF, escalation | Sessions/CSRF/RBAC, bounded Argon2id и credentials/throttling, public-key JWT verifier | Identity persistence/provider, общий limiter, TLS, secrets, MFA, permission/revocation checks |
 | Параллельные записи и повторная доставка | Savepoints, optimistic-lock API, обязательный session AtomicBackend; migration lock отсутствует | Общий атомарный session backend, обработка 409, один migration runner, идемпотентные jobs, transaction boundaries, outbox |
 | Отказ SQL/cache/broker/exporter, потеря процесса | Context/deadline API; нет полного outage/durability доказательства | Backup/restore, finite budgets, monitoring, retries с пределом, recovery процедуры |
 | Утечка secrets/PII, debug endpoint | Debug opt-in и SQL args скрыты по умолчанию | Redaction логов/payload, закрытые metrics/pprof, секреты вне кода, least privilege |

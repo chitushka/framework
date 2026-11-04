@@ -19,8 +19,10 @@ Chitu — модульный веб-фреймворк с module path `github.co
 Каждый пример отделяет сборку HTTP handler от `main`, поэтому пользовательские сценарии проверяются через `httptest`. Команды запуска, демонстрационные учётные данные и запросы приведены в [руководстве по примерам](examples/README.md).
 
 Это учебные приложения: Basic использует фиксированные credentials, Advanced Admin принимает
-только username, REST содержит самописный JWT и fallback secret. Для production authentication
-нужен отдельный проверенный verifier и хранилище пользователей.
+только username. REST проверяет внешние Ed25519 tokens через пакет auth и требует явной
+конфигурации ключа/issuer/audience. [Reusable authentication](docs/guide/authentication.md)
+предоставляет Argon2id, credentials/throttling и JWT verifier; user persistence и identity provider
+подключает приложение.
 
 ## Проверка через Docker
 

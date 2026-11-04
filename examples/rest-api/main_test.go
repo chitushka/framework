@@ -1,62 +1,98 @@
 package main
 
 import (
-	"encoding/json"
+	"crypto/ed25519"
+	"crypto/rand"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/chitushka/framework/auth"
+	"github.com/golang-jwt/jwt/v5"
 )
 
+func exampleTokens(t *testing.T) (*auth.JWTVerifier, ed25519.PrivateKey) {
+	t.Helper()
+	public, private, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verifier, err := auth.NewJWTVerifier(auth.JWTConfig{Issuer: "https://issuer.example", Audience: "articles", Algorithms: []string{"EdDSA"}}, []auth.JWTKey{{ID: "test", Algorithm: "EdDSA", PublicKey: public}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return verifier, private
+}
+
+func exampleToken(t *testing.T, key ed25519.PrivateKey, expires time.Time) string {
+	t.Helper()
+	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, jwt.RegisteredClaims{
+		Issuer: "https://issuer.example", Audience: jwt.ClaimStrings{"articles"}, Subject: "client",
+		IssuedAt: jwt.NewNumericDate(expires.Add(-time.Minute)), ExpiresAt: jwt.NewNumericDate(expires),
+	})
+	token.Header["kid"], token.Header["typ"] = "test", "at+jwt"
+	encoded, err := token.SignedString(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return encoded
+}
+
 func TestRESTAPIRequiresJWTAndCreatesArticle(t *testing.T) {
-	now := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
-	handler, err := newHandler([]byte("12345678901234567890123456789012"), func() time.Time { return now })
+	verifier, key := exampleTokens(t)
+	handler, err := newHandler(verifier)
 	if err != nil {
 		t.Fatal(err)
 	}
 	unauthorized := httptest.NewRecorder()
-	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/v1/articles", nil))
-	if unauthorized.Code != http.StatusUnauthorized || !strings.Contains(unauthorized.Header().Get("Content-Type"), "application/json") {
-		t.Fatalf("unauthorized status=%d type=%s", unauthorized.Code, unauthorized.Header().Get("Content-Type"))
+	handler.ServeHTTP(unauthorized, httptest.NewRequest("GET", "/v1/articles", nil))
+	if unauthorized.Code != 401 || unauthorized.Header().Get("WWW-Authenticate") != "Bearer" {
+		t.Fatal("missing bearer challenge")
 	}
-
-	tokenResponse := httptest.NewRecorder()
-	tokenRequest := httptest.NewRequest(http.MethodPost, "/v1/token", strings.NewReader(`{"client_id":"example-client","client_secret":"change-me"}`))
-	tokenRequest.Header.Set("Content-Type", "application/json")
-	handler.ServeHTTP(tokenResponse, tokenRequest)
-	if tokenResponse.Code != http.StatusOK {
-		t.Fatalf("token status=%d body=%s", tokenResponse.Code, tokenResponse.Body.String())
-	}
-	var tokenBody struct {
-		AccessToken string `json:"access_token"`
-	}
-	if err := json.Unmarshal(tokenResponse.Body.Bytes(), &tokenBody); err != nil {
-		t.Fatal(err)
-	}
-
 	created := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/v1/articles", strings.NewReader(`{"title":"JWT example"}`))
+	request := httptest.NewRequest("POST", "/v1/articles", strings.NewReader(`{"title":"JWT example"}`))
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Authorization", "Bearer "+tokenBody.AccessToken)
+	request.Header.Set("Authorization", "Bearer "+exampleToken(t, key, time.Now().Add(time.Minute)))
 	handler.ServeHTTP(created, request)
 	if created.Code != http.StatusCreated || created.Header().Get("Location") != "/v1/articles/2" {
-		t.Fatalf("create status=%d location=%s body=%s", created.Code, created.Header().Get("Location"), created.Body.String())
+		t.Fatalf("create: %d %s", created.Code, created.Body.String())
+	}
+	removed := httptest.NewRecorder()
+	handler.ServeHTTP(removed, httptest.NewRequest("POST", "/v1/token", nil))
+	if removed.Code != 404 {
+		t.Fatal("built-in token issuer remains enabled")
 	}
 }
 
-func TestRESTAPIRejectsTamperedAndExpiredTokens(t *testing.T) {
-	now := time.Unix(1000, 0)
-	service := tokenService{secret: []byte("12345678901234567890123456789012"), now: func() time.Time { return now }}
-	token, err := service.issue("client", time.Second)
+func TestRESTAPIRejectsTamperedExpiredAndRevokedTokens(t *testing.T) {
+	verifier, key := exampleTokens(t)
+	handler, err := newHandler(verifier)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.verify(token + "x"); err == nil {
-		t.Fatal("tampered token accepted")
+	valid := exampleToken(t, key, time.Now().Add(time.Minute))
+	for _, token := range []string{valid + "x", exampleToken(t, key, time.Now().Add(-time.Second))} {
+		request := httptest.NewRequest("GET", "/v1/articles", nil)
+		request.Header.Set("Authorization", "Bearer "+token)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != 401 {
+			t.Fatal("invalid token accepted")
+		}
 	}
-	service.now = func() time.Time { return now.Add(time.Second) }
-	if _, err := service.verify(token); err == nil {
-		t.Fatal("expired token accepted")
+	if err := verifier.ReplaceKeys(nil); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest("GET", "/v1/articles", nil)
+	request.Header.Set("Authorization", "Bearer "+valid)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != 401 {
+		t.Fatal("revoked key accepted")
+	}
+	if _, err := newHandler(nil); err == nil {
+		t.Fatal("unconfigured verifier accepted")
 	}
 }
