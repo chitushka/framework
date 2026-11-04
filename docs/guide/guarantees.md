@@ -12,7 +12,8 @@
 | DI `di.Container`, component.Registry | Constructors, singleton/transient, bindings, cycle detection | [DI](../../di/container_test.go), [components](../../component/registry_test.go); зависимости должны быть concurrency-safe |
 | `event.Bus`, behavior decorators | Priority, unsubscribe, concurrent publish, typed decorators | [events](../../event/bus_test.go), [behaviors](../../behavior/behavior_test.go); нет durable event bus |
 | Config JSON/.env/env/defaults/required | Merge и typed decode | [config tests](../../config/loader_test.go); secret manager предоставляет приложение |
-| Router, controller hooks, DI, URL generation | Static/parameter/host routes, groups, named URLs | [router](../../web/router_test.go), [controllers](../../web/controller_test.go); proxy trust и полная HEAD/OPTIONS/encoded-path conformance — этап 7 |
+| Router, controller hooks, DI, URL generation | Static/parameter/host routes, groups, named URLs | [router](../../web/router_test.go), [controllers](../../web/controller_test.go); полная HEAD/OPTIONS/encoded-path conformance — этап 7.3 |
+| Proxy trust / host / redirect / CORS | Explicit CIDR и header family, правый доверенный suffix chain, host/origin allowlists, preflight/Vary/credentials | [proxy, включая TCP](../../web/proxy_test.go), [CORS](../../web/cors_test.go), [сценарии и ограничения](proxy.md); allowlists задаёт приложение, raw headers не являются доверенными |
 | BindJSON / responses | Один JSON value, неизвестные поля отклоняются, JSON Content-Type обязателен; HTML/XML/file/stream | [binding](../../web/router_test.go), [responses](../../web/context_response_test.go), [limits](../../web/limits_test.go); вручную созданный Context требует внешнего body limiter |
 | HTTP resources / graceful shutdown | Body/form/upload limits до middleware, multipart cleanup, конечные server timeouts/header budget, explicit Streaming | [server](../../web/server_test.go), [policy](../../web/server_policy_test.go), [network/cleanup](../../web/limits_test.go); общий body ограничивается до parse, file/field metadata после bounded parsing; streaming wrappers проверены не во всех сочетаниях |
 | Views, widgets, Vue state, assets | html/template, JSON state escaping, Vite manifest | [views](../../web/view_test.go), [assets](../../asset/asset_test.go); template.HTML и произвольные URLs требуют доверенного ввода |
@@ -36,6 +37,11 @@
 | CI и coverage ≥80% | Unit/race/vet/lint/coverage, baseline OS и integration jobs | [workflow](../../.github/workflows/ci.yml), [script](../../scripts/check-coverage.sh); coverage только statement агрегат, не доказательство security и не автоматическая branch protection |
 
 ## Воспроизведение из чистого checkout
+
+Шаг 7.2: Windows unit/vet и Linux vet/race/coverage прошли; покрытие ядра 84,0%,
+lint diff — 0 замечаний. Проверены spoofing от недоверенного peer, trusted chains,
+IPv6, Host routing/allowlists, redirect destinations и CORS preflight/Vary/credentials.
+Таблица сценариев и строгие ограничения parser находятся в [proxy contract](proxy.md).
 
 Шаг 7.1: Windows unit/vet, Linux race и coverage gate прошли (покрытие ядра 83,4%).
 Новые сетевые tests повторены пять раз; lint diff шага, включая новые файлы, — 0 замечаний.

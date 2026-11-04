@@ -106,6 +106,9 @@ func (c *Context) Redirect(status int, location string) error {
 	if c == nil || c.Request == nil {
 		return errors.New("web: Request для redirect не задан")
 	}
+	if err := validateRedirect(c.Request, location); err != nil {
+		return NewHTTPError(http.StatusBadRequest, "redirect destination is not allowed", err)
+	}
 	if err := c.begin(); err != nil {
 		return err
 	}

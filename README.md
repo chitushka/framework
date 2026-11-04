@@ -116,6 +116,12 @@ Server имеет конечные read/header/write/idle timeouts и header bud
 предусмотрен явный `Streaming` mode. Настройка `RequestLimits`, точные значения и изменения
 совместимости описаны в [HTTP resource policy](docs/guide/web.md#ограничения-ресурсов-http).
 
+Шаг 7.2 добавляет `ProxyConfig`, `Router.SetProxyPolicy`/`NewProxyHandler`, проверенные
+`Context.ClientIP()`/`Scheme()`/`Host()` и `NewCORSHandler` с preflight/Vary/credentials.
+Forwarding headers по умолчанию игнорируются. `Context.Redirect` теперь разрешает root-relative
+пути; абсолютные HTTP(S) destinations требуют origin allowlist. Конфигурация и таблица
+проверенных proxy-сценариев — в [proxy trust contract](docs/guide/proxy.md).
+
 Маршруты можно объединять общим prefix, middleware и доменом:
 
 ```go

@@ -15,6 +15,8 @@ Production readiness ещё не подтверждена: сначала про
 6. [Production](production.md) — конфигурация, cache, queues, observability и завершение работы.
 7. [Качество](testing.md) — тесты, lint, CI и обязательное покрытие ядра.
 
+Дополнительный контракт: [proxy trust, Host, redirects и CORS](proxy.md).
+
 ## Основная модель
 
 Chitu переносит в Go удобные архитектурные идеи Yii2, но сохраняет явные зависимости и статическую типизацию:

@@ -91,6 +91,7 @@ type Router struct {
 	middleware   []Middleware
 	errorHandler ErrorHandler
 	limits       RequestLimits
+	proxy        *ProxyPolicy
 }
 
 // NewRouter создаёт пустой маршрутизатор.
@@ -107,6 +108,18 @@ func (r *Router) SetRequestLimits(limits RequestLimits) error {
 	}
 	r.mu.Lock()
 	r.limits = normalized
+	r.mu.Unlock()
+	return nil
+}
+
+// SetProxyPolicy validates proxy, host and redirect policy before routing.
+func (r *Router) SetProxyPolicy(config ProxyConfig) error {
+	policy, err := NewProxyPolicy(config)
+	if err != nil {
+		return err
+	}
+	r.mu.Lock()
+	r.proxy = policy
 	r.mu.Unlock()
 	return nil
 }
@@ -242,8 +255,21 @@ func (r *Router) URL(name string, params map[string]string) (string, error) {
 // ServeHTTP реализует http.Handler.
 func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	r.mu.RLock()
-	limits, onError := r.limits, r.errorHandler
+	limits, onError, proxy := r.limits, r.errorHandler, r.proxy
 	r.mu.RUnlock()
+	if proxy == nil {
+		if _, inherited := request.Context().Value(requestOriginKey{}).(requestOrigin); !inherited {
+			proxy = &ProxyPolicy{}
+		}
+	}
+	if proxy != nil {
+		resolved, err := proxy.prepare(request)
+		if err != nil {
+			onError(&Context{Writer: writer, Request: request}, err)
+			return
+		}
+		request = resolved
+	}
 	serveLimited(writer, request, limits, onError, r.serveHTTP)
 }
 

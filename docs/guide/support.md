@@ -59,8 +59,9 @@ Listener приложения не должен быть доступен в о�
 [HTTP resource policy](web.md#ограничения-ресурсов-http). Проверка всех writer wrappers — этап 7.3.
 
 Proxy удаляет входные Forwarded/X-Forwarded-* и формирует собственные значения.
-В framework пока нет trusted-proxy CIDR/host allowlist policy (этап 7.2): не используйте
-эти headers для авторизации, redirects, client IP или построения security-sensitive URL.
+Framework предоставляет явные trusted-proxy CIDR, host/redirect allowlists и CORS policy;
+без конфигурации forwarding headers игнорируются. Настройка и проверенные сценарии описаны
+в [proxy trust contract](proxy.md). Используйте проверенные Context accessors вместо raw headers.
 Внешний origin задавайте явной конфигурацией. Cookies явно устанавливайте Secure,
 HttpOnly и подходящий SameSite. Не включайте debug toolbar или pprof на публичном listener.
 Приложение задаёт CSRF/CORS, allowlists, аутентификацию и авторизацию для своих маршрутов.
@@ -69,7 +70,7 @@ HttpOnly и подходящий SameSite. Не включайте debug toolbar
 
 | Угроза / граница | Framework сейчас | Обязанность приложения/оператора |
 | --- | --- | --- |
-| Недоверенный HTTP-клиент: exhaustion, spoofed proxy/Host | Body/form/upload/header limits и конечные server timeouts; trusted proxy policy ещё не реализована | Закрытый listener, proxy limits, согласованные бюджеты/origin, проверка входа |
+| Недоверенный HTTP-клиент: exhaustion, spoofed proxy/Host | Resource limits/timeouts, explicit proxy trust, host/redirect allowlists и CORS | Закрытый listener, очистка headers на proxy, точные CIDR/host/origin policies, согласованные бюджеты и проверка входа |
 | Пользовательский ввод: SQL injection, mass assignment, XSS | Параметры Query Builder, scenario allowlist, html/template и vueState; raw SQL/HTML обходят защиту | Allowlist identifiers, validation, запрет недоверенного raw SQL/HTML |
 | Кража credentials/cookie, CSRF, escalation | Session/auth/CSRF/RBAC primitives; нет password verifier и защиты от login brute force | Проверенный identity provider/verifier, TLS, secrets, throttling, permission checks |
 | Параллельные записи и повторная доставка | Savepoints, optimistic-lock API; session CAS и migration lock отсутствуют | Один migration runner, идемпотентные jobs, transaction boundaries, outbox |

@@ -13,6 +13,10 @@ err := router.GET("/users/{id}", showUser,
 
 Группы объединяют prefix, host и middleware. Разделяйте `/api`, `/admin` и публичную часть группами, а не проверками внутри каждого handler.
 
+Доверие к proxy, Host allowlist, безопасные redirects и CORS настраиваются до маршрутизации;
+см. [контракт proxy trust и таблицу сценариев](proxy.md). Без явного доверия forwarding headers
+не меняют `Context.ClientIP()`, `Scheme()` и `Host()`.
+
 ## Middleware
 
 Middleware применяется в порядке регистрации и должно либо вызвать `next`, либо вернуть ответ/ошибку. Рекомендуемый внешний порядок: recovery, request ID/logging, security headers, session, authentication, authorization, handler.
