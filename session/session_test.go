@@ -1,6 +1,7 @@
 package session_test
 
 import (
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -103,7 +104,14 @@ func TestCookieStoreEncryptsAndRestoresValues(t *testing.T) {
 	if get.Code != 200 || get.Body.String() != "\"admin\"\n" {
 		t.Fatalf("get = %d %q", get.Code, get.Body.String())
 	}
-	cookies[0].Value = cookies[0].Value[:len(cookies[0].Value)-1] + "A"
+	sealed, err := base64.RawURLEncoding.DecodeString(cookies[0].Value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Always alter authenticated bytes; replacing a base64 character may leave
+	// the original value unchanged or only change unused padding bits.
+	sealed[len(sealed)-1] ^= 1
+	cookies[0].Value = base64.RawURLEncoding.EncodeToString(sealed)
 	tamperedRequest := httptest.NewRequest(http.MethodGet, "/get", nil)
 	tamperedRequest.AddCookie(cookies[0])
 	tampered := httptest.NewRecorder()

@@ -132,6 +132,6 @@ OPTIONS без preflight method не перехватывается как prefl
 | No-Origin, same-origin, error/404, wildcard и существующий Vary | Не теряются обычные HTTP/error semantics и cache variation |
 
 Regression tests: [proxy](../../web/proxy_test.go), включая реальные TCP connections,
-и [CORS](../../web/cors_test.go). Полная browser E2E и HTTP writer conformance остаются
-отдельными этапами. Нормативные источники: [RFC 7239](https://www.rfc-editor.org/rfc/rfc7239.html)
+и [CORS](../../web/cors_test.go). Browser E2E проверяется отдельно; текущая HTTP writer conformance
+описана в [HTTP compatibility](http-compatibility.md). Нормативные источники: [RFC 7239](https://www.rfc-editor.org/rfc/rfc7239.html)
 и [Fetch CORS protocol](https://fetch.spec.whatwg.org/#http-cors-protocol).

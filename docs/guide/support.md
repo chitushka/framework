@@ -56,7 +56,8 @@ production профиль. Proxy завершает TLS, перенаправл�
 Listener приложения не должен быть доступен в обход proxy. Server/Router предоставляют
 конечные body/form/upload/header limits и timeout defaults; приложение должно согласовать
 их с proxy и workload. Значения, правила streaming и пример конфигурации описаны в
-[HTTP resource policy](web.md#ограничения-ресурсов-http). Проверка всех writer wrappers — этап 7.3.
+[HTTP resource policy](web.md#ограничения-ресурсов-http). Проверенная цепочка writer wrappers,
+streaming и файловые validators описаны в [HTTP compatibility](http-compatibility.md).
 
 Proxy удаляет входные Forwarded/X-Forwarded-* и формирует собственные значения.
 Framework предоставляет явные trusted-proxy CIDR, host/redirect allowlists и CORS policy;

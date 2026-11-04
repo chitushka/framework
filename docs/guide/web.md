@@ -117,8 +117,9 @@ if err := controller.Flush(); err != nil {
 ```
 
 Перед каждым следующим chunk обновляйте write deadline и проверяйте `ctx.Request.Context()`.
-Возможности ResponseController зависят от цепочки wrappers; полная совместимость session/debug
-остаётся задачей 7.3. `Context.Stream` копирует reader, но сам deadlines и flush cadence не задаёт.
+Framework wrappers сохраняют ResponseController/Unwrap и доступные Flusher/Hijacker.
+`Context.Stream` копирует reader с flush headers и каждой записи; deadlines задаёт handler.
+Проверенная цепочка session/debug/logging и ограничения описаны в [HTTP compatibility](http-compatibility.md).
 Контракт основан на [net/http](https://pkg.go.dev/net/http@go1.26.0) и
 [multipart](https://pkg.go.dev/mime/multipart@go1.26.0); regression tests —
 [limits](../../web/limits_test.go) и [server policy](../../web/server_policy_test.go).
@@ -128,11 +129,11 @@ if err := controller.Flush(); err != nil {
 обновлены для отправки JSON с правильным media type; отменять лимиты нулевыми значениями нельзя.
 
 Используйте специализированные методы `HTML`, `JSON`, `XML`, `File`, `Download`, `Stream` и `NoContent`.
-Они отслеживают начало ответа и задают content type; прямая запись через ResponseWriter обходит
-часть этих проверок, а ошибка после начала stream не может отменить отправленные байты.
+Они отслеживают начало ответа и задают content type. Router также учитывает прямые writes,
+flush и hijack; ошибка после начала stream не может отменить отправленные байты.
 Публичные сообщения об ошибках задавайте через `web.NewHTTPError`; внутреннюю причину передавайте
-третьим аргументом для логирования и `errors.Is`. Полная сетевая совместимость writer wrappers
-остаётся задачей этапа 7.3.
+третьим аргументом для логирования и `errors.Is`. HEAD/OPTIONS/405/Allow, encoded paths,
+file Range/conditional responses и сетевые проверки описаны в [HTTP compatibility contract](http-compatibility.md).
 
 ## Views и frontend
 

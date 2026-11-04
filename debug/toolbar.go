@@ -2,10 +2,13 @@
 package debug
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
+	"net"
 	"net/http"
 	"os"
 	"runtime"
@@ -16,6 +19,7 @@ import (
 	"time"
 
 	"github.com/chitushka/framework/db"
+	"github.com/chitushka/framework/internal/httpwriter"
 	"github.com/chitushka/framework/observability"
 	"github.com/chitushka/framework/web"
 )
@@ -30,6 +34,8 @@ type Config struct {
 	Session        SessionSnapshot
 	CaptureSQLArgs bool
 	MaxSQLQueries  int
+	// MaxResponseBytes bounds the HTML buffer; larger responses pass through unchanged.
+	MaxResponseBytes int
 }
 
 // Toolbar добавляет панель только в успешные несжатые HTML-ответы.
@@ -39,6 +45,12 @@ type Toolbar struct{ config Config }
 func New(config Config) (*Toolbar, error) {
 	if config.MaxSQLQueries < 0 {
 		return nil, fmt.Errorf("debug: MaxSQLQueries не может быть отрицательным")
+	}
+	if config.MaxResponseBytes < 0 {
+		return nil, fmt.Errorf("debug: MaxResponseBytes cannot be negative")
+	}
+	if config.MaxResponseBytes == 0 {
+		config.MaxResponseBytes = 1 << 20
 	}
 	if config.MaxSQLQueries == 0 {
 		config.MaxSQLQueries = 100
@@ -65,13 +77,19 @@ func (toolbar *Toolbar) Middleware(next web.Handler) web.Handler {
 		ctx.Request = ctx.Request.WithContext(requestContext)
 
 		original := ctx.Writer
-		buffered := newBufferedWriter(original.Header())
-		ctx.Writer = buffered
+		buffered := newBufferedWriter(original, toolbar.config.MaxResponseBytes)
+		ctx.Writer = httpwriter.Preserve(buffered)
+		defer func() { ctx.Writer = original }()
 		err := next(ctx)
 		ctx.Writer = original
+		if buffered.passthrough {
+			return err
+		}
 		if err != nil || !shouldInject(ctx.Request, buffered) {
 			if buffered.wroteHeader {
-				_ = buffered.commit(original, nil)
+				if commitErr := buffered.commit(original, nil); commitErr != nil {
+					return errors.Join(err, commitErr)
+				}
 			}
 			return err
 		}
@@ -181,26 +199,88 @@ func (collector *collector) snapshot() []SQLQuery {
 }
 
 type bufferedWriter struct {
+	original    http.ResponseWriter
+	limit       int
+	passthrough bool
 	header      http.Header
 	status      int
 	body        bytes.Buffer
 	wroteHeader bool
 }
 
-func newBufferedWriter(header http.Header) *bufferedWriter {
-	return &bufferedWriter{header: header.Clone(), status: http.StatusOK}
+func newBufferedWriter(original http.ResponseWriter, limit int) *bufferedWriter {
+	return &bufferedWriter{original: original, limit: limit, header: original.Header().Clone(), status: http.StatusOK}
 }
-func (writer *bufferedWriter) Header() http.Header { return writer.header }
+func (writer *bufferedWriter) Header() http.Header {
+	if writer.passthrough {
+		return writer.original.Header()
+	}
+	return writer.header
+}
 func (writer *bufferedWriter) WriteHeader(status int) {
+	if writer.passthrough {
+		writer.original.WriteHeader(status)
+		return
+	}
+	if status >= 100 && status < 200 && status != http.StatusSwitchingProtocols {
+		writer.copyHeaders(writer.original)
+		writer.original.WriteHeader(status)
+		return
+	}
 	if !writer.wroteHeader {
 		writer.status, writer.wroteHeader = status, true
 	}
 }
 func (writer *bufferedWriter) Write(payload []byte) (int, error) {
+	if writer.passthrough {
+		return writer.original.Write(payload)
+	}
 	if !writer.wroteHeader {
 		writer.WriteHeader(http.StatusOK)
 	}
+	if len(payload) > writer.limit-writer.body.Len() {
+		if err := writer.pass(); err != nil {
+			return 0, err
+		}
+		return writer.original.Write(payload)
+	}
 	return writer.body.Write(payload)
+}
+
+func (writer *bufferedWriter) Unwrap() http.ResponseWriter { return writer.original }
+func (writer *bufferedWriter) pass() error {
+	if writer.passthrough {
+		return nil
+	}
+	writer.passthrough = true
+	err := writer.commit(writer.original, nil)
+	writer.body.Reset()
+	return err
+}
+func (writer *bufferedWriter) FlushError() error {
+	if err := writer.pass(); err != nil {
+		return err
+	}
+	return http.NewResponseController(writer.original).Flush()
+}
+func (writer *bufferedWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if writer.wroteHeader {
+		if err := writer.pass(); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		writer.copyHeaders(writer.original)
+		writer.passthrough = true
+	}
+	return http.NewResponseController(writer.original).Hijack()
+}
+func (writer *bufferedWriter) copyHeaders(target http.ResponseWriter) {
+	for name := range target.Header() {
+		target.Header().Del(name)
+	}
+	for name, values := range writer.header {
+		target.Header()[name] = slices.Clone(values)
+	}
 }
 
 func (writer *bufferedWriter) commit(target http.ResponseWriter, fragment []byte) error {
@@ -219,12 +299,7 @@ func (writer *bufferedWriter) commit(target http.ResponseWriter, fragment []byte
 		}
 		writer.header.Del("Content-Length")
 	}
-	for name := range target.Header() {
-		target.Header().Del(name)
-	}
-	for name, values := range writer.header {
-		target.Header()[name] = slices.Clone(values)
-	}
+	writer.copyHeaders(target)
 	target.WriteHeader(writer.status)
 	if len(payload) == 0 {
 		return nil
@@ -241,6 +316,8 @@ func (writer *bufferedWriter) commit(target http.ResponseWriter, fragment []byte
 
 func shouldInject(request *http.Request, writer *bufferedWriter) bool {
 	return request.Method != http.MethodHead && writer.status >= 200 && writer.status < 300 &&
+		writer.status != http.StatusPartialContent && writer.header.Get("Content-Range") == "" && writer.header.Get("ETag") == "" &&
+		writer.header.Get("Accept-Ranges") == "" && writer.header.Get("Content-Disposition") == "" &&
 		strings.HasPrefix(strings.ToLower(writer.header.Get("Content-Type")), "text/html") && writer.header.Get("Content-Encoding") == ""
 }
 

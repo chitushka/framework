@@ -12,10 +12,11 @@
 | DI `di.Container`, component.Registry | Constructors, singleton/transient, bindings, cycle detection | [DI](../../di/container_test.go), [components](../../component/registry_test.go); зависимости должны быть concurrency-safe |
 | `event.Bus`, behavior decorators | Priority, unsubscribe, concurrent publish, typed decorators | [events](../../event/bus_test.go), [behaviors](../../behavior/behavior_test.go); нет durable event bus |
 | Config JSON/.env/env/defaults/required | Merge и typed decode | [config tests](../../config/loader_test.go); secret manager предоставляет приложение |
-| Router, controller hooks, DI, URL generation | Static/parameter/host routes, groups, named URLs | [router](../../web/router_test.go), [controllers](../../web/controller_test.go); полная HEAD/OPTIONS/encoded-path conformance — этап 7.3 |
+| Router, controller hooks, DI, URL generation | Static/parameter/host routes, groups, named URLs, HEAD fallback/OPTIONS/Allow, segment-wise escaping | [router](../../web/router_test.go), [controllers](../../web/controller_test.go), [network conformance](../../web/http_conformance_test.go); строгая path/trailing slash policy описана в [contract](http-compatibility.md) |
 | Proxy trust / host / redirect / CORS | Explicit CIDR и header family, правый доверенный suffix chain, host/origin allowlists, preflight/Vary/credentials | [proxy, включая TCP](../../web/proxy_test.go), [CORS](../../web/cors_test.go), [сценарии и ограничения](proxy.md); allowlists задаёт приложение, raw headers не являются доверенными |
 | BindJSON / responses | Один JSON value, неизвестные поля отклоняются, JSON Content-Type обязателен; HTML/XML/file/stream | [binding](../../web/router_test.go), [responses](../../web/context_response_test.go), [limits](../../web/limits_test.go); вручную созданный Context требует внешнего body limiter |
-| HTTP resources / graceful shutdown | Body/form/upload limits до middleware, multipart cleanup, конечные server timeouts/header budget, explicit Streaming | [server](../../web/server_test.go), [policy](../../web/server_policy_test.go), [network/cleanup](../../web/limits_test.go); общий body ограничивается до parse, file/field metadata после bounded parsing; streaming wrappers проверены не во всех сочетаниях |
+| HTTP resources / graceful shutdown | Body/form/upload limits, multipart cleanup, конечные timeouts/header budget, Streaming и writer capabilities | [server](../../web/server_test.go), [policy](../../web/server_policy_test.go), [limits](../../web/limits_test.go), [network writer chain](../../web/writer_chain_test.go); metadata после bounded parsing, сторонние wrappers требуют своей проверки |
+| File/Download / response state | ServeContent Range/preconditions для status=200, explicit ETag, flush/cancellation, tracking direct writes | [network files](../../web/http_conformance_test.go), [writer/error chain](../../web/writer_chain_test.go); source Read должен учитывать cancellation, hijacked socket принадлежит caller |
 | Views, widgets, Vue state, assets | html/template, JSON state escaping, Vite manifest | [views](../../web/view_test.go), [assets](../../asset/asset_test.go); template.HTML и произвольные URLs требуют доверенного ввода |
 | SQL Connection и dialects | database/sql pool, PostgreSQL/MySQL/Oracle/SQLServer dialects | [connection](../../db/connection_test.go), [dialects](../../db/dialect_test.go), [real SQL baseline](../../integration/services_test.go); Oracle/SQLServer только unit/fakes, drivers подключает приложение |
 | Transactions/savepoints | Callback commit/rollback, nested savepoints, panic cleanup | [transactions](../../db/transaction_test.go), [baseline](../../integration/services_test.go); DDL зависит от СУБД, full cancellation/commit-failure conformance — этап 8.2 |
@@ -46,7 +47,7 @@ IPv6, Host routing/allowlists, redirect destinations и CORS preflight/Vary/cred
 Шаг 7.1: Windows unit/vet, Linux race и coverage gate прошли (покрытие ядра 83,4%).
 Новые сетевые tests повторены пять раз; lint diff шага, включая новые файлы, — 0 замечаний.
 Проверены chunked overflow, header/body/write/idle budgets, streaming disconnect и cleanup
-multipart при success/error/panic/обрыве загрузки. Полная цепочка writer wrappers остаётся в 7.3.
+multipart при success/error/panic/обрыве загрузки. Цепочка writer wrappers проверена отдельно в шаге 7.3.
 
 Локальная проверка этапа 6 (04.11.2026): Windows unit/vet, Linux unit/race/vet,
 coverage 83,1%, actionlint, обе команды интеграционного стенда и проверка Markdown links

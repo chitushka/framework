@@ -2,6 +2,7 @@
 package web
 
 import (
+	"bufio"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -9,22 +10,26 @@ import (
 	"io"
 	"maps"
 	"mime"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/chitushka/framework/internal/httpwriter"
 )
 
 // Context объединяет HTTP-запрос, ответ и параметры найденного маршрута.
 // Контекст создаётся отдельно для каждого запроса.
 type Context struct {
-	Writer  http.ResponseWriter
-	Request *http.Request
-	params  map[string]string
-	route   string
-	name    string
-	written bool
+	Writer   http.ResponseWriter
+	Request  *http.Request
+	params   map[string]string
+	route    string
+	name     string
+	written  bool
+	response *responseWriteRecorder
 }
 
 // Param возвращает параметр пути. Для отсутствующего параметра возвращается пустая строка.
@@ -56,8 +61,13 @@ func (c *Context) RouteName() string {
 	return c.name
 }
 
-// Written сообщает, была ли уже начата запись ответа через Context.
+// Written reports final output or hijack at the Router's writer boundary, including
+// direct writes. Buffered intent is not a committed response. Standalone contexts
+// track writes through their response helpers only.
 func (c *Context) Written() bool {
+	if c.response != nil {
+		return c.response.started
+	}
 	return c.written
 }
 
@@ -132,7 +142,13 @@ func (c *Context) Stream(status int, contentType string, reader io.Reader) error
 	if err := c.writeHeader(status, contentType); err != nil {
 		return err
 	}
-	if _, err := io.Copy(c.Writer, reader); err != nil {
+	if status < 200 || status == 204 || status == 304 || (c.Request != nil && c.Request.Method == http.MethodHead) {
+		return nil
+	}
+	if err := flushResponse(c.Writer); err != nil {
+		return responseError("flush stream", err)
+	}
+	if _, err := io.Copy(flushingWriter{c.Writer, c.Request}, reader); err != nil {
 		return responseError("запись stream", err)
 	}
 	return nil
@@ -183,7 +199,7 @@ func (c *Context) sendFile(status int, path, downloadName string) error {
 	if err != nil {
 		return responseError("открытие file", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	info, err := file.Stat()
 	if err != nil {
@@ -209,20 +225,39 @@ func (c *Context) sendFile(status int, path, downloadName string) error {
 	if err := c.begin(); err != nil {
 		return err
 	}
-	c.Writer.Header().Set("Content-Length", strconv.FormatInt(info.Size(), 10))
-	c.Writer.Header().Set("Last-Modified", info.ModTime().UTC().Format(http.TimeFormat))
 	if downloadName != "" {
 		disposition := mime.FormatMediaType("attachment", map[string]string{"filename": downloadName})
 		c.Writer.Header().Set("Content-Disposition", disposition)
 	}
+	if status == http.StatusOK && c.Request != nil {
+		c.Writer.Header().Set("Content-Type", contentType)
+		recorder := &responseWriteRecorder{ResponseWriter: c.Writer, onWrite: func() { c.written = true }}
+		request := c.Request
+		// RFC 9110 defines Range only for GET. ServeContent also honors it on HEAD.
+		if request.Method != http.MethodGet && request.Header.Get("Range") != "" {
+			request = request.Clone(request.Context())
+			request.Header.Del("Range")
+		}
+		http.ServeContent(httpwriter.Preserve(recorder), request, info.Name(), info.ModTime(), file)
+		if recorder.err != nil {
+			return responseError("file response", recorder.err)
+		}
+		return nil
+	}
+	c.Writer.Header().Set("Content-Length", strconv.FormatInt(info.Size(), 10))
+	c.Writer.Header().Set("Last-Modified", info.ModTime().UTC().Format(http.TimeFormat))
 	return c.Stream(status, contentType, file)
 }
 
 func (c *Context) write(status int, contentType string, payload []byte) error {
+	head := c != nil && c.Request != nil && c.Request.Method == http.MethodHead
+	if head && status >= 200 && status != 204 && status != 304 && c.Writer != nil && c.Writer.Header().Get("Content-Length") == "" {
+		c.Writer.Header().Set("Content-Length", strconv.Itoa(len(payload)))
+	}
 	if err := c.writeHeader(status, contentType); err != nil {
 		return err
 	}
-	if len(payload) == 0 {
+	if len(payload) == 0 || head || status < 200 || status == 204 || status == 304 {
 		return nil
 	}
 	written, err := c.Writer.Write(payload)
@@ -245,7 +280,9 @@ func (c *Context) writeHeader(status int, contentType string) error {
 	if contentType != "" {
 		c.Writer.Header().Set("Content-Type", contentType)
 	}
-	c.written = true
+	if status >= 200 || status == 101 {
+		c.written = true
+	}
 	c.Writer.WriteHeader(status)
 	return nil
 }
@@ -266,10 +303,41 @@ func responseError(operation string, err error) error {
 
 type responseWriteRecorder struct {
 	http.ResponseWriter
-	err error
+	err     error
+	onWrite func()
+	started bool
+}
+
+func (writer *responseWriteRecorder) Unwrap() http.ResponseWriter { return writer.ResponseWriter }
+func (writer *responseWriteRecorder) mark() {
+	writer.started = true
+	if writer.onWrite != nil {
+		writer.onWrite()
+	}
+}
+func (writer *responseWriteRecorder) WriteHeader(status int) {
+	if status >= 200 || status == 101 {
+		writer.mark()
+	}
+	writer.ResponseWriter.WriteHeader(status)
+}
+func (writer *responseWriteRecorder) FlushError() error {
+	err := http.NewResponseController(writer.ResponseWriter).Flush()
+	if err == nil {
+		writer.mark()
+	}
+	return err
+}
+func (writer *responseWriteRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	conn, rw, err := http.NewResponseController(writer.ResponseWriter).Hijack()
+	if err == nil {
+		writer.mark()
+	}
+	return conn, rw, err
 }
 
 func (writer *responseWriteRecorder) Write(payload []byte) (int, error) {
+	writer.mark()
 	written, err := writer.ResponseWriter.Write(payload)
 	if err != nil {
 		writer.err = err
@@ -277,4 +345,30 @@ func (writer *responseWriteRecorder) Write(payload []byte) (int, error) {
 		writer.err = io.ErrShortWrite
 	}
 	return written, err
+}
+
+func flushResponse(writer http.ResponseWriter) error {
+	err := http.NewResponseController(writer).Flush()
+	if errors.Is(err, http.ErrNotSupported) {
+		return nil
+	}
+	return err
+}
+
+type flushingWriter struct {
+	writer  http.ResponseWriter
+	request *http.Request
+}
+
+func (writer flushingWriter) Write(payload []byte) (int, error) {
+	if writer.request != nil {
+		if err := writer.request.Context().Err(); err != nil {
+			return 0, err
+		}
+	}
+	n, err := writer.writer.Write(payload)
+	if err != nil {
+		return n, err
+	}
+	return n, flushResponse(writer.writer)
 }

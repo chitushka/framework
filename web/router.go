@@ -7,10 +7,13 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/chitushka/framework/di"
+	"github.com/chitushka/framework/internal/httpwriter"
 )
 
 // RouteOption настраивает маршрут во время регистрации.
@@ -186,7 +189,7 @@ func (r *Router) Handle(method, pattern string, handler Handler, options ...Rout
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, existing := range r.routes {
-		if existing.method == item.method && existing.pattern == item.pattern && existing.hostPattern == item.hostPattern {
+		if existing.method == item.method && strings.TrimSuffix(existing.pattern, "/") == strings.TrimSuffix(item.pattern, "/") && existing.hostPattern == item.hostPattern {
 			return fmt.Errorf("web: маршрут %s %s для host %q уже зарегистрирован", item.method, pattern, item.hostPattern)
 		}
 	}
@@ -280,32 +283,70 @@ func (r *Router) serveHTTP(writer http.ResponseWriter, request *http.Request) {
 	errorHandler := r.errorHandler
 	r.mu.RUnlock()
 
-	path := splitPath(request.URL.Path)
+	path, pathErr := requestPath(request.URL.EscapedPath())
+	if pathErr != nil {
+		errorHandler(&Context{Writer: writer, Request: request}, NewHTTPError(400, "invalid request path", pathErr))
+		return
+	}
 	host := normalizeRequestHost(request.Host)
-	methodMatched := false
+	allowed := map[string]bool{}
+	var selected, fallback *route
+	var selectedParams, fallbackParams map[string]string
 	for _, item := range routes {
 		params, matched := matchRoute(item, path, host)
 		if !matched {
 			continue
 		}
-		if item.method != request.Method {
-			methodMatched = true
-			continue
+		allowed[item.method] = true
+		if item.method == http.MethodGet {
+			allowed[http.MethodHead] = true
+			if fallback == nil {
+				fallback, fallbackParams = item, params
+			}
 		}
-		context := &Context{Writer: writer, Request: request, params: params, route: item.pattern, name: item.name}
-		handler := item.handler
-		middleware := append(append([]Middleware(nil), globalMiddleware...), item.middleware...)
+		if item.method == request.Method && selected == nil {
+			selected, selectedParams = item, params
+		}
+	}
+	if selected == nil && request.Method == http.MethodHead {
+		selected, selectedParams = fallback, fallbackParams
+	}
+	if selected != nil {
+		context := &Context{Writer: writer, Request: request, params: selectedParams, route: selected.pattern, name: selected.name}
+		context.response = &responseWriteRecorder{ResponseWriter: writer, onWrite: func() { context.written = true }}
+		context.Writer = httpwriter.Preserve(context.response)
+		handler := selected.handler
+		middleware := append(append([]Middleware(nil), globalMiddleware...), selected.middleware...)
 		for i := len(middleware) - 1; i >= 0; i-- {
 			handler = middleware[i](handler)
 		}
 		if err := handler(context); err != nil {
+			if !context.Written() {
+				context.written = false
+				// A blocked/buffered file response may have left representation headers
+				// even though nothing was sent. They must not frame the error body.
+				for _, name := range []string{"Content-Type", "Content-Length", "Content-Range", "Content-Encoding", "Content-Disposition", "ETag", "Last-Modified", "Accept-Ranges"} {
+					context.Writer.Header().Del(name)
+				}
+			}
 			errorHandler(context, err)
 		}
 		return
 	}
 
 	context := &Context{Writer: writer, Request: request}
-	if methodMatched {
+	if len(allowed) > 0 {
+		allowed[http.MethodOptions] = true
+		methods := make([]string, 0, len(allowed))
+		for method := range allowed {
+			methods = append(methods, method)
+		}
+		sort.Strings(methods)
+		writer.Header().Set("Allow", strings.Join(methods, ", "))
+		if request.Method == http.MethodOptions {
+			_ = context.NoContent(http.StatusNoContent)
+			return
+		}
 		errorHandler(context, NewHTTPError(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed), nil))
 		return
 	}
@@ -402,7 +443,45 @@ func parsePathPattern(pattern string) ([]segment, error) {
 	if pattern == "" || pattern[0] != '/' {
 		return nil, errors.New("web: шаблон маршрута должен начинаться с /")
 	}
+	if strings.Contains(pattern, "//") || strings.ContainsAny(pattern, "?#") {
+		return nil, errors.New("web: ambiguous route path")
+	}
+	for _, part := range splitPath(pattern) {
+		if !validPathSegment(part) {
+			return nil, errors.New("web: invalid route path segment")
+		}
+	}
 	return parseSegments(splitPath(pattern), false)
+}
+
+func validPathSegment(value string) bool {
+	if value == "" || value == "." || value == ".." || !utf8.ValidString(value) {
+		return false
+	}
+	for _, c := range value {
+		if c < 32 || c == 127 || c == '\\' {
+			return false
+		}
+	}
+	return true
+}
+
+func requestPath(raw string) ([]string, error) {
+	if raw == "" || raw == "/" {
+		return nil, nil
+	}
+	if !strings.HasPrefix(raw, "/") || strings.Contains(raw, "//") {
+		return nil, errors.New("ambiguous path separators")
+	}
+	parts := splitPath(raw)
+	for i, part := range parts {
+		decoded, err := url.PathUnescape(part)
+		if err != nil || !validPathSegment(decoded) {
+			return nil, errors.New("invalid escaped path segment")
+		}
+		parts[i] = decoded
+	}
+	return parts, nil
 }
 
 func parseHostPattern(pattern string) (string, []segment, error) {
@@ -529,11 +608,17 @@ func buildSegments(pattern []segment, params map[string]string, constraints map[
 	for i, part := range pattern {
 		if part.param == "" {
 			parts[i] = part.literal
+			if !host {
+				parts[i] = url.PathEscape(part.literal)
+			}
 			continue
 		}
 		value, exists := params[part.param]
 		if !exists || value == "" {
 			return nil, fmt.Errorf("отсутствует параметр %q", part.param)
+		}
+		if !host && !validPathSegment(value) {
+			return nil, fmt.Errorf("invalid path parameter %q", part.param)
 		}
 		if constraint := constraints[part.param]; constraint != nil && !constraint.MatchString(value) {
 			return nil, fmt.Errorf("параметр %q не соответствует ограничению", part.param)

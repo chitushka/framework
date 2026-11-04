@@ -2,17 +2,20 @@
 package session
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/chitushka/framework/internal/httpwriter"
 	"github.com/chitushka/framework/web"
 )
 
@@ -259,7 +262,8 @@ func (m *Manager) Middleware(next web.Handler) web.Handler {
 		writer := &commitWriter{ResponseWriter: originalWriter, commit: func() error {
 			return m.commit(ctx.Request.Context(), originalWriter, session, oldID)
 		}}
-		ctx.Writer = writer
+		ctx.Writer = httpwriter.Preserve(writer)
+		defer func() { ctx.Writer = originalWriter }()
 		err = next(ctx)
 		commitErr := writer.ensureCommitted()
 		if err != nil && commitErr != nil {
@@ -284,9 +288,27 @@ func (w *commitWriter) ensureCommitted() error {
 	return w.err
 }
 func (w *commitWriter) WriteHeader(status int) {
+	if status >= 100 && status < 200 && status != http.StatusSwitchingProtocols {
+		w.ResponseWriter.WriteHeader(status)
+		return
+	}
 	if w.ensureCommitted() == nil {
 		w.ResponseWriter.WriteHeader(status)
 	}
+}
+
+func (w *commitWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+func (w *commitWriter) FlushError() error {
+	if err := w.ensureCommitted(); err != nil {
+		return err
+	}
+	return http.NewResponseController(w.ResponseWriter).Flush()
+}
+func (w *commitWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if err := w.ensureCommitted(); err != nil {
+		return nil, nil, err
+	}
+	return http.NewResponseController(w.ResponseWriter).Hijack()
 }
 func (w *commitWriter) Write(payload []byte) (int, error) {
 	if err := w.ensureCommitted(); err != nil {

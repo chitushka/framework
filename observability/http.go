@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"time"
+
+	"github.com/chitushka/framework/internal/httpwriter"
 )
 
 // HTTPConfig объединяет наблюдаемость одного HTTP request lifecycle.
@@ -60,7 +62,7 @@ func HTTP(config HTTPConfig) func(http.Handler) http.Handler {
 			}()
 			func() {
 				defer func() { recovered = recover() }()
-				next.ServeHTTP(wrapped, request)
+				next.ServeHTTP(httpwriter.Preserve(wrapped), request)
 			}()
 		})
 	}
@@ -74,6 +76,10 @@ type statusWriter struct {
 }
 
 func (writer *statusWriter) WriteHeader(status int) {
+	if status >= 100 && status < 200 && status != http.StatusSwitchingProtocols {
+		writer.ResponseWriter.WriteHeader(status)
+		return
+	}
 	if writer.wroteHeader {
 		return
 	}
@@ -93,20 +99,18 @@ func (writer *statusWriter) Write(payload []byte) (int, error) {
 func (writer *statusWriter) Unwrap() http.ResponseWriter { return writer.ResponseWriter }
 
 func (writer *statusWriter) Flush() {
+	_ = writer.FlushError()
+}
+
+func (writer *statusWriter) FlushError() error {
 	if !writer.wroteHeader {
 		writer.WriteHeader(http.StatusOK)
 	}
-	if flusher, ok := writer.ResponseWriter.(http.Flusher); ok {
-		flusher.Flush()
-	}
+	return http.NewResponseController(writer.ResponseWriter).Flush()
 }
 
 func (writer *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	hijacker, ok := writer.ResponseWriter.(http.Hijacker)
-	if !ok {
-		return nil, nil, fmt.Errorf("observability: ResponseWriter не поддерживает hijacking")
-	}
-	return hijacker.Hijack()
+	return http.NewResponseController(writer.ResponseWriter).Hijack()
 }
 
 func (writer *statusWriter) Push(target string, options *http.PushOptions) error {

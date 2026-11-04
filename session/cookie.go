@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/chitushka/framework/internal/httpwriter"
 	"github.com/chitushka/framework/web"
 )
 
@@ -56,7 +57,8 @@ func (store *CookieStore) Middleware(next web.Handler) web.Handler {
 		writer := &commitWriter{ResponseWriter: originalWriter, commit: func() error {
 			return store.commit(originalWriter, current)
 		}}
-		ctx.Writer = writer
+		ctx.Writer = httpwriter.Preserve(writer)
+		defer func() { ctx.Writer = originalWriter }()
 		handlerErr := next(ctx)
 		commitErr := writer.ensureCommitted()
 		if handlerErr != nil && commitErr != nil {

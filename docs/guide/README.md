@@ -16,6 +16,7 @@ Production readiness ещё не подтверждена: сначала про
 7. [Качество](testing.md) — тесты, lint, CI и обязательное покрытие ядра.
 
 Дополнительный контракт: [proxy trust, Host, redirects и CORS](proxy.md).
+HTTP-семантика и сетевые доказательства: [HTTP compatibility](http-compatibility.md).
 
 ## Основная модель
 

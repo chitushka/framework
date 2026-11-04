@@ -122,6 +122,10 @@ Forwarding headers по умолчанию игнорируются. `Context.Re
 пути; абсолютные HTTP(S) destinations требуют origin allowlist. Конфигурация и таблица
 проверенных proxy-сценариев — в [proxy trust contract](docs/guide/proxy.md).
 
+HTTP compatibility включает HEAD fallback, OPTIONS/405/Allow, segment-wise path escaping,
+Range/conditional file responses и streaming через session/debug/logging wrappers.
+Контракт, изменения поведения и сетевые тесты — в [HTTP compatibility](docs/guide/http-compatibility.md).
+
 Маршруты можно объединять общим prefix, middleware и доменом:
 
 ```go
