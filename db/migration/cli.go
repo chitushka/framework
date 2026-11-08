@@ -18,7 +18,7 @@ import (
 // import while reusing all migration CLI commands.
 type OpenFunc func(context.Context, frameworkdb.Config) (*frameworkdb.Connection, error)
 
-// CLI implements create, up, down, and status commands without choosing a SQL driver.
+// CLI implements create/up/down/status and explicit dirty recovery.
 type CLI struct {
 	Out  io.Writer
 	Err  io.Writer
@@ -43,7 +43,7 @@ func (cli *CLI) Run(ctx context.Context, args []string) error {
 		return errors.New("migration: CLI must not be nil")
 	}
 	if len(args) == 0 {
-		return errors.New("migration: expected command: create, up, down, or status")
+		return errors.New("migration: expected command: create, up, down, status, or resolve")
 	}
 	if cli.Out == nil {
 		cli.Out = io.Discard
@@ -63,6 +63,8 @@ func (cli *CLI) Run(ctx context.Context, args []string) error {
 		return cli.down(ctx, args[1:])
 	case "status", "migration:status":
 		return cli.status(ctx, args[1:])
+	case "resolve", "migration:resolve":
+		return cli.resolve(ctx, args[1:])
 	default:
 		return fmt.Errorf("migration: unknown command %q", args[0])
 	}
@@ -94,6 +96,8 @@ func (cli *CLI) up(ctx context.Context, args []string) error {
 	if len(rest) != 0 {
 		return errors.New("migration: up does not accept positional arguments")
 	}
+	ctx, cancel := context.WithTimeout(ctx, options.timeout)
+	defer cancel()
 	runner, closeConnection, err := cli.runner(ctx, options)
 	if err != nil {
 		return err
@@ -120,6 +124,8 @@ func (cli *CLI) down(ctx context.Context, args []string) error {
 	if len(rest) != 0 {
 		return errors.New("migration: down does not accept positional arguments")
 	}
+	ctx, cancel := context.WithTimeout(ctx, options.timeout)
+	defer cancel()
 	if !options.limitSet {
 		options.limit = 1
 	}
@@ -149,6 +155,8 @@ func (cli *CLI) status(ctx context.Context, args []string) error {
 	if len(rest) != 0 {
 		return errors.New("migration: status does not accept positional arguments")
 	}
+	ctx, cancel := context.WithTimeout(ctx, options.timeout)
+	defer cancel()
 	runner, closeConnection, err := cli.runner(ctx, options)
 	if err != nil {
 		return err
@@ -159,25 +167,54 @@ func (cli *CLI) status(ctx context.Context, args []string) error {
 		return err
 	}
 	writer := tabwriter.NewWriter(cli.Out, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(writer, "STATE\tMIGRATION\tAPPLIED AT")
+	_, _ = fmt.Fprintln(writer, "STATE\tMIGRATION\tAPPLIED AT\tCHECKSUM\tDIRECTION\tSTARTED AT")
 	for _, status := range statuses {
 		appliedAt := "-"
 		if !status.AppliedAt.IsZero() {
 			appliedAt = status.AppliedAt.UTC().Format(time.RFC3339)
 		}
-		fmt.Fprintf(writer, "%s\t%s\t%s\n", status.State, status.ID, appliedAt)
+		startedAt := "-"
+		if !status.StartedAt.IsZero() {
+			startedAt = status.StartedAt.UTC().Format(time.RFC3339)
+		}
+		_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\t%s\n", status.State, status.ID, appliedAt, status.Checksum, status.Direction, startedAt)
 	}
 	return writer.Flush()
 }
 
+func (cli *CLI) resolve(ctx context.Context, args []string) error {
+	options, rest, err := cli.parseDatabaseFlags("migration:resolve", args, false)
+	if err != nil {
+		return err
+	}
+	if len(rest) != 0 || options.id == "" || options.checksum == "" || !options.appliedSet {
+		return errors.New("migration: resolve requires -id, -checksum and explicit -applied=true|false")
+	}
+	ctx, cancel := context.WithTimeout(ctx, options.timeout)
+	defer cancel()
+	runner, closeConnection, err := cli.runner(ctx, options)
+	if err != nil {
+		return err
+	}
+	defer closeConnection()
+	if err := runner.Resolve(ctx, options.id, options.checksum, options.applied); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(cli.Out, "resolved %s (applied=%t)\n", options.id, options.applied)
+	return err
+}
+
 type cliOptions struct {
-	directory string
-	table     string
-	driver    string
-	dsn       string
-	dialect   string
-	limit     int
-	limitSet  bool
+	directory                            string
+	table                                string
+	driver                               string
+	dsn                                  string
+	dialect                              string
+	limit                                int
+	limitSet                             bool
+	timeout, lockTimeout, releaseTimeout time.Duration
+	id, checksum                         string
+	applied, appliedSet                  bool
 }
 
 func (cli *CLI) parseDatabaseFlags(name string, args []string, withLimit bool) (cliOptions, []string, error) {
@@ -189,6 +226,20 @@ func (cli *CLI) parseDatabaseFlags(name string, args []string, withLimit bool) (
 	flags.StringVar(&options.driver, "driver", os.Getenv("DB_DRIVER"), "database/sql driver")
 	flags.StringVar(&options.dsn, "dsn", os.Getenv("DB_DSN"), "database DSN")
 	flags.StringVar(&options.dialect, "dialect", os.Getenv("DB_DIALECT"), "SQL dialect")
+	flags.DurationVar(&options.timeout, "timeout", 5*time.Minute, "overall operation timeout")
+	flags.DurationVar(&options.lockTimeout, "lock-timeout", 30*time.Second, "connection/lock acquisition timeout")
+	flags.DurationVar(&options.releaseTimeout, "release-timeout", 5*time.Second, "lock cleanup timeout")
+	if name == "migration:resolve" {
+		flags.StringVar(&options.id, "id", "", "dirty migration ID")
+		flags.StringVar(&options.checksum, "checksum", "", "exact dirty checksum from status/error")
+		flags.Func("applied", "operator-verified final state: true or false", func(raw string) error {
+			if raw != "true" && raw != "false" {
+				return errors.New("applied must be true or false")
+			}
+			options.applied, options.appliedSet = raw == "true", true
+			return nil
+		})
+	}
 	if withLimit {
 		flags.Func("limit", "migration count", func(value string) error {
 			parsed, err := strconv.Atoi(value)
@@ -202,6 +253,9 @@ func (cli *CLI) parseDatabaseFlags(name string, args []string, withLimit bool) (
 	}
 	if err := flags.Parse(args); err != nil {
 		return cliOptions{}, nil, err
+	}
+	if options.timeout <= 0 || options.lockTimeout <= 0 || options.releaseTimeout <= 0 {
+		return cliOptions{}, nil, errors.New("migration: timeouts must be positive")
 	}
 	return options, flags.Args(), nil
 }
@@ -219,7 +273,7 @@ func (cli *CLI) runner(ctx context.Context, options cliOptions) (*Runner, func()
 		return nil, nil, err
 	}
 	closeConnection := func() { _ = connection.Close() }
-	runner, err := NewRunner(connection, DirectorySource{Path: options.directory}, Options{Table: options.table, Now: cli.Now})
+	runner, err := NewRunner(connection, DirectorySource{Path: options.directory}, Options{Table: options.table, Now: cli.Now, LockTimeout: options.lockTimeout, ReleaseTimeout: options.releaseTimeout})
 	if err != nil {
 		closeConnection()
 		return nil, nil, err

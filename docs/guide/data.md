@@ -17,9 +17,10 @@ Builder отделяет SQL identifiers от значений и формиру
 ## Миграции
 
 Миграции имеют возрастающую версию и пары up/down. Runner хранит history/checksum,
-но **не использует advisory lock**: запускайте только один migration process, сериализуя
-release jobs внешним механизмом. Межпроцессная блокировка и dirty recovery запланированы
-в этапе 8.1. Обёртка в SQL-транзакцию не делает DDL атомарным на MySQL.
+сериализует процессы session lock на закреплённом соединении и запрещает повтор
+при dirty state. PostgreSQL transactional DDL и MySQL implicit commits обрабатываются
+раздельно. [Контракт, CLI и восстановление](migrations.md) описывают обязательную
+проверку состояния оператором; resolve не выполняет SQL миграции.
 Перед production проверяйте миграции на копии данных и отдельно оценивайте блокировки DDL.
 
 ## Active Record

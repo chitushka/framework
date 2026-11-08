@@ -32,6 +32,9 @@ type Migration struct {
 	Name    string
 	UpSQL   string
 	DownSQL string
+	// NonTransactional runs PostgreSQL SQL outside a transaction (for example
+	// CREATE INDEX CONCURRENTLY). MySQL always uses non-transactional execution.
+	NonTransactional bool
 }
 
 // ID returns the stable version and name used in history and file names.
@@ -41,7 +44,11 @@ func (m Migration) ID() string { return m.Version + "_" + m.Name }
 func (m Migration) Checksum() string {
 	up := strings.ReplaceAll(m.UpSQL, "\r\n", "\n")
 	down := strings.ReplaceAll(m.DownSQL, "\r\n", "\n")
-	sum := sha256.Sum256([]byte(up + "\x00" + down))
+	input := up + "\x00" + down
+	if m.NonTransactional {
+		input += "\x00non-transactional"
+	}
+	sum := sha256.Sum256([]byte(input))
 	return hex.EncodeToString(sum[:])
 }
 
@@ -117,6 +124,9 @@ func (source DirectorySource) Migrations(ctx context.Context) ([]Migration, erro
 		contents, err := root.ReadFile(entry.Name())
 		if err != nil {
 			return nil, fmt.Errorf("migration: read %q: %w", entry.Name(), err)
+		}
+		if strings.SplitN(strings.ReplaceAll(string(contents), "\r\n", "\n"), "\n", 2)[0] == "-- chitu:nontransactional" {
+			item.migration.NonTransactional = true
 		}
 		switch matches[3] {
 		case "up":

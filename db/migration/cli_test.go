@@ -87,3 +87,20 @@ func TestCLIMigrationLifecycle(t *testing.T) {
 		t.Fatalf("down output = %q", output.String())
 	}
 }
+
+func TestCLIResolveRequiresExplicitVerifiedState(t *testing.T) {
+	cli := NewCLI()
+	cli.Out, cli.Err = &bytes.Buffer{}, &bytes.Buffer{}
+	for _, args := range [][]string{
+		{"resolve"}, {"resolve", "-id", "job", "-checksum", strings.Repeat("a", 64)},
+		{"resolve", "-applied=yes"}, {"up", "-timeout=0"}, {"status", "-lock-timeout=-1s"},
+	} {
+		if err := cli.Run(t.Context(), args); err == nil {
+			t.Fatalf("accepted invalid recovery/options: %v", args)
+		}
+	}
+	options, _, err := cli.parseDatabaseFlags("migration:resolve", []string{"-id=job", "-checksum=" + strings.Repeat("a", 64), "-applied=false"}, false)
+	if err != nil || !options.appliedSet || options.applied {
+		t.Fatalf("explicit false was lost: %+v, %v", options, err)
+	}
+}

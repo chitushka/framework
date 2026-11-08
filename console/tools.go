@@ -35,7 +35,7 @@ func RegisterTools(application *Application, options ToolOptions) error {
 		options.Now = time.Now
 	}
 	commands := []Command{
-		migrationCommand("migration:create", "create an empty up/down migration", options), migrationCommand("migration:up", "apply pending migrations", options), migrationCommand("migration:down", "revert applied migrations", options), migrationCommand("migration:status", "show migration status", options),
+		migrationCommand("migration:create", "create an empty up/down migration", options), migrationCommand("migration:up", "apply pending migrations", options), migrationCommand("migration:down", "revert applied migrations", options), migrationCommand("migration:status", "show migration status", options), migrationCommand("migration:resolve", "resolve inspected dirty migration state", options),
 		CommandFunc{CommandName: "generate:migration", CommandDescription: "generate a create-table migration from database metadata", Execute: func(ctx context.Context, console *Context, args []string) error {
 			return runMigrationGenerator(ctx, console, args, options)
 		}},

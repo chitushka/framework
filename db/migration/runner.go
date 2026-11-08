@@ -2,6 +2,7 @@ package migration
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sort"
@@ -20,6 +21,7 @@ const (
 	StateApplied  State = "applied"
 	StateModified State = "modified"
 	StateMissing  State = "missing"
+	StateDirty    State = "dirty"
 )
 
 // Status describes a source migration or a history entry missing from source.
@@ -27,6 +29,9 @@ type Status struct {
 	ID        string
 	State     State
 	AppliedAt time.Time
+	Checksum  string
+	Direction string
+	StartedAt time.Time
 }
 
 // Result describes one migration applied or reverted by a Runner call.
@@ -37,19 +42,25 @@ type Result struct {
 
 // Options configures migration history storage.
 type Options struct {
-	Table string
-	Now   func() time.Time
+	Table          string
+	Now            func() time.Time
+	LockTimeout    time.Duration
+	ReleaseTimeout time.Duration
 }
 
 // Runner applies migrations and records each successful change atomically when
 // the selected database supports transactional DDL.
-// Runner does not acquire an inter-process lock. Callers must serialize migration
-// processes externally; databases with implicit DDL commits cannot roll back DDL.
+// A session lock serializes runners before history inspection. Every operation
+// uses the same pinned connection. Failures leave a durable dirty marker.
 type Runner struct {
-	connection *frameworkdb.Connection
-	source     Source
-	table      string
-	now        func() time.Time
+	connection     *frameworkdb.Connection
+	source         Source
+	table          string
+	now            func() time.Time
+	lockTimeout    time.Duration
+	releaseTimeout time.Duration
+	session        *sql.Conn // set only on an operation-local copy
+	dirtyTable     string
 }
 
 func NewRunner(connection *frameworkdb.Connection, source Source, options Options) (*Runner, error) {
@@ -59,6 +70,9 @@ func NewRunner(connection *frameworkdb.Connection, source Source, options Option
 	if source == nil {
 		return nil, errors.New("migration: source must not be nil")
 	}
+	if connection.Dialect().Name() != frameworkdb.PostgreSQL && connection.Dialect().Name() != frameworkdb.MySQL {
+		return nil, errors.New("migration: locking supports PostgreSQL and MySQL only")
+	}
 	table := options.Table
 	if table == "" {
 		table = DefaultTable
@@ -66,15 +80,34 @@ func NewRunner(connection *frameworkdb.Connection, source Source, options Option
 	if _, err := quotedPath(connection.Dialect(), table); err != nil {
 		return nil, fmt.Errorf("migration: history table: %w", err)
 	}
+	parts := strings.Split(table, ".")
+	if len(parts) > 2 || len(parts[len(parts)-1]) > 57 || len(parts[0]) > 63 {
+		return nil, errors.New("migration: use [schema.]table with table name at most 57 bytes")
+	}
+	if options.LockTimeout == 0 {
+		options.LockTimeout = 30 * time.Second
+	}
+	if options.ReleaseTimeout == 0 {
+		options.ReleaseTimeout = 5 * time.Second
+	}
+	if options.LockTimeout < 0 || options.ReleaseTimeout < 0 {
+		return nil, errors.New("migration: timeouts must be positive")
+	}
 	now := options.Now
 	if now == nil {
 		now = time.Now
 	}
-	return &Runner{connection: connection, source: source, table: table, now: now}, nil
+	return &Runner{connection: connection, source: source, table: table, now: now, lockTimeout: options.LockTimeout, releaseTimeout: options.ReleaseTimeout}, nil
 }
 
 // Status returns source and database history in version order.
 func (runner *Runner) Status(ctx context.Context) ([]Status, error) {
+	var results []Status
+	err := runner.withLock(ctx, func(locked *Runner) (err error) { results, err = locked.status(ctx); return })
+	return results, err
+}
+
+func (runner *Runner) status(ctx context.Context) ([]Status, error) {
 	migrations, err := runner.load(ctx)
 	if err != nil {
 		return nil, err
@@ -89,10 +122,11 @@ func (runner *Runner) Status(ctx context.Context) ([]Status, error) {
 	}
 	statuses := make([]Status, 0, len(migrations)+len(history))
 	for _, migration := range migrations {
-		status := Status{ID: migration.ID(), State: StatePending}
+		status := Status{ID: migration.ID(), State: StatePending, Checksum: migration.Checksum()}
 		if entry, found := byID[migration.ID()]; found {
 			status.State = StateApplied
 			status.AppliedAt = entry.AppliedAt
+			status.Checksum = entry.Checksum
 			if entry.Checksum != migration.Checksum() {
 				status.State = StateModified
 			}
@@ -101,7 +135,26 @@ func (runner *Runner) Status(ctx context.Context) ([]Status, error) {
 		statuses = append(statuses, status)
 	}
 	for _, entry := range byID {
-		statuses = append(statuses, Status{ID: entry.ID, State: StateMissing, AppliedAt: entry.AppliedAt})
+		statuses = append(statuses, Status{ID: entry.ID, State: StateMissing, AppliedAt: entry.AppliedAt, Checksum: entry.Checksum})
+	}
+	dirty, err := runner.readDirty(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range dirty {
+		status := Status{ID: entry.ID, State: StateDirty, Checksum: entry.Checksum, Direction: entry.Direction, StartedAt: entry.StartedAt}
+		replaced := false
+		for i := range statuses {
+			if statuses[i].ID == entry.ID {
+				status.AppliedAt = statuses[i].AppliedAt
+				statuses[i] = status
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			statuses = append(statuses, status)
+		}
 	}
 	sort.Slice(statuses, func(i, j int) bool { return statuses[i].ID < statuses[j].ID })
 	return statuses, nil
@@ -109,6 +162,18 @@ func (runner *Runner) Status(ctx context.Context) ([]Status, error) {
 
 // Up applies pending migrations. A zero limit applies all pending migrations.
 func (runner *Runner) Up(ctx context.Context, limit int) ([]Result, error) {
+	if limit < 0 {
+		return nil, errors.New("migration: up limit must not be negative")
+	}
+	var results []Result
+	err := runner.withLock(ctx, func(locked *Runner) (err error) { results, err = locked.up(ctx, limit); return })
+	return results, err
+}
+
+func (runner *Runner) up(ctx context.Context, limit int) ([]Result, error) {
+	if err := runner.checkClean(ctx); err != nil {
+		return nil, err
+	}
 	if limit < 0 {
 		return nil, errors.New("migration: up limit must not be negative")
 	}
@@ -130,9 +195,13 @@ func (runner *Runner) Up(ctx context.Context, limit int) ([]Result, error) {
 			if entry.Checksum != migration.Checksum() {
 				return nil, fmt.Errorf("migration: applied migration %s was modified", migration.ID())
 			}
+			delete(applied, migration.ID())
 			continue
 		}
 		pending = append(pending, migration)
+	}
+	for id := range applied {
+		return nil, fmt.Errorf("migration: applied migration %s is missing from source", id)
 	}
 	if limit > 0 && len(pending) > limit {
 		pending = pending[:limit]
@@ -153,6 +222,18 @@ func (runner *Runner) Down(ctx context.Context, steps int) ([]Result, error) {
 	if steps <= 0 {
 		return nil, errors.New("migration: down steps must be positive")
 	}
+	var results []Result
+	err := runner.withLock(ctx, func(locked *Runner) (err error) { results, err = locked.down(ctx, steps); return })
+	return results, err
+}
+
+func (runner *Runner) down(ctx context.Context, steps int) ([]Result, error) {
+	if err := runner.checkClean(ctx); err != nil {
+		return nil, err
+	}
+	if steps <= 0 {
+		return nil, errors.New("migration: down steps must be positive")
+	}
 	migrations, err := runner.load(ctx)
 	if err != nil {
 		return nil, err
@@ -164,6 +245,15 @@ func (runner *Runner) Down(ctx context.Context, steps int) ([]Result, error) {
 	history, err := runner.history(ctx)
 	if err != nil {
 		return nil, err
+	}
+	for _, entry := range history {
+		migration, found := byID[entry.ID]
+		if !found {
+			return nil, fmt.Errorf("migration: applied migration %s is missing from source", entry.ID)
+		}
+		if migration.Checksum() != entry.Checksum {
+			return nil, fmt.Errorf("migration: applied migration %s was modified", entry.ID)
+		}
 	}
 	if len(history) > steps {
 		history = history[len(history)-steps:]
@@ -214,20 +304,17 @@ type historyEntry struct {
 }
 
 func (runner *Runner) history(ctx context.Context) ([]historyEntry, error) {
-	if err := runner.ensureHistoryTable(ctx); err != nil {
-		return nil, err
-	}
 	table, _ := quotedPath(runner.connection.Dialect(), runner.table)
 	version := runner.connection.Dialect().QuoteIdentifier("version")
 	checksum := runner.connection.Dialect().QuoteIdentifier("checksum")
 	appliedAt := runner.connection.Dialect().QuoteIdentifier("applied_at")
-	rows, err := runner.connection.QueryContext(ctx,
+	rows, err := runner.session.QueryContext(ctx,
 		"SELECT "+version+", "+checksum+", "+appliedAt+" FROM "+table+" ORDER BY "+version+" ASC",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("migration: read history: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	entries := make([]historyEntry, 0)
 	for rows.Next() {
 		var entry historyEntry
@@ -267,52 +354,21 @@ func (runner *Runner) ensureHistoryTable(ctx context.Context) error {
 	default:
 		statement = "CREATE TABLE IF NOT EXISTS " + table + " (" + columns + ")"
 	}
-	if _, err := runner.connection.ExecContext(ctx, statement); err != nil {
+	if dialect.Name() == frameworkdb.MySQL {
+		statement += " ENGINE=InnoDB"
+	}
+	if _, err := runner.session.ExecContext(ctx, statement); err != nil {
 		return fmt.Errorf("migration: ensure history table: %w", err)
 	}
 	return nil
 }
 
 func (runner *Runner) apply(ctx context.Context, migration Migration) error {
-	return runner.connection.Transaction(ctx, nil, func(transaction *frameworkdb.Transaction) error {
-		if _, err := transaction.ExecContext(ctx, migration.UpSQL); err != nil {
-			return fmt.Errorf("migration: apply %s: %w", migration.ID(), err)
-		}
-		dialect := transaction.Dialect()
-		table, _ := quotedPath(dialect, runner.table)
-		columns := []string{
-			dialect.QuoteIdentifier("version"),
-			dialect.QuoteIdentifier("checksum"),
-			dialect.QuoteIdentifier("applied_at"),
-		}
-		values := []string{dialect.Placeholder(1), dialect.Placeholder(2), dialect.Placeholder(3)}
-		_, err := transaction.ExecContext(ctx,
-			"INSERT INTO "+table+" ("+strings.Join(columns, ", ")+") VALUES ("+strings.Join(values, ", ")+")",
-			migration.ID(), migration.Checksum(), runner.now().UTC().Format(time.RFC3339Nano),
-		)
-		if err != nil {
-			return fmt.Errorf("migration: record %s: %w", migration.ID(), err)
-		}
-		return nil
-	})
+	return runner.transition(ctx, migration, true)
 }
 
 func (runner *Runner) revert(ctx context.Context, migration Migration) error {
-	return runner.connection.Transaction(ctx, nil, func(transaction *frameworkdb.Transaction) error {
-		if _, err := transaction.ExecContext(ctx, migration.DownSQL); err != nil {
-			return fmt.Errorf("migration: revert %s: %w", migration.ID(), err)
-		}
-		dialect := transaction.Dialect()
-		table, _ := quotedPath(dialect, runner.table)
-		version := dialect.QuoteIdentifier("version")
-		_, err := transaction.ExecContext(ctx,
-			"DELETE FROM "+table+" WHERE "+version+" = "+dialect.Placeholder(1), migration.ID(),
-		)
-		if err != nil {
-			return fmt.Errorf("migration: remove history %s: %w", migration.ID(), err)
-		}
-		return nil
-	})
+	return runner.transition(ctx, migration, false)
 }
 
 func quotedPath(dialect frameworkdb.Dialect, identifier string) (string, error) {

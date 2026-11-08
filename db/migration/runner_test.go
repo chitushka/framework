@@ -109,10 +109,8 @@ func TestRunnerUsesDialectHistoryDDL(t *testing.T) {
 		dialect string
 		part    string
 	}{
-		{frameworkdb.PostgreSQL, "CREATE TABLE IF NOT EXISTS \"chitu_migration\""},
-		{frameworkdb.MySQL, "CREATE TABLE IF NOT EXISTS `chitu_migration`"},
-		{frameworkdb.Oracle, "BEGIN EXECUTE IMMEDIATE 'CREATE TABLE \"chitu_migration\""},
-		{frameworkdb.SQLServer, "IF OBJECT_ID(N'chitu_migration', N'U') IS NULL CREATE TABLE [chitu_migration]"},
+		{frameworkdb.PostgreSQL, "CREATE TABLE IF NOT EXISTS \"public\".\"chitu_migration\""},
+		{frameworkdb.MySQL, "CREATE TABLE IF NOT EXISTS `testdb`.`chitu_migration`"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.dialect, func(t *testing.T) {
@@ -168,13 +166,19 @@ type historyRecord struct {
 }
 
 type migrationRecorder struct {
-	mu        sync.Mutex
-	history   map[string]historyRecord
-	executed  []string
-	committed []string
-	failQuery string
-	rollbacks int
+	mu          sync.Mutex
+	history     map[string]historyRecord
+	executed    []string
+	committed   []string
+	failQuery   string
+	rollbacks   int
+	dirty       map[string]dirtyTestRecord
+	owner       *migrationDriverConn
+	busy        bool
+	failRelease bool
 }
+
+type dirtyTestRecord struct{ checksum, direction, started string }
 
 func (r *migrationRecorder) historySnapshot() map[string]historyRecord {
 	r.mu.Lock()
@@ -206,7 +210,14 @@ type migrationDriverConn struct {
 func (*migrationDriverConn) Prepare(string) (driver.Stmt, error) {
 	return nil, errors.New("not supported")
 }
-func (*migrationDriverConn) Close() error { return nil }
+func (c *migrationDriverConn) Close() error {
+	c.recorder.mu.Lock()
+	defer c.recorder.mu.Unlock()
+	if c.recorder.owner == c {
+		c.recorder.owner = nil
+	}
+	return nil
+}
 func (connection *migrationDriverConn) Begin() (driver.Tx, error) {
 	return connection.BeginTx(context.Background(), driver.TxOptions{})
 }
@@ -234,9 +245,57 @@ func (connection *migrationDriverConn) ExecContext(_ context.Context, query stri
 	return driver.RowsAffected(1), nil
 }
 
-func (connection *migrationDriverConn) QueryContext(_ context.Context, query string, _ []driver.NamedValue) (driver.Rows, error) {
+func (connection *migrationDriverConn) QueryContext(ctx context.Context, query string, _ []driver.NamedValue) (driver.Rows, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	connection.recorder.mu.Lock()
 	defer connection.recorder.mu.Unlock()
+	r := connection.recorder
+	valueRow := func(value driver.Value) (driver.Rows, error) {
+		return &migrationRows{columns: []string{"value"}, rows: [][]driver.Value{{value}}}, nil
+	}
+	switch {
+	case strings.Contains(query, "pg_try_advisory_lock"), strings.Contains(query, "GET_LOCK"):
+		acquired := !r.busy && (r.owner == nil || r.owner == connection)
+		if acquired {
+			r.owner = connection
+		}
+		if strings.Contains(query, "GET_LOCK") {
+			if acquired {
+				return valueRow(int64(1))
+			}
+			return valueRow(int64(0))
+		}
+		return valueRow(acquired)
+	case strings.Contains(query, "pg_advisory_unlock"), strings.Contains(query, "RELEASE_LOCK"):
+		if r.failRelease {
+			return nil, errors.New("forced release failure")
+		}
+		owned := r.owner == connection
+		if owned {
+			r.owner = nil
+		}
+		if strings.Contains(query, "RELEASE_LOCK") {
+			if owned {
+				return valueRow(int64(1))
+			}
+			return valueRow(int64(0))
+		}
+		return valueRow(owned)
+	case query == "SELECT DATABASE()":
+		return valueRow("testdb")
+	case strings.HasPrefix(query, "SELECT COALESCE"):
+		return valueRow("public")
+	case strings.HasPrefix(query, "SELECT ENGINE"):
+		return valueRow("InnoDB")
+	case strings.Contains(query, "started_at"):
+		var rows [][]driver.Value
+		for id, entry := range r.dirty {
+			rows = append(rows, []driver.Value{id, entry.checksum, entry.direction, entry.started})
+		}
+		return &migrationRows{columns: []string{"version", "checksum", "direction", "started_at"}, rows: rows}, nil
+	}
 	ids := make([]string, 0, len(connection.recorder.history))
 	for id := range connection.recorder.history {
 		ids = append(ids, id)
@@ -279,6 +338,18 @@ func (tx *migrationDriverTx) Rollback() error {
 }
 
 func applyOperation(recorder *migrationRecorder, operation recordedOperation) {
+	if strings.Contains(operation.query, "_state") {
+		if recorder.dirty == nil {
+			recorder.dirty = make(map[string]dirtyTestRecord)
+		}
+		switch {
+		case strings.HasPrefix(operation.query, "INSERT INTO"):
+			recorder.dirty[operation.args[0].(string)] = dirtyTestRecord{checksum: operation.args[1].(string), direction: operation.args[2].(string), started: operation.args[3].(string)}
+		case strings.HasPrefix(operation.query, "DELETE FROM"):
+			delete(recorder.dirty, operation.args[0].(string))
+		}
+		return
+	}
 	switch {
 	case strings.HasPrefix(operation.query, "INSERT INTO"):
 		recorder.history[operation.args[0].(string)] = historyRecord{
@@ -303,12 +374,18 @@ func namedValues(values []driver.NamedValue) []driver.Value {
 }
 
 type migrationRows struct {
-	rows  [][]driver.Value
-	index int
+	rows    [][]driver.Value
+	index   int
+	columns []string
 }
 
-func (*migrationRows) Columns() []string { return []string{"version", "checksum", "applied_at"} }
-func (*migrationRows) Close() error      { return nil }
+func (r *migrationRows) Columns() []string {
+	if r.columns != nil {
+		return r.columns
+	}
+	return []string{"version", "checksum", "applied_at"}
+}
+func (*migrationRows) Close() error { return nil }
 func (rows *migrationRows) Next(destination []driver.Value) error {
 	if rows.index >= len(rows.rows) {
 		return io.EOF

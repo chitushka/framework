@@ -152,6 +152,7 @@ func TestSQL(t *testing.T) {
 
 			history, migrated := unique(), unique()
 			drop(history)
+			drop(history + "_state")
 			drop(migrated)
 			directory := t.TempDir()
 			check(t, os.WriteFile(filepath.Join(directory, "20261104000000_smoke.up.sql"), []byte("CREATE TABLE "+q(migrated)+" (id INTEGER PRIMARY KEY)"), 0600))

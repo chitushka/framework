@@ -70,6 +70,25 @@ func TestChecksumIgnoresPlatformLineEndings(t *testing.T) {
 	}
 }
 
+func TestNonTransactionalDirectiveAndChecksum(t *testing.T) {
+	directory := t.TempDir()
+	base := filepath.Join(directory, "20261108000000_index")
+	for _, direction := range []string{"up", "down"} {
+		if err := os.WriteFile(base+"."+direction+".sql", []byte("-- chitu:nontransactional\r\nSELECT 1;\r\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	items, err := (DirectorySource{Path: directory}).Migrations(t.Context())
+	if err != nil || len(items) != 1 || !items[0].NonTransactional {
+		t.Fatalf("directive: %v %v", items, err)
+	}
+	transactional := items[0]
+	transactional.NonTransactional = false
+	if transactional.Checksum() == items[0].Checksum() {
+		t.Fatal("execution mode must affect checksum")
+	}
+}
+
 func TestDirectorySourceRejectsUneditedTemplate(t *testing.T) {
 	directory := t.TempDir()
 	if _, err := Create(directory, "users", time.Now()); err != nil {
