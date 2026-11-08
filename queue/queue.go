@@ -16,6 +16,7 @@ import (
 var (
 	ErrEmpty   = errors.New("queue: no message available")
 	ErrSettled = errors.New("queue: delivery already settled")
+	ErrLeaseLost = errors.New("queue: delivery reservation was lost")
 )
 
 // Message is the broker-independent serialized job envelope.

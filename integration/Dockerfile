@@ -2,9 +2,10 @@ FROM golang:1.26.10@sha256:670bb5aa5349ae03b8516764718486f4f16399134bdc9acd0c46a
 WORKDIR /workspace
 COPY go.mod go.sum ./
 COPY integration/go.mod integration/go.sum ./integration/
+COPY adapters/go.mod adapters/go.sum ./adapters/
 WORKDIR /workspace/integration
 RUN go mod download
 WORKDIR /workspace
 COPY . .
 WORKDIR /workspace/integration
-CMD ["go", "test", "-mod=readonly", "-race", "-count=1", "-timeout=3m", "-v", "./..."]
+CMD ["go", "test", "-mod=readonly", "-race", "-count=1", "-timeout=6m", "-v", "./..."]

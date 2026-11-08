@@ -3,10 +3,10 @@ package cache
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -14,13 +14,15 @@ import (
 
 // RedisConfig configures the built-in RESP2 Redis backend.
 type RedisConfig struct {
-	Address     string
-	Username    string
-	Password    string
-	Database    int
-	KeyPrefix   string
-	DialTimeout time.Duration
-	IOTimeout   time.Duration
+	Address       string
+	Username      string
+	Password      string
+	Database      int
+	KeyPrefix     string
+	DialTimeout   time.Duration
+	IOTimeout     time.Duration
+	TLSConfig     *tls.Config
+	MaxValueBytes int
 }
 
 // RedisBackend uses short-lived TCP connections and requires no external client library.
@@ -42,6 +44,15 @@ func NewRedisBackend(config RedisConfig) (*RedisBackend, error) {
 	if config.IOTimeout == 0 {
 		config.IOTimeout = 5 * time.Second
 	}
+	if config.MaxValueBytes == 0 {
+		config.MaxValueBytes = 16 << 20
+	}
+	if config.MaxValueBytes < 1 || config.MaxValueBytes > 64<<20 {
+		return nil, errors.New("cache: invalid Redis value limit")
+	}
+	if config.TLSConfig != nil {
+		config.TLSConfig = config.TLSConfig.Clone()
+	}
 	return &RedisBackend{config: config}, nil
 }
 
@@ -60,6 +71,9 @@ func (backend *RedisBackend) Get(ctx context.Context, key string) ([]byte, bool,
 }
 
 func (backend *RedisBackend) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	if ttl < 0 || len(value) > backend.config.MaxValueBytes {
+		return errors.New("cache: invalid TTL or Redis value too large")
+	}
 	arguments := [][]byte{[]byte("SET"), []byte(backend.config.KeyPrefix + key), value}
 	if ttl > 0 {
 		milliseconds := ttl.Milliseconds()
@@ -102,8 +116,7 @@ func (backend *RedisBackend) commandBytes(ctx context.Context, arguments ...[]by
 	if ctx == nil {
 		return redisResponse{}, errors.New("cache: context is nil")
 	}
-	dialer := net.Dialer{Timeout: backend.config.DialTimeout}
-	connection, err := dialer.DialContext(ctx, "tcp", backend.config.Address)
+	connection, err := dialCache(ctx, backend.config.Address, backend.config.DialTimeout, backend.config.IOTimeout, backend.config.TLSConfig)
 	if err != nil {
 		return redisResponse{}, fmt.Errorf("cache: connect to Redis: %w", err)
 	}

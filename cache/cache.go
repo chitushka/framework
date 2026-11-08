@@ -59,6 +59,7 @@ type Store struct {
 	now     func() time.Time
 	mu      sync.RWMutex
 	deps    map[string][]Dependency
+	flights map[string]*loadFlight
 }
 
 type envelope struct {
@@ -308,6 +309,12 @@ func (store *Store) setDependencies(key string, dependencies []Dependency) {
 	if len(dependencies) == 0 {
 		delete(store.deps, key)
 		return
+	}
+	if _, exists := store.deps[key]; !exists && len(store.deps) >= 10000 {
+		for stale := range store.deps {
+			delete(store.deps, stale)
+			break
+		}
 	}
 	store.deps[key] = append([]Dependency(nil), dependencies...)
 }

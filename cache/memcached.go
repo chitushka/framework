@@ -3,6 +3,7 @@ package cache
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -14,10 +15,12 @@ import (
 
 // MemcachedConfig configures the built-in memcached text-protocol backend.
 type MemcachedConfig struct {
-	Address     string
-	KeyPrefix   string
-	DialTimeout time.Duration
-	IOTimeout   time.Duration
+	Address       string
+	KeyPrefix     string
+	DialTimeout   time.Duration
+	IOTimeout     time.Duration
+	TLSConfig     *tls.Config
+	MaxValueBytes int
 }
 
 type MemcachedBackend struct{ config MemcachedConfig }
@@ -40,10 +43,22 @@ func NewMemcachedBackend(config MemcachedConfig) (*MemcachedBackend, error) {
 	if config.IOTimeout == 0 {
 		config.IOTimeout = 5 * time.Second
 	}
+	if config.MaxValueBytes == 0 {
+		config.MaxValueBytes = 1 << 20
+	}
+	if config.MaxValueBytes < 1 || config.MaxValueBytes > 64<<20 {
+		return nil, errors.New("cache: invalid Memcached value limit")
+	}
+	if config.TLSConfig != nil {
+		config.TLSConfig = config.TLSConfig.Clone()
+	}
 	return &MemcachedBackend{config: config}, nil
 }
 
 func (backend *MemcachedBackend) Get(ctx context.Context, key string) ([]byte, bool, error) {
+	if !validWireKey(backend.config.KeyPrefix + key) {
+		return nil, false, errors.New("cache: invalid Memcached key")
+	}
 	connection, reader, err := backend.connect(ctx)
 	if err != nil {
 		return nil, false, err
@@ -65,7 +80,7 @@ func (backend *MemcachedBackend) Get(ctx context.Context, key string) ([]byte, b
 		return nil, false, fmt.Errorf("cache: invalid Memcached GET response %q", line)
 	}
 	length, err := strconv.Atoi(parts[3])
-	if err != nil || length < 0 || length > 64<<20 {
+	if err != nil || length < 0 || length > backend.config.MaxValueBytes {
 		return nil, false, fmt.Errorf("cache: invalid Memcached value length %q", parts[3])
 	}
 	value := make([]byte, length+2)
@@ -85,6 +100,9 @@ func (backend *MemcachedBackend) Get(ctx context.Context, key string) ([]byte, b
 }
 
 func (backend *MemcachedBackend) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	if !validWireKey(backend.config.KeyPrefix+key) || ttl < 0 || len(value) > backend.config.MaxValueBytes {
+		return errors.New("cache: invalid Memcached key/TTL/value limit")
+	}
 	connection, reader, err := backend.connect(ctx)
 	if err != nil {
 		return err
@@ -111,6 +129,9 @@ func (backend *MemcachedBackend) Set(ctx context.Context, key string, value []by
 }
 
 func (backend *MemcachedBackend) Delete(ctx context.Context, key string) error {
+	if !validWireKey(backend.config.KeyPrefix + key) {
+		return errors.New("cache: invalid Memcached key")
+	}
 	connection, reader, err := backend.connect(ctx)
 	if err != nil {
 		return err
@@ -133,8 +154,7 @@ func (backend *MemcachedBackend) connect(ctx context.Context) (net.Conn, *bufio.
 	if ctx == nil {
 		return nil, nil, errors.New("cache: context is nil")
 	}
-	dialer := net.Dialer{Timeout: backend.config.DialTimeout}
-	connection, err := dialer.DialContext(ctx, "tcp", backend.config.Address)
+	connection, err := dialCache(ctx, backend.config.Address, backend.config.DialTimeout, backend.config.IOTimeout, backend.config.TLSConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cache: connect to Memcached: %w", err)
 	}
@@ -164,7 +184,7 @@ func memcachedExpiration(ttl time.Duration, now time.Time) int64 {
 	if ttl <= 0 {
 		return 0
 	}
-	seconds := int64((ttl + time.Second - 1) / time.Second)
+	seconds := int64((ttl-1)/time.Second) + 1
 	if seconds <= 30*24*60*60 {
 		return seconds
 	}
