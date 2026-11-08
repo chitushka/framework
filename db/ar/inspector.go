@@ -2,6 +2,7 @@ package ar
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -58,6 +59,51 @@ func (inspector DatabaseInspector) Inspect(ctx context.Context, table string) (T
 			PrimaryKey:    isPrimary,
 			AutoIncrement: type_.Name() == options.AutoIncrement,
 			Version:       type_.Name() == options.VersionColumn,
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return TableSchema{}, err
+	}
+	if inspector.Connection.Dialect().Name() == frameworkdb.PostgreSQL || inspector.Connection.Dialect().Name() == frameworkdb.MySQL {
+		parts := strings.Split(table, ".")
+		var namespace any
+		if len(parts) == 2 {
+			namespace = parts[0]
+		}
+		d := inspector.Connection.Dialect()
+		schemaExpr := "current_schema()"
+		if d.Name() == frameworkdb.MySQL {
+			schemaExpr = "DATABASE()"
+		}
+		query := "SELECT column_name, is_nullable, character_maximum_length, numeric_precision, numeric_scale FROM information_schema.columns WHERE table_schema=COALESCE(" + d.Placeholder(1) + ", " + schemaExpr + ") AND table_name=" + d.Placeholder(2)
+		metadata, err := inspector.Connection.QueryContext(ctx, query, namespace, parts[len(parts)-1])
+		if err != nil {
+			return TableSchema{}, err
+		}
+		defer func() { _ = metadata.Close() }()
+		for metadata.Next() {
+			var name, nullable string
+			var length, precision, scale sql.NullInt64
+			if err := metadata.Scan(&name, &nullable, &length, &precision, &scale); err != nil {
+				return TableSchema{}, err
+			}
+			for i := range schema.Columns {
+				column := &schema.Columns[i]
+				if column.Name != name {
+					continue
+				}
+				column.Nullable = nullable == "YES"
+				typeName := strings.ToUpper(column.DataType)
+				if (typeName == "VARCHAR" || typeName == "CHAR" || typeName == "VARBINARY" || typeName == "BINARY") && length.Valid {
+					column.DataType = fmt.Sprintf("%s(%d)", typeName, length.Int64)
+				}
+				if (typeName == "NUMERIC" || typeName == "DECIMAL") && precision.Valid && scale.Valid {
+					column.DataType = fmt.Sprintf("%s(%d,%d)", typeName, precision.Int64, scale.Int64)
+				}
+			}
+		}
+		if err := metadata.Err(); err != nil {
+			return TableSchema{}, err
 		}
 	}
 	return schema, nil

@@ -165,6 +165,21 @@ type Files struct {
 
 // Create writes a new exclusive up/down pair and never overwrites files.
 func Create(directory, name string, now time.Time) (Files, error) {
+	return CreateSQL(directory, name, now, upTemplate, downTemplate)
+}
+
+// Plan computes validated file names without creating directories or files.
+func Plan(directory, name string, now time.Time) (Files, error) {
+	name = normalizeName(name)
+	if !namePattern.MatchString(name) {
+		return Files{}, errors.New("migration: invalid migration name")
+	}
+	base := now.UTC().Format("20060102150405") + "_" + name
+	return Files{Up: filepath.Join(directory, base+".up.sql"), Down: filepath.Join(directory, base+".down.sql")}, nil
+}
+
+// CreateSQL writes final SQL once, exclusively, without reopening a template.
+func CreateSQL(directory, name string, now time.Time, upSQL, downSQL string) (Files, error) {
 	if strings.TrimSpace(directory) == "" {
 		return Files{}, errors.New("migration: directory must not be empty")
 	}
@@ -180,10 +195,10 @@ func Create(directory, name string, now time.Time) (Files, error) {
 		Up:   filepath.Join(directory, base+".up.sql"),
 		Down: filepath.Join(directory, base+".down.sql"),
 	}
-	if err := writeExclusive(files.Up, upTemplate); err != nil {
+	if err := writeExclusive(files.Up, upSQL); err != nil {
 		return Files{}, err
 	}
-	if err := writeExclusive(files.Down, downTemplate); err != nil {
+	if err := writeExclusive(files.Down, downSQL); err != nil {
 		_ = os.Remove(files.Up)
 		return Files{}, err
 	}

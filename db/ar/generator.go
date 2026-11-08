@@ -213,7 +213,9 @@ func databaseGoType(dataType string) string {
 		return "bool"
 	case strings.Contains(type_, "int"), type_ == "serial", type_ == "bigserial":
 		return "int64"
-	case strings.Contains(type_, "decimal"), strings.Contains(type_, "numeric"), strings.Contains(type_, "real"), strings.Contains(type_, "float"), strings.Contains(type_, "double"):
+	case strings.Contains(type_, "decimal"), strings.Contains(type_, "numeric"):
+		return "string"
+	case strings.Contains(type_, "real"), strings.Contains(type_, "float"), strings.Contains(type_, "double"):
 		return "float64"
 	case strings.Contains(type_, "date"), strings.Contains(type_, "time"):
 		return "time.Time"

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -73,6 +74,8 @@ func runMigrationGenerator(ctx context.Context, console *Context, args []string,
 	flags.StringVar(&values.auto, "auto", "", "auto-increment column")
 	directory := flags.String("dir", envOr("MIGRATION_DIR", "migrations"), "migration directory")
 	name := flags.String("name", "", "migration name")
+	dryRun := flags.Bool("dry-run", false, "preview without writing")
+	diff := flags.Bool("diff", false, "show diff without writing")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -93,6 +96,17 @@ func runMigrationGenerator(ctx context.Context, console *Context, args []string,
 	if migrationName == "" {
 		migrationName = "create_" + strings.ReplaceAll(table, ".", "_")
 	}
+	if *dryRun || *diff {
+		up, down, err := gii.GenerateMigrationSQL(schema, dialect)
+		if err != nil {
+			return err
+		}
+		paths, err := migration.Plan(*directory, migrationName, options.Now())
+		if err != nil {
+			return err
+		}
+		return printPreview(console.Out, []gii.GeneratedFile{{Path: paths.Up, Content: []byte(up)}, {Path: paths.Down, Content: []byte(down)}}, *diff)
+	}
 	files, err := gii.WriteMigration(*directory, migrationName, options.Now(), schema, dialect)
 	if err != nil {
 		return err
@@ -101,7 +115,10 @@ func runMigrationGenerator(ctx context.Context, console *Context, args []string,
 	return nil
 }
 
-type generatorFlags struct{ driver, dsn, dialect, packageName, typeName, output, primary, auto, version string }
+type generatorFlags struct {
+	driver, dsn, dialect, packageName, typeName, output, primary, auto, version string
+	dryRun, diff                                                                bool
+}
 
 func parseGeneratorFlags(name string, args []string, errOutput interface{ Write([]byte) (int, error) }) (generatorFlags, string, error) {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
@@ -116,6 +133,8 @@ func parseGeneratorFlags(name string, args []string, errOutput interface{ Write(
 	flags.StringVar(&values.primary, "pk", "", "comma-separated primary key columns")
 	flags.StringVar(&values.auto, "auto", "", "auto-increment column")
 	flags.StringVar(&values.version, "version", "", "optimistic lock column")
+	flags.BoolVar(&values.dryRun, "dry-run", false, "preview without writing")
+	flags.BoolVar(&values.diff, "diff", false, "show diff without writing")
 	if err := flags.Parse(args); err != nil {
 		return generatorFlags{}, "", err
 	}
@@ -156,6 +175,9 @@ func runModelGenerator(ctx context.Context, console *Context, args []string, opt
 		return err
 	}
 	generator := ar.Generator{Inspector: staticInspector{schema: schema}}
+	if values.dryRun || values.diff {
+		return printPreview(console.Out, []gii.GeneratedFile{{Path: values.output, Content: source}}, values.diff)
+	}
 	if err := generator.GenerateFile(ctx, table, ar.GenerateOptions{Package: values.packageName, TypeName: values.typeName, Output: values.output}); err != nil {
 		return err
 	}
@@ -186,6 +208,8 @@ func runCRUDGenerator(ctx context.Context, console *Context, args []string, opti
 	output := flags.String("output", "", "controller output directory")
 	vueOutput := flags.String("vue-output", "", "Vue component output path")
 	route := flags.String("route", "", "route prefix")
+	dryRun := flags.Bool("dry-run", false, "preview without writing")
+	diff := flags.Bool("diff", false, "show diff without writing")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -201,12 +225,37 @@ func runCRUDGenerator(ctx context.Context, console *Context, args []string, opti
 		return err
 	}
 	defer closeConnection()
-	created, err := gii.WriteCRUD(schema, gii.CRUDOptions{Package: *controllerPackage, ModelPackage: *modelPackage, ModelAlias: *modelAlias, ModelType: *modelType, OutputDir: *output, VueOutput: *vueOutput, Route: *route})
+	files, err := gii.GenerateCRUD(schema, gii.CRUDOptions{Package: *controllerPackage, ModelPackage: *modelPackage, ModelAlias: *modelAlias, ModelType: *modelType, OutputDir: *output, VueOutput: *vueOutput, Route: *route})
+	if err != nil {
+		return err
+	}
+	if *dryRun || *diff {
+		return printPreview(console.Out, files, *diff)
+	}
+	created, err := gii.WriteFiles(files)
 	if err != nil {
 		return err
 	}
 	for _, path := range created {
 		fmt.Fprintf(console.Out, "created %s\n", path)
+	}
+	return nil
+}
+
+func printPreview(out io.Writer, files []gii.GeneratedFile, diff bool) error {
+	changes, err := gii.Preview(files)
+	if err != nil {
+		return err
+	}
+	for _, change := range changes {
+		if diff {
+			_, err = io.WriteString(out, change.Diff)
+		} else {
+			_, err = fmt.Fprintf(out, "%s %s\n", change.State, change.Path)
+		}
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -3,7 +3,6 @@ package gii
 import (
 	"errors"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -80,21 +79,7 @@ func WriteMigration(directory, name string, now time.Time, schema ar.TableSchema
 	if err != nil {
 		return migration.Files{}, err
 	}
-	files, err := migration.Create(directory, name, now)
-	if err != nil {
-		return migration.Files{}, err
-	}
-	if err := os.WriteFile(files.Up, []byte(up), 0o644); err != nil {
-		_ = os.Remove(files.Up)
-		_ = os.Remove(files.Down)
-		return migration.Files{}, err
-	}
-	if err := os.WriteFile(files.Down, []byte(down), 0o644); err != nil {
-		_ = os.Remove(files.Up)
-		_ = os.Remove(files.Down)
-		return migration.Files{}, err
-	}
-	return files, nil
+	return migration.CreateSQL(directory, name, now, up, down)
 }
 
 func sqlTypeForGo(value, dialect string) string {

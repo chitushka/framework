@@ -129,6 +129,15 @@ func WriteCRUD(schema ar.TableSchema, options CRUDOptions) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	return WriteFiles(files)
+}
+
+// WriteFiles creates a reviewed set exclusively; an error rolls back files made
+// by this call. Existing files, symlinks and duplicate destinations are rejected.
+func WriteFiles(files []GeneratedFile) ([]string, error) {
+	if _, err := Preview(files); err != nil {
+		return nil, err
+	}
 	for _, file := range files {
 		if _, err := os.Stat(file.Path); err == nil {
 			return nil, fmt.Errorf("gii: file already exists: %s", file.Path)
@@ -359,7 +368,9 @@ func columnGoType(column ar.ColumnSchema) string {
 			value = "bool"
 		case strings.Contains(typeName, "int"), strings.Contains(typeName, "serial"):
 			value = "int64"
-		case strings.Contains(typeName, "float"), strings.Contains(typeName, "decimal"), strings.Contains(typeName, "numeric"):
+		case strings.Contains(typeName, "decimal"), strings.Contains(typeName, "numeric"):
+			value = "string"
+		case strings.Contains(typeName, "float"), strings.Contains(typeName, "real"), strings.Contains(typeName, "double"):
 			value = "float64"
 		case strings.Contains(typeName, "date"), strings.Contains(typeName, "time"):
 			value = "time.Time"

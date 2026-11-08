@@ -2,6 +2,7 @@ package ar
 
 import (
 	"context"
+	"database/sql/driver"
 	"errors"
 	"os"
 	"path/filepath"
@@ -107,6 +108,7 @@ func TestDatabaseInspectorAndGenerator(t *testing.T) {
 		types:    []string{"BIGINT", "VARCHAR", "INTEGER"},
 		nullable: []bool{false, true, false},
 	})
+	recorder.pushQuery(arQueryResponse{columns: []string{"column_name", "is_nullable", "character_maximum_length", "numeric_precision", "numeric_scale"}, rows: [][]driver.Value{{"id", "NO", nil, nil, nil}, {"email", "YES", int64(255), nil, nil}, {"version", "NO", nil, nil, nil}}})
 	inspector := DatabaseInspector{
 		Connection: connection,
 		Tables: map[string]InspectOptions{"users": {
@@ -135,7 +137,7 @@ func TestDatabaseInspectorAndGenerator(t *testing.T) {
 func TestGeneratorTypeAndNameHelpers(t *testing.T) {
 	tests := map[string]string{
 		"BOOLEAN": "bool", "BIT": "bool", "BIGINT": "int64", "SERIAL": "int64",
-		"NUMERIC": "float64", "DOUBLE PRECISION": "float64", "TIMESTAMP": "time.Time",
+		"NUMERIC": "string", "DOUBLE PRECISION": "float64", "TIMESTAMP": "time.Time",
 		"BLOB": "[]byte", "BYTEA": "[]byte", "VARCHAR": "string",
 	}
 	for databaseType, want := range tests {
