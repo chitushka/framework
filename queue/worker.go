@@ -30,12 +30,28 @@ type Failure struct {
 	Final   bool
 }
 
+// PanicError reports a recovered panic from a job handler.
+type PanicError struct{ Value any }
+
+func (err *PanicError) Error() string { return fmt.Sprintf("queue: handler panic: %v", err.Value) }
+
+func (err *PanicError) Unwrap() error {
+	cause, _ := err.Value.(error)
+	return cause
+}
+
 type WorkerConfig struct {
 	Concurrency     int
 	PollInterval    time.Duration
 	ShutdownTimeout time.Duration
-	RetryDelay      func(attempt int) time.Duration
-	OnFailure       func(Failure)
+	// JobTimeout bounds each handler's context. Handlers must honor cancellation.
+	// Zero defaults to one minute.
+	JobTimeout time.Duration
+	// SettlementTimeout bounds Ack/Nack independently of job/shutdown cancellation.
+	// Zero defaults to five seconds. Brokers must honor the context.
+	SettlementTimeout time.Duration
+	RetryDelay        func(attempt int) time.Duration
+	OnFailure         func(Failure)
 }
 
 // Worker consumes jobs concurrently and can be registered as app.Module.
@@ -71,6 +87,18 @@ func NewWorker(broker Broker, config WorkerConfig) (*Worker, error) {
 	}
 	if config.ShutdownTimeout < 0 {
 		return nil, errors.New("queue: ShutdownTimeout cannot be negative")
+	}
+	if config.JobTimeout == 0 {
+		config.JobTimeout = time.Minute
+	}
+	if config.JobTimeout < 0 {
+		return nil, errors.New("queue: JobTimeout cannot be negative")
+	}
+	if config.SettlementTimeout == 0 {
+		config.SettlementTimeout = 5 * time.Second
+	}
+	if config.SettlementTimeout < 0 {
+		return nil, errors.New("queue: SettlementTimeout cannot be negative")
 	}
 	if config.RetryDelay == nil {
 		config.RetryDelay = func(attempt int) time.Duration { delay := time.Second << min(attempt-1, 6); return delay }
@@ -134,6 +162,9 @@ func (worker *Worker) Start(ctx context.Context) error {
 
 func (worker *Worker) consume(ctx context.Context, handlers map[string]Handler) {
 	for {
+		if ctx.Err() != nil {
+			return
+		}
 		delivery, err := worker.broker.Reserve(ctx, worker.config.PollInterval)
 		if errors.Is(err, ErrEmpty) {
 			continue
@@ -146,16 +177,12 @@ func (worker *Worker) consume(ctx context.Context, handlers map[string]Handler) 
 			return
 		}
 		message := delivery.Message()
-		handler := handlers[message.Name]
-		var handleErr error
-		if handler == nil {
-			handleErr = fmt.Errorf("queue: no handler for job %q", message.Name)
-		} else {
-			handleErr = handler(ctx, message.Payload)
-		}
-		settleCtx := context.WithoutCancel(ctx)
+		handleErr := worker.handle(ctx, message, handlers[message.Name])
+		settleCtx, cancelSettlement := context.WithTimeout(context.WithoutCancel(ctx), worker.config.SettlementTimeout)
 		if handleErr == nil {
-			if err := delivery.Ack(settleCtx); err != nil {
+			err := delivery.Ack(settleCtx)
+			cancelSettlement()
+			if err != nil {
 				worker.failFatal(fmt.Errorf("queue: acknowledge %q: %w", message.ID, err))
 				return
 			}
@@ -163,7 +190,9 @@ func (worker *Worker) consume(ctx context.Context, handlers map[string]Handler) 
 		}
 		final := message.Attempt+1 >= message.MaxAttempts
 		if final {
-			if err := delivery.Ack(settleCtx); err != nil {
+			err := delivery.Ack(settleCtx)
+			cancelSettlement()
+			if err != nil {
 				worker.failFatal(fmt.Errorf("queue: discard %q: %w", message.ID, err))
 				return
 			}
@@ -172,7 +201,9 @@ func (worker *Worker) consume(ctx context.Context, handlers map[string]Handler) 
 			if delay < 0 {
 				delay = 0
 			}
-			if err := delivery.Nack(settleCtx, delay); err != nil {
+			err := delivery.Nack(settleCtx, delay)
+			cancelSettlement()
+			if err != nil {
 				worker.failFatal(fmt.Errorf("queue: retry %q: %w", message.ID, err))
 				return
 			}
@@ -181,6 +212,26 @@ func (worker *Worker) consume(ctx context.Context, handlers map[string]Handler) 
 			worker.config.OnFailure(Failure{Message: message, Err: handleErr, Final: final})
 		}
 	}
+}
+
+func (worker *Worker) handle(ctx context.Context, message Message, handler Handler) (err error) {
+	if handler == nil {
+		return fmt.Errorf("queue: no handler for job %q", message.Name)
+	}
+	jobCtx, cancel := context.WithTimeout(ctx, worker.config.JobTimeout)
+	defer cancel()
+	defer func() {
+		if value := recover(); value != nil {
+			err = &PanicError{Value: value}
+		}
+	}()
+	if err := handler(jobCtx, message.Payload); err != nil {
+		return err
+	}
+	if errors.Is(jobCtx.Err(), context.DeadlineExceeded) {
+		return context.DeadlineExceeded
+	}
+	return nil
 }
 
 func (worker *Worker) Shutdown(ctx context.Context) error {

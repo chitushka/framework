@@ -35,7 +35,10 @@ func (backend *MemoryBackend) Get(ctx context.Context, key string) ([]byte, bool
 	}
 	if !entry.expiresAt.IsZero() && !backend.now().Before(entry.expiresAt) {
 		backend.mu.Lock()
-		delete(backend.entries, key)
+		// A writer may have replaced the expired snapshot since RUnlock.
+		if current, exists := backend.entries[key]; exists && !current.expiresAt.IsZero() && !backend.now().Before(current.expiresAt) {
+			delete(backend.entries, key)
+		}
 		backend.mu.Unlock()
 		return nil, false, nil
 	}

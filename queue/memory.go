@@ -88,6 +88,10 @@ func (broker *MemoryBroker) Reserve(ctx context.Context, wait time.Duration) (De
 	deadline := broker.now().Add(wait)
 	for {
 		broker.mu.Lock()
+		if err := ctx.Err(); err != nil {
+			broker.mu.Unlock()
+			return nil, err
+		}
 		now := broker.now()
 		if len(broker.items) > 0 && !broker.items[0].available.After(now) {
 			item := heap.Pop(&broker.items).(*memoryItem)

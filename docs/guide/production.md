@@ -23,13 +23,29 @@ Cache-aside требует явной инвалидации после успе
 ## Queues
 
 Handler задачи должен быть идемпотентным: broker может доставить сообщение повторно.
-Timeout и внешнее хранение финальных ошибок задаёт приложение: durable dead-letter/replay
-ещё не поставляются, после финальной ошибки worker вызывает Ack. Redis/RabbitMQ требуют
+В `WorkerConfig` задаются `JobTimeout` (по умолчанию 1 минута) и `SettlementTimeout`
+(по умолчанию 5 секунд); отрицательные значения отклоняются. Для долгих задач явно
+увеличьте `JobTimeout` и настройте lease broker так, чтобы он превышал время обработки
+и settlement с запасом. Внешнее хранение финальных ошибок задаёт приложение:
+durable dead-letter/replay ещё не поставляются, после финальной ошибки worker вызывает Ack. Redis/RabbitMQ требуют
 реализации SDK adapters приложением. В payload передавайте идентификаторы, а не большие изменяемые снимки модели.
 
-Worker реализован как модуль приложения: shutdown прекращает получение задач и ожидает работу.
-Handlers должны учитывать context; deadline не прерывает произвольный Go-код. Settlement
-пока не имеет собственного deadline, crash/restart и process shutdown budget не подтверждены.
+Worker реализован как модуль приложения: shutdown отменяет context обработки, прекращает
+цикл reserve и ожидает handlers в пределах `ShutdownTimeout`. Handler должен учитывать
+context; deadline не прерывает произвольный Go-код и не создаёт отдельную goroutine для
+принудительного завершения. Panic handler преобразуется в `*queue.PanicError` и проходит
+обычную политику retry/final failure. Возврат nil после истечения `JobTimeout` также
+считается ошибкой deadline. Успешный handler, вернувший nil при shutdown, подтверждается.
+
+Ack/Nack получают независимый context с конечным `SettlementTimeout`, даже после
+отмены обработки; broker обязан учитывать этот context. Ошибка settlement передаётся
+через `Worker.Errors()`. `OnFailure` и `RetryDelay` вызываются синхронно: они должны
+быстро возвращать управление и не вызывать panic. Crash/restart, restart во время
+shutdown и общий process shutdown budget пока не подтверждены.
+
+Повторный Nack после ошибки Redis/AMQP использует тот же следующий номер попытки.
+AMQP publish с последующей ошибкой Ack всё ещё может создать дубликат: идемпотентность
+обязательна, атомарность publish+ack не гарантируется.
 
 ## Observability
 

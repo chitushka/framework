@@ -139,8 +139,9 @@ func (delivery *redisDelivery) Nack(ctx context.Context, delay time.Duration) er
 		if delay < 0 {
 			return errors.New("queue: delay cannot be negative")
 		}
-		delivery.message.Attempt++
-		payload, err := json.Marshal(delivery.message)
+		message := delivery.message
+		message.Attempt++
+		payload, err := json.Marshal(message)
 		if err != nil {
 			return err
 		}
