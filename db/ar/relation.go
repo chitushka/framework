@@ -2,6 +2,7 @@ package ar
 
 import (
 	"context"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"reflect"
@@ -117,4 +118,13 @@ func loadRelated[P, R any](ctx context.Context, parents []*P, related *Repositor
 	return result, nil
 }
 
-func relationKey(value any) string { return fmt.Sprintf("%T:%#v", value, value) }
+func relationKey(value any) string {
+	// Match the SQL representation rather than Go pointer addresses or int widths.
+	if converted, err := driver.DefaultParameterConverter.ConvertValue(value); err == nil {
+		value = converted
+	}
+	if bytes, ok := value.([]byte); ok {
+		value = string(bytes)
+	}
+	return fmt.Sprintf("%T:%#v", value, value)
+}

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 
@@ -15,7 +16,19 @@ var (
 	ErrNotFound          = errors.New("ar: record not found")
 	ErrStaleModel        = errors.New("ar: record was changed by another transaction")
 	ErrMissingPrimaryKey = errors.New("ar: model has no primary key")
+	ErrVersionOverflow   = errors.New("ar: optimistic lock version overflow")
 )
+
+// Validator is an optional model contract. Validation runs before any write;
+// multi-model atomicity requires WithExecutor with an application transaction.
+type Validator interface{ Validate(context.Context) error }
+
+func validateModel[T any](ctx context.Context, model *T) error {
+	if validator, ok := any(model).(Validator); ok {
+		return validator.Validate(ctx)
+	}
+	return nil
+}
 
 type TableNamer interface{ TableName() string }
 
@@ -116,6 +129,9 @@ func (repository *Repository[T]) Insert(ctx context.Context, model *T) error {
 	if repository == nil || model == nil {
 		return errors.New("ar: repository and model must not be nil")
 	}
+	if err := validateModel(ctx, model); err != nil {
+		return err
+	}
 	value := reflect.ValueOf(model).Elem()
 	versionInitialized := false
 	if repository.metadata.version >= 0 {
@@ -213,46 +229,58 @@ func (repository *Repository[T]) Update(ctx context.Context, model *T) error {
 	if len(repository.metadata.primary) == 0 {
 		return ErrMissingPrimaryKey
 	}
+	if err := validateModel(ctx, model); err != nil {
+		return err
+	}
 	value := reflect.ValueOf(model).Elem()
 	conditions := repository.identityConditions(value)
 	values := make(map[string]any, len(repository.metadata.fields))
 	var versionField reflect.Value
-	var oldVersion int64
+	var nextVersion reflect.Value
 	if repository.metadata.version >= 0 {
 		position := repository.metadata.version
 		versionField = repository.metadata.fieldValue(value, position)
-		oldVersion = integerValue(versionField)
 		conditions = append(conditions, frameworkdb.Eq(repository.metadata.fields[position].name, versionField.Interface()))
-		setInteger(versionField, oldVersion+1)
+		nextVersion = reflect.New(versionField.Type()).Elem()
+		if versionField.Kind() >= reflect.Uint && versionField.Kind() <= reflect.Uint64 {
+			old := versionField.Uint()
+			if old == math.MaxUint64 || nextVersion.OverflowUint(old+1) {
+				return ErrVersionOverflow
+			}
+			nextVersion.SetUint(old + 1)
+		} else {
+			old := versionField.Int()
+			if old == math.MaxInt64 || nextVersion.OverflowInt(old+1) {
+				return ErrVersionOverflow
+			}
+			nextVersion.SetInt(old + 1)
+		}
 	}
 	for position, field := range repository.metadata.fields {
 		if field.primary || field.auto {
 			continue
 		}
 		values[field.name] = repository.metadata.fieldValue(value, position).Interface()
+		if field.version {
+			values[field.name] = nextVersion.Interface()
+		}
 	}
 	query := frameworkdb.NewQueryBuilder(repository.dialect).
 		Update(repository.table, values).
 		Where(frameworkdb.And(conditions...))
 	result, err := query.ExecContext(ctx, repository.executor)
 	if err != nil {
-		if versionField.IsValid() {
-			setInteger(versionField, oldVersion)
-		}
 		return fmt.Errorf("ar: update %s: %w", repository.table, err)
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		if versionField.IsValid() {
-			setInteger(versionField, oldVersion)
-		}
 		return fmt.Errorf("ar: update %s rows affected: %w", repository.table, err)
 	}
 	if affected == 0 {
-		if versionField.IsValid() {
-			setInteger(versionField, oldVersion)
-		}
 		return ErrStaleModel
+	}
+	if versionField.IsValid() {
+		versionField.Set(nextVersion)
 	}
 	return nil
 }
