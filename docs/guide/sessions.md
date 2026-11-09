@@ -121,8 +121,10 @@ token очищен. Header token на самом transition response ещё от
 [CSRF transports/login/logout](../../security/csrf_contract_test.go),
 [streaming boundaries](../../web/writer_chain_test.go).
 Две HTTP instances в тесте разделяют MemoryBackend в одном процессе: это не
-подтверждает конкретный Redis/SQL adapter или межпроцессный CAS. Внешний backend
-должен пройти те же сценарии и fault tests на реальном сервисе.
+подтверждает конкретный сетевой backend. Отдельный [Redis SDK adapter](cache.md)
+проверен на реальном shared CAS/rotation, stale commit и двух клиентских экземплярах
+в [integration suite](../../integration/cache_operational_test.go). Application HTTP flows
+и пользовательские backends требуют своих fault tests.
 
 Основания: [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
 и [OWASP CSRF Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).

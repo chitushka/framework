@@ -138,7 +138,7 @@ func (backend *RedisBackend) commandBytes(ctx context.Context, arguments ...[]by
 		if err := writeRESP(connection, auth...); err != nil {
 			return redisResponse{}, err
 		}
-		if _, err := readRESP(reader); err != nil {
+		if _, err := readRESPWithLimit(reader, backend.config.MaxValueBytes); err != nil {
 			return redisResponse{}, fmt.Errorf("cache: Redis AUTH: %w", err)
 		}
 	}
@@ -146,14 +146,14 @@ func (backend *RedisBackend) commandBytes(ctx context.Context, arguments ...[]by
 		if err := writeRESP(connection, []byte("SELECT"), []byte(strconv.Itoa(backend.config.Database))); err != nil {
 			return redisResponse{}, err
 		}
-		if _, err := readRESP(reader); err != nil {
+		if _, err := readRESPWithLimit(reader, backend.config.MaxValueBytes); err != nil {
 			return redisResponse{}, fmt.Errorf("cache: Redis SELECT: %w", err)
 		}
 	}
 	if err := writeRESP(connection, arguments...); err != nil {
 		return redisResponse{}, err
 	}
-	response, err := readRESP(reader)
+	response, err := readRESPWithLimit(reader, backend.config.MaxValueBytes)
 	if err != nil {
 		return redisResponse{}, fmt.Errorf("cache: Redis command: %w", err)
 	}
@@ -178,7 +178,9 @@ func writeRESP(writer io.Writer, arguments ...[]byte) error {
 	return nil
 }
 
-func readRESP(reader *bufio.Reader) (redisResponse, error) {
+func readRESP(reader *bufio.Reader) (redisResponse, error) { return readRESPWithLimit(reader, 64<<20) }
+
+func readRESPWithLimit(reader *bufio.Reader, limit int) (redisResponse, error) {
 	prefix, err := reader.ReadByte()
 	if err != nil {
 		return redisResponse{}, err
@@ -203,7 +205,7 @@ func readRESP(reader *bufio.Reader) (redisResponse, error) {
 		if length == -1 {
 			return redisResponse{nil: true}, nil
 		}
-		if length < 0 || length > 64<<20 {
+		if length < 0 || length > limit {
 			return redisResponse{}, fmt.Errorf("invalid bulk length %d", length)
 		}
 		value := make([]byte, length+2)
@@ -220,7 +222,7 @@ func readRESP(reader *bufio.Reader) (redisResponse, error) {
 }
 
 func readCRLFLine(reader *bufio.Reader) ([]byte, error) {
-	line, err := reader.ReadBytes('\n')
+	line, err := reader.ReadSlice('\n')
 	if err != nil {
 		return nil, err
 	}

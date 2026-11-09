@@ -35,7 +35,7 @@ func serviceRelay(t *testing.T, target string, secure bool) (string, *tls.Config
 	if secure {
 		pub, priv, err := ed25519.GenerateKey(rand.Reader)
 		check(t, err)
-		template := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "localhost"}, DNSNames: []string{"localhost"}, NotBefore: time.Now().Add(-time.Minute), NotAfter: time.Now().Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, IsCA: true, BasicConstraintsValid: true}
+		template := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "localhost"}, DNSNames: []string{"localhost"}, NotBefore: time.Now().Add(-time.Minute), NotAfter: time.Now().Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}, IsCA: true, BasicConstraintsValid: true}
 		der, err := x509.CreateCertificate(rand.Reader, template, template, pub, priv)
 		check(t, err)
 		key, err := x509.MarshalPKCS8PrivateKey(priv)
@@ -44,8 +44,8 @@ func serviceRelay(t *testing.T, target string, secure bool) (string, *tls.Config
 		check(t, err)
 		pool := x509.NewCertPool()
 		pool.AppendCertsFromPEM(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
-		clientTLS = &tls.Config{RootCAs: pool, ServerName: "localhost", MinVersion: tls.VersionTLS13}
-		listener = tls.NewListener(listener, &tls.Config{Certificates: []tls.Certificate{certificate}, MinVersion: tls.VersionTLS13})
+		clientTLS = &tls.Config{RootCAs: pool, ServerName: "localhost", Certificates: []tls.Certificate{certificate}, MinVersion: tls.VersionTLS13}
+		listener = tls.NewListener(listener, &tls.Config{Certificates: []tls.Certificate{certificate}, ClientCAs: pool, ClientAuth: tls.RequireAndVerifyClientCert, MinVersion: tls.VersionTLS13})
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	var group sync.WaitGroup
@@ -100,6 +100,19 @@ func TestCacheTLSAuthOutageAndReconnect(t *testing.T) {
 			}
 			check(t, err)
 			backendContract(t, backend)
+			unauthorizedTLS := tlsConfig.Clone()
+			unauthorizedTLS.Certificates = nil
+			var unauthorized cache.Backend
+			if kind == "redis" {
+				unauthorized, err = cache.NewRedisBackend(cache.RedisConfig{Address: address, TLSConfig: unauthorizedTLS, Password: required(t, "REDIS_PASSWORD")})
+			} else {
+				unauthorized, err = cache.NewMemcachedBackend(cache.MemcachedConfig{Address: address, TLSConfig: unauthorizedTLS})
+			}
+			check(t, err)
+			if _, _, err := unauthorized.Get(testContext(t), unique()); err == nil {
+				t.Fatal("cache endpoint accepted unauthenticated TLS client")
+			}
+
 			key := unique()
 			payload := bytes.Repeat([]byte{0, 1, 2, 255}, 32<<10)
 			check(t, backend.Set(testContext(t), key, payload, time.Minute))

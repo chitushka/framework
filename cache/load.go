@@ -42,7 +42,16 @@ func (s *Store) GetOrLoad(ctx context.Context, key string, options Options, load
 	pending := &loadFlight{done: make(chan struct{})}
 	s.flights[key] = pending
 	s.mu.Unlock()
-	defer func() { s.mu.Lock(); delete(s.flights, key); close(pending.done); s.mu.Unlock() }()
+	finished := false
+	defer func() {
+		if !finished {
+			pending.err = errors.New("cache: loader aborted")
+		}
+		s.mu.Lock()
+		delete(s.flights, key)
+		close(pending.done)
+		s.mu.Unlock()
+	}()
 	// Recheck after becoming leader: a previous leader may have just populated it.
 	pending.value, found, pending.err = s.Get(ctx, key)
 	if pending.err == nil && !found {
@@ -51,5 +60,6 @@ func (s *Store) GetOrLoad(ctx context.Context, key string, options Options, load
 			pending.err = s.Set(ctx, key, pending.value, options)
 		}
 	}
+	finished = true
 	return append([]byte(nil), pending.value...), pending.err
 }

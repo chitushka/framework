@@ -41,7 +41,7 @@ Compose создаёт уникальный project/network без опубли�
 SQL data directories размещены в ограниченных tmpfs (PostgreSQL 256 MiB, MySQL 512 MiB),
 поэтому этот стенд не проверяет disk durability и fsync при падении host.
 PostgreSQL, MySQL, Redis, Memcached, RabbitMQ имеют health checks; runner стартует только
-после их успеха. Tests имеют общий timeout 3 минуты, SQL/cache операции — contexts 30 секунд,
+после их успеха. Tests имеют общий timeout 6 минут, SQL/cache операции — contexts 30 секунд,
 cleanup — 5 секунд, AMQP handshake/I/O — socket deadline. Job CI ограничен 15 минутами.
 
 Runner выполняет `go test -mod=readonly -race -count=1 -timeout=3m -v ./...` внутри
@@ -49,10 +49,11 @@ Runner выполняет `go test -mod=readonly -race -count=1 -timeout=3m -v .
 `go test ./...` не загружает эти зависимости и не обращается к сервисам. Отсутствие env
 или сервиса вызывает **fail**, а не Skip. Локально и в CI выполняется один и тот же набор:
 
-- PostgreSQL/MySQL: pool/ping, параметризованное чтение, commit и rollback savepoint,
+- PostgreSQL/MySQL: SQL/AR conformance, generated project compilation/tests, process/crash migrations, queue consumers; pool/ping, параметризованное чтение, commit и rollback savepoint,
   отменённый context, migrations up/repeated up/down, SQL cache, SQL queue enqueue/reserve/ack.
 - Redis/Memcached/SQL cache: общий contract miss, binary payload, overwrite, delete и expiry TTL.
-- RabbitMQ: SDK publish confirm/get/ack в exclusive queue; SDK adapter framework пока отсутствует.
+- Redis/RabbitMQ: готовые framework adapters, leases/reclaim, confirms, retry/quarantine, outage/reconnect и kill/restart между durable Save и Ack.
+- Redis/Memcached: TLS relay к реальным сервисам, auth, большие binary values; Redis session CAS/rotation и shared limiter.
 
 Каждая таблица/ключ имеет случайное имя; cleanup использует независимый context, даже если
 тест отменён. AMQP queue exclusive и удаляется при закрытии connection. Скрипт сохраняет
@@ -63,8 +64,8 @@ Runner выполняет `go test -mod=readonly -race -count=1 -timeout=3m -v .
 `docker compose -p PROJECT -f compose.integration.yml down --volumes --remove-orphans`.
 Не используйте production credentials/DSN для стенда.
 
-Это воспроизводимая база smoke/contract tests, не полный SQL conformance или crash/outage
-suite. Следующие проверки перечислены в этапах 8–10; frontend/E2E/security gates — в этапе 12.
+Это conformance/crash/outage suite baseline из этапов 8–9. Он не доказывает disk durability
+при потере host, cluster compatibility или browser E2E. Оставшиеся gates — этапы 10–13.
 
 ## Политика покрытия
 
@@ -82,3 +83,8 @@ Job `test` (Ubuntu 24.04 / Go 1.26.x) проверяет gofmt, `go vet`, race d
 по контракту; настройка required checks в branch protection выполняется владельцем репозитория.
 
 Изменение обязательной проверки выполняется вместе с обновлением этого руководства, чтобы локальный и CI-контракты не расходились.
+
+Для DLX target-outage теста Compose задаёт RabbitMQ dead_letter_worker_publisher_confirm_timeout=1000ms.
+Это ускоряет внутренний retry; production выбирает budget отдельно. Cache TLS relay
+требует client certificate (mTLS), отрицательный случай без сертификата отклоняется.
+[Итоги этапов 8–9](../stages-8-9-acceptance.md).

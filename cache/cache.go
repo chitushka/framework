@@ -96,13 +96,9 @@ func (store *Store) Get(ctx context.Context, key string) ([]byte, bool, error) {
 	}
 	var item envelope
 	if err := json.Unmarshal(raw, &item); err != nil {
-		store.deleteDependencies(physical)
-		_ = store.backend.Delete(ctx, physical)
 		return nil, false, fmt.Errorf("cache: decode item %q: %w", key, err)
 	}
 	if item.ExpiresAt > 0 && !store.now().Before(time.Unix(0, item.ExpiresAt)) {
-		store.deleteDependencies(physical)
-		_ = store.backend.Delete(ctx, physical)
 		return nil, false, nil
 	}
 	for tag, expected := range item.Tags {
@@ -111,7 +107,6 @@ func (store *Store) Get(ctx context.Context, key string) ([]byte, bool, error) {
 			return nil, false, err
 		}
 		if actual != expected {
-			_ = store.backend.Delete(ctx, physical)
 			return nil, false, nil
 		}
 	}
@@ -119,7 +114,6 @@ func (store *Store) Get(ctx context.Context, key string) ([]byte, bool, error) {
 	if len(item.Dependencies) > 0 && len(dependencies) != len(item.Dependencies) {
 		// A dependency-bearing entry created by another process is conservatively
 		// treated as stale because Go callbacks cannot be serialized.
-		_ = store.backend.Delete(ctx, physical)
 		return nil, false, nil
 	}
 	for index, dependency := range dependencies {
@@ -128,8 +122,6 @@ func (store *Store) Get(ctx context.Context, key string) ([]byte, bool, error) {
 			return nil, false, fmt.Errorf("cache: check dependency %d: %w", index, err)
 		}
 		if actual != item.Dependencies[index] {
-			store.deleteDependencies(physical)
-			_ = store.backend.Delete(ctx, physical)
 			return nil, false, nil
 		}
 	}

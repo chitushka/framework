@@ -10,6 +10,65 @@ import (
 	"time"
 )
 
+type pausedSnapshotBackend struct {
+	Backend
+	target        string
+	ready, resume chan struct{}
+	paused        atomic.Bool
+}
+
+func (b *pausedSnapshotBackend) Get(ctx context.Context, key string) ([]byte, bool, error) {
+	value, found, err := b.Backend.Get(ctx, key)
+	if key == b.target && b.paused.CompareAndSwap(false, true) {
+		close(b.ready)
+		select {
+		case <-b.resume:
+		case <-ctx.Done():
+			return nil, false, ctx.Err()
+		}
+	}
+	return value, found, err
+}
+
+func TestStaleTagReadDoesNotDeleteConcurrentReplacement(t *testing.T) {
+	backend := &pausedSnapshotBackend{Backend: NewMemoryBackend(), ready: make(chan struct{}), resume: make(chan struct{})}
+	store, err := New(backend, "tag-race")
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend.target = store.itemKey("", "key")
+	if err := store.Set(t.Context(), "key", []byte("old"), Options{Tags: []string{"tag"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.InvalidateTags(t.Context(), "tag"); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, found, err := store.Get(t.Context(), "key")
+		if found {
+			err = errors.New("old tag snapshot was accepted")
+		}
+		done <- err
+	}()
+	select {
+	case <-backend.ready:
+	case <-time.After(time.Second):
+		t.Fatal("snapshot not reached")
+	}
+	if err := store.Set(t.Context(), "key", []byte("fresh"), Options{Tags: []string{"tag"}}); err != nil {
+		t.Fatal(err)
+	}
+	close(backend.resume)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	value, found, err := store.Get(t.Context(), "key")
+	if err != nil || !found || string(value) != "fresh" {
+		t.Fatalf("fresh replacement deleted: %q %t %v", value, found, err)
+	}
+}
+
 func TestMemoryBudgetsAndForgottenExpiry(t *testing.T) {
 	b, err := NewMemoryBackendWithConfig(MemoryConfig{MaxEntries: 4, MaxBytes: 24})
 	if err != nil {

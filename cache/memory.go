@@ -137,7 +137,7 @@ func (backend *MemoryBackend) Set(ctx context.Context, key string, value []byte,
 	backend.remove(key)
 	for len(backend.entries) >= backend.config.MaxEntries || backend.bytes+int64(len(key)+len(value)) > backend.config.MaxBytes {
 		var oldest string
-		var sequence uint64 = ^uint64(0)
+		sequence := ^uint64(0)
 		for k, e := range backend.entries {
 			if e.sequence < sequence {
 				oldest, sequence = k, e.sequence

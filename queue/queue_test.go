@@ -120,26 +120,30 @@ func TestWorkerRetriesTypedHandlerAndLifecycleModule(t *testing.T) {
 	}
 }
 
-func TestWorkerDiscardsAfterMaxAttempts(t *testing.T) {
+func TestWorkerPersistsFailureBeforeFinalAck(t *testing.T) {
 	broker := NewMemoryBroker()
 	producer, _ := New(broker)
 	final := make(chan Failure, 1)
-	worker, _ := NewWorker(broker, WorkerConfig{PollInterval: time.Millisecond, RetryDelay: func(int) time.Duration { return 0 }, OnFailure: func(f Failure) {
+	store := testDeadLetters(t)
+	worker, _ := NewWorker(broker, WorkerConfig{DeadLetters: store, PollInterval: time.Millisecond, RetryDelay: func(int) time.Duration { return 0 }, OnFailure: func(f Failure) {
 		if f.Final {
 			final <- f
 		}
 	}})
 	_ = worker.RegisterHandler("broken", func(context.Context, json.RawMessage) error { return errors.New("broken") })
 	_, _ = producer.Push(context.Background(), "broken", nil, Options{MaxAttempts: 2})
-	if err := worker.Start(context.Background()); err != nil {
-		t.Fatal(err)
-	}
+	startResilientWorker(t, worker)
 	select {
 	case failure := <-final:
 		if failure.Message.Attempt != 1 {
 			t.Fatalf("attempt = %d", failure.Message.Attempt)
 		}
-	case <-time.After(time.Second):
+		if record, err := store.Get(t.Context(), failure.Message.ID); err != nil || record.Error != "broken" {
+			t.Fatalf("missing durable failure: %+v %v", record, err)
+		}
+	case err := <-worker.Errors():
+		t.Fatalf("final failure could not be retained: %v", err)
+	case <-time.After(10 * time.Second):
 		t.Fatal("final failure not reported")
 	}
 	if err := worker.Shutdown(context.Background()); err != nil {

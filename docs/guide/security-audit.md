@@ -114,3 +114,6 @@ session adapters, queue durability и process lifecycle — следующие �
 
 Основания: [Go traversal-resistant APIs](https://go.dev/blog/osroot),
 [OWASP error handling](https://cheatsheetseries.owasp.org/cheatsheets/Error_Handling_Cheat_Sheet.html).
+
+Последующая приёмка данных/cache/queues оформлена отдельно: [контракты этапов 8–9](README.md).
+Историческая область аудита 7.6 выше не расширяется автоматически на application policy.

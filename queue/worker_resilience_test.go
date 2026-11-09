@@ -153,7 +153,7 @@ func TestWorkerSettlementHasDeadline(t *testing.T) {
 				<-ctx.Done()
 				return ctx.Err()
 			}}
-			worker, err := NewWorker(broker, WorkerConfig{SettlementTimeout: 10 * time.Millisecond})
+			worker, err := NewWorker(broker, WorkerConfig{SettlementTimeout: 10 * time.Millisecond, DeadLetters: immediateDeadLetters{}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -174,8 +174,13 @@ func TestWorkerSettlementHasDeadline(t *testing.T) {
 			case <-time.After(time.Second):
 				t.Fatal("worker is blocked in settlement")
 			}
-			if ack := <-settled; ack != (scenario != "retry nack") {
-				t.Fatalf("Ack used = %t in %s", ack, scenario)
+			select {
+			case ack := <-settled:
+				if ack != (scenario != "retry nack") {
+					t.Fatalf("Ack used = %t in %s", ack, scenario)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("settlement was not reached")
 			}
 		})
 	}
@@ -233,11 +238,14 @@ func TestWorkerRejectsNegativeExecutionTimeouts(t *testing.T) {
 
 func startResilientWorker(t *testing.T, worker *Worker) {
 	t.Helper()
+	if worker.config.DeadLetters == nil {
+		worker.config.DeadLetters = testDeadLetters(t)
+	}
 	if err := worker.Start(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		if err := worker.Shutdown(ctx); err != nil {
 			t.Error(err)

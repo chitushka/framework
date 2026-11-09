@@ -170,7 +170,8 @@ func (backend *MemcachedBackend) connect(ctx context.Context) (net.Conn, *bufio.
 }
 
 func readMemcachedLine(reader *bufio.Reader) (string, error) {
-	line, err := reader.ReadString('\n')
+	raw, err := reader.ReadSlice('\n')
+	line := string(raw)
 	if err != nil {
 		return "", fmt.Errorf("cache: read Memcached response: %w", err)
 	}

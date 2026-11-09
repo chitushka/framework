@@ -40,5 +40,6 @@ Memcached и простой Get/Set/Delete не заменяют session CAS.
 
 Доказательства: [memory/loads](../../cache/operational_test.go),
 [реальные TLS/auth/outage/reconnect, session CAS и shared limiter](../../integration/cache_operational_test.go).
-TLS relay в тесте проверяет проверку сертификата клиента и реальный backend за relay;
+mTLS relay проверяет сертификат сервера и требует сертификат клиента, включая негативный
+случай без client certificate, и обращается к реальному backend;
 это не проверка конкретного service-side TLS deployment или отказа диска host.

@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	ErrEmpty   = errors.New("queue: no message available")
-	ErrSettled = errors.New("queue: delivery already settled")
+	ErrEmpty     = errors.New("queue: no message available")
+	ErrSettled   = errors.New("queue: delivery already settled")
 	ErrLeaseLost = errors.New("queue: delivery reservation was lost")
 )
 
@@ -100,6 +100,9 @@ func messageID() (string, error) {
 }
 
 func validateMessage(message Message) error {
+	if len(message.ID) > 64 || len(message.Name) > 255 || len(message.Payload) > 16<<20 {
+		return errors.New("queue: message identifiers/payload exceed limits")
+	}
 	if message.ID == "" || message.Name == "" {
 		return errors.New("queue: message ID and name are required")
 	}

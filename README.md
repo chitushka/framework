@@ -44,7 +44,8 @@ sh scripts/integration.sh
 В PowerShell: `./scripts/integration.ps1`. Нужен Docker Compose v2 с Linux containers.
 Команда собирает runner, ждёт health checks и удаляет тестовые containers/volumes после
 завершения. Порты на host не публикуются. Ошибка или недоступность сервиса завершают проверку
-с ненулевым кодом; RabbitMQ пока проверяется только на уровне инфраструктуры, без queue adapter.
+с ненулевым кодом. Стенд проверяет SQL/AR/generator conformance, migration/queue crash recovery,
+TLS cache и готовые Redis/RabbitMQ adapters. [Контракты этапов 8–9](docs/guide/README.md).
 
 Для интерактивной разработки:
 
@@ -672,7 +673,7 @@ _ = router.GET("/posts/{id}/edit", editPost,
 
 ## Очереди и воркеры
 
-`queue.Queue` сериализует payload в JSON и отправляет его выбранному broker. Встроенный `MemoryBroker` подходит для разработки; `DatabaseBroker` обеспечивает межпроцессную резервируемую очередь. `RedisBroker` и `RabbitMQBroker` подключаются через малые адаптеры клиентских библиотек, не фиксируя конкретный Redis/AMQP SDK.
+`queue.Queue` сериализует payload в JSON и отправляет его выбранному broker. Встроенный `MemoryBroker` подходит для разработки; `DatabaseBroker` обеспечивает межпроцессную резервируемую очередь. `RedisBroker` и `RabbitMQBroker` подключаются через малые интерфейсы; готовые SDK implementations поставляются отдельным модулем `github.com/chitushka/framework/adapters`.
 
 ```go
 broker := queue.NewMemoryBroker()
@@ -696,7 +697,14 @@ jobID, err := jobs.Push(ctx, "report.generate", ReportJob{
 Worker регистрирует типизированные обработчики, выполняет несколько задач параллельно и повторяет временные ошибки:
 
 ```go
+deadLetters, err := queue.NewFileDeadLetters("./var/deadletters")
+if err != nil {
+    log.Fatal(err)
+}
+defer deadLetters.Close()
+
 worker, err := queue.NewWorker(broker, queue.WorkerConfig{
+    DeadLetters: deadLetters,
     Concurrency: 4,
     OnFailure: func(failure queue.Failure) {
         slog.Error("job failed",
@@ -723,12 +731,12 @@ _ = application.AddModule(worker)
 ```
 
 `DatabaseBroker.SchemaSQL()` возвращает DDL таблицы очереди для текущего диалекта.
-Reservation lease позволяет повторно резервировать просроченную задачу; crash/restart
-и multi-process durability пока не подтверждены. Предполагаемая семантика — at least once,
-поэтому обработчики должны быть идемпотентными. После исчерпания попыток worker вызывает Ack;
-durable dead-letter storage отсутствует. Для Redis приложение должно реализовать `RedisStore`
-с атомарным резервированием и восстановлением leases, для RabbitMQ — `RabbitChannel` поверх
-выбранного AMQP-клиента; готовые SDK adapters пока не поставляются.
+Baseline PostgreSQL/MySQL, Redis и RabbitMQ проверены на process/transport recovery.
+Lease fencing защищает от stale Ack; RabbitMQ ждёт publisher confirms. Семантика —
+at-least-once: обработчики должны быть идемпотентными. Финальная ошибка сохраняется
+в durable dead-letter до Ack, доступны List/Get/Replay. Store должен жить на persistent
+volume; disk/host crash не подтверждён этим стендом. [Полный контракт](docs/guide/queues.md)
+описывает budgets, drain, SDK adapters, quarantine, outbox и ограничения AMQP delay/retry.
 
 ## Интернационализация
 

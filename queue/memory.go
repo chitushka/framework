@@ -10,11 +10,12 @@ import (
 )
 
 type memoryItem struct {
-	message   Message
-	available time.Time
-	sequence  uint64
-	index     int
-	reserved  bool
+	message    Message
+	available  time.Time
+	sequence   uint64
+	index      int
+	reserved   bool
+	generation uint64
 }
 type memoryHeap []*memoryItem
 
@@ -38,6 +39,7 @@ func (items *memoryHeap) Push(value any) {
 func (items *memoryHeap) Pop() any {
 	old := *items
 	item := old[len(old)-1]
+	old[len(old)-1] = nil
 	item.index = -1
 	*items = old[:len(old)-1]
 	return item
@@ -45,17 +47,28 @@ func (items *memoryHeap) Pop() any {
 
 // MemoryBroker is a concurrency-safe delayed queue for one process.
 type MemoryBroker struct {
-	mu       sync.Mutex
-	items    memoryHeap
-	sequence uint64
-	wake     chan struct{}
-	now      func() time.Time
+	mu           sync.Mutex
+	items        memoryHeap
+	sequence     uint64
+	wake         chan struct{}
+	now          func() time.Time
+	leases       map[*memoryItem]time.Time
+	leaseTimeout time.Duration
 }
 
 func NewMemoryBroker() *MemoryBroker {
-	broker := &MemoryBroker{wake: make(chan struct{}, 1), now: time.Now}
+	broker := &MemoryBroker{wake: make(chan struct{}, 1), now: time.Now, leases: make(map[*memoryItem]time.Time), leaseTimeout: 5 * time.Minute}
 	heap.Init(&broker.items)
 	return broker
+}
+
+func NewMemoryBrokerWithLease(timeout time.Duration) (*MemoryBroker, error) {
+	if timeout <= 0 {
+		return nil, errors.New("queue: lease must be positive")
+	}
+	b := NewMemoryBroker()
+	b.leaseTimeout = timeout
+	return b, nil
 }
 
 func (broker *MemoryBroker) Enqueue(ctx context.Context, message Message, delay time.Duration) error {
@@ -93,15 +106,32 @@ func (broker *MemoryBroker) Reserve(ctx context.Context, wait time.Duration) (De
 			return nil, err
 		}
 		now := broker.now()
+		for item, expiry := range broker.leases {
+			if !now.Before(expiry) {
+				delete(broker.leases, item)
+				item.reserved = false
+				item.available = now
+				heap.Push(&broker.items, item)
+			}
+		}
 		if len(broker.items) > 0 && !broker.items[0].available.After(now) {
 			item := heap.Pop(&broker.items).(*memoryItem)
 			item.reserved = true
+			item.generation++
+			broker.leases[item] = now.Add(broker.leaseTimeout)
+			delivery := &memoryDelivery{broker: broker, item: item, generation: item.generation, message: cloneMessage(item.message)}
 			broker.mu.Unlock()
-			return &memoryDelivery{broker: broker, item: item}, nil
+			return delivery, nil
 		}
 		var until time.Duration
 		if len(broker.items) > 0 {
 			until = broker.items[0].available.Sub(now)
+		}
+		for _, expiry := range broker.leases {
+			remaining := expiry.Sub(now)
+			if until <= 0 || remaining < until {
+				until = remaining
+			}
 		}
 		broker.mu.Unlock()
 		remaining := deadline.Sub(now)
@@ -137,9 +167,11 @@ type memoryDelivery struct {
 	broker     *MemoryBroker
 	item       *memoryItem
 	settlement settlement
+	generation uint64
+	message    Message
 }
 
-func (delivery *memoryDelivery) Message() Message { return cloneMessage(delivery.item.message) }
+func (delivery *memoryDelivery) Message() Message { return cloneMessage(delivery.message) }
 func (delivery *memoryDelivery) Ack(ctx context.Context) error {
 	return delivery.settlement.run(func() error {
 		if ctx == nil {
@@ -149,8 +181,12 @@ func (delivery *memoryDelivery) Ack(ctx context.Context) error {
 			return err
 		}
 		delivery.broker.mu.Lock()
+		defer delivery.broker.mu.Unlock()
+		if !delivery.item.reserved || delivery.item.generation != delivery.generation {
+			return ErrLeaseLost
+		}
+		delete(delivery.broker.leases, delivery.item)
 		delivery.item.reserved = false
-		delivery.broker.mu.Unlock()
 		return nil
 	})
 }
@@ -166,6 +202,11 @@ func (delivery *memoryDelivery) Nack(ctx context.Context, delay time.Duration) e
 			return errors.New("queue: delay cannot be negative")
 		}
 		delivery.broker.mu.Lock()
+		if !delivery.item.reserved || delivery.item.generation != delivery.generation {
+			delivery.broker.mu.Unlock()
+			return ErrLeaseLost
+		}
+		delete(delivery.broker.leases, delivery.item)
 		delivery.item.message.Attempt++
 		delivery.item.reserved = false
 		delivery.item.available = delivery.broker.now().Add(delay)
