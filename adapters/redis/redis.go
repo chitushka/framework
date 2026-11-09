@@ -148,7 +148,7 @@ func NewLimiter(store *Store, config auth.AttemptLimitConfig) (*Limiter, error) 
 
 var limit = sdk.NewScript(`
 local retry=0
-for i=1,2 do if tonumber(redis.call('GET',KEYS[i]) or '0')>=tonumber(ARGV[i]) then retry=math.max(retry,redis.call('PTTL',KEYS[i])) end end
+for i=1,2 do if tonumber(redis.call('GET',KEYS[i]) or '0')>=tonumber(ARGV[i]) then local ttl=redis.call('PTTL',KEYS[i]);if ttl<0 then return redis.error_reply('limiter TTL missing') end;retry=math.max(retry,math.max(1,ttl)) end end
 if retry>0 then return retry end
 for i=1,2 do if redis.call('INCR',KEYS[i])==1 then redis.call('PEXPIRE',KEYS[i],ARGV[3]) end end
 return 0`)
@@ -166,7 +166,7 @@ func (l *Limiter) Allow(ctx context.Context, account, client string) (time.Durat
 func (s *Store) queueKeys(name string) []string {
 	h := sha256.Sum256([]byte(name))
 	base := s.prefix + "queue:" + hex.EncodeToString(h[:16])
-	return []string{base + ":ready", base + ":body", base + ":lease", base + ":owner"}
+	return []string{base + ":ready", base + ":body", base + ":lease", base + ":owner", base + ":invalid"}
 }
 func nonce() (string, error) {
 	var b [16]byte
@@ -229,7 +229,7 @@ var settle = sdk.NewScript(`
 if redis.call('HGET',KEYS[4],ARGV[1])~=ARGV[2] then return 0 end
 local clock=redis.call('TIME');local now=clock[1]*1000+math.floor(clock[2]/1000)
 local expiry=redis.call('ZSCORE',KEYS[3],ARGV[1]);if not expiry or tonumber(expiry)<=now then return 0 end
-if ARGV[3]=='retry' then redis.call('HSET',KEYS[2],ARGV[1],ARGV[4]);redis.call('ZADD',KEYS[1],ARGV[5],ARGV[1]) else redis.call('HDEL',KEYS[2],ARGV[1]) end
+if ARGV[3]=='retry' then redis.call('HSET',KEYS[2],ARGV[1],ARGV[4]);redis.call('ZADD',KEYS[1],ARGV[5],ARGV[1]) else if ARGV[3]=='quarantine' then redis.call('HSET',KEYS[5],ARGV[1],ARGV[4]) end;redis.call('HDEL',KEYS[2],ARGV[1]) end
 redis.call('ZREM',KEYS[3],ARGV[1]);redis.call('HDEL',KEYS[4],ARGV[1]);return 1`)
 
 func (s *Store) settle(ctx context.Context, name, receipt, operation string, payload []byte, available time.Time) error {

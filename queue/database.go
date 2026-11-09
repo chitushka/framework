@@ -155,7 +155,10 @@ func (broker *DatabaseBroker) tryReserve(ctx context.Context) (Delivery, bool, e
 		return nil, false, err
 	}
 	update := "UPDATE " + broker.table + " SET " + c.reservation + " = " + broker.dialect.Placeholder(1) + ", " + c.reserved + " = " + broker.dialect.Placeholder(2) + " WHERE " + c.id + " = " + broker.dialect.Placeholder(3) + " AND (" + c.reservation + " IS NULL OR " + c.reserved + " <= " + broker.dialect.Placeholder(4) + ")"
-	result, err := broker.database.ExecContext(ctx, update, token, now.UnixNano(), message.ID, cutoff)
+	// Fence the selected envelope as well as the lease: another consumer may
+	// have reserved and retried it between SELECT and this UPDATE.
+	update += " AND " + c.attempt + " = " + broker.dialect.Placeholder(5) + " AND " + c.available + " <= " + broker.dialect.Placeholder(6)
+	result, err := broker.database.ExecContext(ctx, update, token, now.UnixNano(), message.ID, cutoff, message.Attempt, now.UnixNano())
 	if err != nil {
 		return nil, false, fmt.Errorf("queue: database reserve: %w", err)
 	}
@@ -215,7 +218,7 @@ func requireQueueAffected(result sql.Result) error {
 		return fmt.Errorf("queue: inspect affected rows: %w", err)
 	}
 	if affected != 1 {
-		return errors.New("queue: delivery reservation was lost")
+		return ErrLeaseLost
 	}
 	return nil
 }

@@ -17,6 +17,19 @@ type RedisStore interface {
 	Retry(context.Context, string, string, []byte, time.Time) error
 }
 
+type RedisQuarantiner interface {
+	Quarantine(context.Context, string, string, []byte, string) error
+}
+
+func (broker *RedisBroker) quarantine(ctx context.Context, receipt string, payload []byte, cause error) error {
+	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if store, ok := broker.store.(RedisQuarantiner); ok {
+		return errors.Join(cause, store.Quarantine(cleanup, broker.queue, receipt, payload, cause.Error()))
+	}
+	return errors.Join(cause, errors.New("queue: invalid payload retained under lease; store has no quarantine"))
+}
+
 type RedisConfig struct {
 	Store              RedisStore
 	Queue              string
@@ -86,12 +99,10 @@ func (broker *RedisBroker) Reserve(ctx context.Context, wait time.Duration) (Del
 		if found {
 			var message Message
 			if err := json.Unmarshal(payload, &message); err != nil {
-				_ = broker.store.Ack(context.WithoutCancel(ctx), broker.queue, receipt)
-				return nil, fmt.Errorf("queue: decode Redis message: %w", err)
+				return nil, broker.quarantine(ctx, receipt, payload, fmt.Errorf("queue: decode Redis message: %w", err))
 			}
 			if err := validateMessage(message); err != nil {
-				_ = broker.store.Ack(context.WithoutCancel(ctx), broker.queue, receipt)
-				return nil, err
+				return nil, broker.quarantine(ctx, receipt, payload, err)
 			}
 			return &redisDelivery{broker: broker, message: message, receipt: receipt}, nil
 		}

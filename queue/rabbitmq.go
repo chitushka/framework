@@ -74,12 +74,14 @@ func (broker *RabbitMQBroker) Reserve(ctx context.Context, wait time.Duration) (
 	}
 	var message Message
 	if err := json.Unmarshal(source.Body(), &message); err != nil {
-		_ = source.Reject(context.WithoutCancel(ctx), false)
-		return nil, fmt.Errorf("queue: decode RabbitMQ message: %w", err)
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		return nil, errors.Join(fmt.Errorf("queue: decode RabbitMQ message: %w", err), source.Reject(cleanup, false))
 	}
 	if err := validateMessage(message); err != nil {
-		_ = source.Reject(context.WithoutCancel(ctx), false)
-		return nil, err
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		return nil, errors.Join(err, source.Reject(cleanup, false))
 	}
 	return &rabbitDelivery{broker: broker, source: source, message: message}, nil
 }

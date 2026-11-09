@@ -167,6 +167,9 @@ func (connection *queueConnection) ExecContext(_ context.Context, query string, 
 		if item == nil || (item.reservation != "" && item.reserved > cutoff) {
 			return driver.RowsAffected(0), nil
 		}
+		if len(args) > 4 && (int64(item.message.Attempt) != args[4].Value.(int64) || item.available > args[5].Value.(int64)) {
+			return driver.RowsAffected(0), nil
+		}
 		item.reservation = token
 		item.reserved = reserved
 	case strings.HasPrefix(query, "UPDATE") && strings.Contains(query, "SET \"attempt\""):

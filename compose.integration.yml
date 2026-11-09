@@ -49,6 +49,8 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: chitu
       RABBITMQ_DEFAULT_PASS: integration
+      # Accelerate internal DLX retry for target-outage tests; not a production default.
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit dead_letter_worker_publisher_confirm_timeout 1000"
     healthcheck:
       # Run as the server user so an early probe cannot create a root-owned cookie.
       test: [CMD-SHELL, "su-exec rabbitmq rabbitmq-diagnostics -q check_running && su-exec rabbitmq rabbitmq-diagnostics -q check_port_connectivity"]
