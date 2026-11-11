@@ -61,6 +61,66 @@ func TestDatabaseBrokerLifecycleAndLeaseRecovery(t *testing.T) {
 	}
 }
 
+func TestDatabaseTraceMetadataRequiresSchemaAndSurvivesRetry(t *testing.T) {
+	database := openQueueDatabase(t)
+	t.Cleanup(func() {
+		if err := database.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	dialect, _ := frameworkdb.NewDefaultDialectRegistry().Require(frameworkdb.PostgreSQL)
+	legacy, err := NewDatabaseBroker(DatabaseConfig{DB: database, Dialect: dialect})
+	if err != nil {
+		t.Fatal(err)
+	}
+	message := Message{ID: "trace", Name: "job", Payload: jsonPayload(`null`), MaxAttempts: 3, CreatedAt: time.Now(), TraceParent: "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", TraceState: "vendor=value"}
+	if err := legacy.Enqueue(t.Context(), message, 0); err == nil {
+		t.Fatal("SQL silently dropped trace metadata")
+	}
+	broker, err := NewDatabaseBroker(DatabaseConfig{DB: database, Dialect: dialect, TraceContext: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(broker.SchemaSQL(), `"traceparent" VARCHAR(512) NULL`) || strings.Contains(legacy.SchemaSQL(), "traceparent") {
+		t.Fatal("trace schema opt-in")
+	}
+	if err := broker.Enqueue(t.Context(), message, 0); err != nil {
+		t.Fatal(err)
+	}
+	for attempt := range 2 {
+		delivery, err := broker.Reserve(t.Context(), 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := delivery.Message()
+		if got.TraceParent != message.TraceParent || got.TraceState != message.TraceState || got.Attempt != attempt {
+			t.Fatal("lost trace metadata", got)
+		}
+		if attempt == 0 {
+			err = delivery.Nack(t.Context(), 0)
+		} else {
+			err = delivery.Ack(t.Context())
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	message.ID, message.TraceParent, message.TraceState = "old", "", ""
+	if err := legacy.Enqueue(t.Context(), message, 0); err != nil {
+		t.Fatal(err)
+	}
+	delivery, err := broker.Reserve(t.Context(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if delivery.Message().TraceParent != "" {
+		t.Fatal("old NULL metadata is not empty")
+	}
+	if err := delivery.Ack(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDatabaseBrokerValidationAndDialects(t *testing.T) {
 	dialect, _ := frameworkdb.NewDefaultDialectRegistry().Require(frameworkdb.PostgreSQL)
 	if _, err := NewDatabaseBroker(DatabaseConfig{Dialect: dialect}); err == nil {
@@ -157,6 +217,9 @@ func (connection *queueConnection) ExecContext(_ context.Context, query string, 
 	switch {
 	case strings.HasPrefix(query, "INSERT INTO"):
 		message := Message{ID: args[0].Value.(string), Name: args[1].Value.(string), Payload: append([]byte(nil), args[2].Value.([]byte)...), Attempt: int(args[3].Value.(int64)), MaxAttempts: int(args[4].Value.(int64)), CreatedAt: time.Unix(0, args[6].Value.(int64))}
+		if len(args) == 11 {
+			message.TraceParent, message.TraceState = args[9].Value.(string), args[10].Value.(string)
+		}
 		connection.state.items[message.ID] = &queueDBItem{message: message, available: args[5].Value.(int64)}
 	case strings.HasPrefix(query, "UPDATE") && strings.Contains(query, "SET \"reservation\""):
 		token := args[0].Value.(string)
@@ -209,8 +272,22 @@ func (connection *queueConnection) QueryContext(_ context.Context, query string,
 		}
 	}
 	rows := &queueRows{columns: []string{"id", "name", "payload", "attempt", "max_attempts", "created_at"}}
+	tracing := strings.Contains(query, `"traceparent"`)
+	if tracing {
+		rows.columns = append(rows.columns, "traceparent", "tracestate")
+	}
 	if selected != nil {
 		rows.values = [][]driver.Value{{selected.message.ID, selected.message.Name, []byte(selected.message.Payload), int64(selected.message.Attempt), int64(selected.message.MaxAttempts), selected.message.CreatedAt.UnixNano()}}
+		if tracing {
+			var parent, state driver.Value
+			if selected.message.TraceParent != "" {
+				parent = selected.message.TraceParent
+			}
+			if selected.message.TraceState != "" {
+				state = selected.message.TraceState
+			}
+			rows.values[0] = append(rows.values[0], parent, state)
+		}
 	}
 	return rows, nil
 }

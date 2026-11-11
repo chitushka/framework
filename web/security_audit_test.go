@@ -50,6 +50,7 @@ func TestProductionDisablesDiagnosticsAndSanitizesErrorsAndTelemetry(t *testing.
 	exporter := &auditExporter{}
 	tracer, err := observability.NewTracer(exporter)
 	must(t, err)
+	t.Cleanup(func() { must(t, tracer.Shutdown(context.Background())) })
 	observed := observability.HTTP(observability.HTTPConfig{Logger: slog.New(slog.NewJSONHandler(&logs, nil)), Tracer: tracer})(router)
 	production, err := web.NewProductionHandler(observed)
 	must(t, err)
@@ -69,6 +70,7 @@ func TestProductionDisablesDiagnosticsAndSanitizesErrorsAndTelemetry(t *testing.
 	if strings.Contains(logs.String(), secret) || strings.Contains(logs.String(), "/panic/") {
 		t.Fatal("raw path leaked to logs")
 	}
+	must(t, tracer.Flush(t.Context()))
 	for _, span := range exporter.spans {
 		if strings.Contains(span.Name+span.Error+span.Attributes["http.path"], secret) {
 			t.Fatal("secret leaked to span")

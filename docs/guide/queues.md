@@ -5,6 +5,12 @@
 и изменения). Attempt считает обработанные ошибки; восстановление lease после
 смерти процесса может повторить тот же Attempt. Payload ограничен 16 MiB.
 
+Для OpenTelemetry задайте observer в Queue/WorkerConfig из `adapters/otel`.
+SQL broker требует `DatabaseConfig.TraceContext: true` и nullable traceparent/tracestate
+columns; прежняя схема без tracing продолжает работать. Traced enqueue без opt-in
+возвращает ошибку до INSERT. Миграция и propagation через retries/processes —
+в [observability contract](observability.md).
+
 ## Готовые adapters
 
 Модуль `github.com/chitushka/framework/adapters` отделён от стандартного ядра.

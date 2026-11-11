@@ -62,11 +62,17 @@ jobs:
           cache: true
       - run: go vet ./...
       - run: go test ./...
+      - name: Vet SDK adapters
+        working-directory: adapters
+        run: go vet ./...
+      - name: Test SDK adapters
+        working-directory: adapters
+        run: go test ./...
   integration:
     name: Real service baseline
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
-      - name: SQL, Redis, Memcached and RabbitMQ baseline
+      - name: SQL, Redis, Memcached, RabbitMQ and OpenTelemetry baseline
         run: sh scripts/integration.sh

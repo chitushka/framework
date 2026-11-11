@@ -20,6 +20,7 @@ HTTP-семантика и сетевые доказательства: [HTTP co
 Атомарные sessions, TTL, ротация ключей и миграция: [sessions и CSRF](sessions.md).
 Passwords, login throttling и token verification: [reusable authentication](authentication.md).
 Production-профиль и threat-model checklist: [HTTP/tooling security audit](security-audit.md).
+OpenTelemetry HTTP/SQL/queue, sampling и bounded export: [observability](observability.md).
 
 ## Основная модель
 

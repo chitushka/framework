@@ -1,6 +1,6 @@
 # SDK adapters
 
-Это отдельный Go-модуль: ядро framework не получает обязательных Redis/AMQP SDK.
+Это отдельный Go-модуль: ядро framework не получает обязательных Redis/AMQP/OTel SDK.
 Для локальной разработки module replacements заданы в integration/go.mod;
 приложение подключает adapters и framework совместимых версий.
 
@@ -12,6 +12,10 @@
   publish confirms, reject-publish при MaxQueueBytes (64 MiB default), at-least-once
   DLX, delayed routing, malformed quarantine и reconnect отдельными соединениями.
   Установите TLSConfig для amqps и закрывайте Channel при shutdown.
+- `otel.NewHTTP(ctx, Config, HTTPConfig)` подключает OpenTelemetry SDK/OTLP HTTP
+  для HTTP/SQL/queue без глобального provider. Явные TLS/auth/endpoint, sampling,
+  bounded nonblocking batching, Stats/Flush/Shutdown; детали и миграция legacy
+  tracer — в [observability](../docs/guide/observability.md).
 
 Владелец Redis client вызывает Close. Для Redis durability настройте AOF/noeviction,
 для RabbitMQ — quorum availability и persistent storage. At-least-once допускает

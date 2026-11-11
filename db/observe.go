@@ -21,6 +21,27 @@ type QueryObserver interface {
 
 type queryObserverContextKey struct{}
 
+type queryObservers struct{ first, second QueryObserver }
+
+func (observers queryObservers) ObserveQuery(ctx context.Context, event QueryEvent) {
+	observers.first.ObserveQuery(ctx, event)
+	observers.second.ObserveQuery(ctx, event)
+}
+
+// AddQueryObserver сохраняет предыдущий observer (например tracing вместе с toolbar).
+func AddQueryObserver(ctx context.Context, observer QueryObserver) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if observer == nil {
+		return ctx
+	}
+	if previous, ok := ctx.Value(queryObserverContextKey{}).(QueryObserver); ok {
+		observer = queryObservers{previous, observer}
+	}
+	return WithQueryObserver(ctx, observer)
+}
+
 // WithQueryObserver возвращает context с observer для последующих DB-вызовов.
 func WithQueryObserver(ctx context.Context, observer QueryObserver) context.Context {
 	if ctx == nil {

@@ -33,10 +33,12 @@ At-least-once требует идемпотентности; AMQP retry publish+
 ## Observability
 
 Приложение должно добавлять безопасные бизнес-идентификаторы в структурированные логи.
-HTTP middleware записывает route и статус; не помещайте user ID или произвольные URLs в labels.
-Tracer поддерживает HTTP traceparent и SpanExporter; автоматической связи SQL/queue spans
-и готового OpenTelemetry adapter пока нет. Export синхронный, ошибка exporter игнорируется:
-latency/ограничение памяти при сбоях должен контролировать adapter приложения.
+HTTP middleware записывает статус; не помещайте user ID или произвольные URLs в labels.
+Отдельный `adapters/otel` поставляет SDK/OTLP HTTP, HTTP/SQL/queue propagation,
+parent-based sampling и bounded batching. Legacy tracer тоже экспортирует асинхронно.
+Наблюдайте export statistics и вызывайте Shutdown после HTTP/worker drain с независимым
+cleanup context. Defaults, redaction, ограничения SQL instrumentation и flush budgets —
+в [контракте observability](observability.md).
 
 Debug toolbar и подробные ошибки отключайте в production. Health endpoint должен различать liveness и readiness: readiness проверяет способность обслуживать новый запрос.
 

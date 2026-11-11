@@ -6,7 +6,7 @@
 - Package unit tests могут использовать контролируемые fakes; это не доказательство совместимости с сервисом.
 - HTTP tests собирают router и выполняют запросы через `httptest`.
 - Network fixtures в `cache/network_test.go` проверяют протокол на собственных TCP-серверах.
-- Отдельный модуль `integration` проверяет реальные SQL/cache сервисы и AMQP infrastructure.
+- Отдельный модуль `integration` проверяет реальные SQL/cache/queue сервисы и OTel collector.
 
 Тестируйте публичное поведение, отмену context, rollback и конкурентный доступ. Избегайте `time.Sleep`: используйте каналы, fake clock и deadlines.
 
@@ -36,15 +36,21 @@ sh scripts/integration.sh
 Устанавливать SQL drivers, Go или сервисы на host не требуется; первый запуск загружает образы
 и зависимости и требует сети. Ветки/ограничения описаны в [support](support.md).
 
-Compose создаёт уникальный project/network без опубликованных портов, без bind mounts
-и без внешних volumes. Credentials в YAML тестовые и действуют только в этой сети.
+Compose создаёт уникальный project/network без опубликованных портов и внешних volumes.
+Read-only bind mount содержит collector config; ephemeral volume с ограниченной ротацией
+хранит traces и удаляется при cleanup. Credentials в YAML тестовые и действуют только в этой сети.
 SQL data directories размещены в ограниченных tmpfs (PostgreSQL 256 MiB, MySQL 512 MiB),
 поэтому этот стенд не проверяет disk durability и fsync при падении host.
 PostgreSQL, MySQL, Redis, Memcached, RabbitMQ имеют health checks; runner стартует только
-после их успеха. Tests имеют общий timeout 6 минут, SQL/cache операции — contexts 30 секунд,
+после их успеха. Collector health отдельно ожидается тестом с deadline.
+Tests имеют общий timeout 6 минут, SQL/cache операции — contexts 30 секунд,
 cleanup — 5 секунд, AMQP handshake/I/O — socket deadline. Job CI ограничен 15 минутами.
+Холодная compilation generated project имеет отдельный deadline 90 секунд;
+после неё SQL phase получает новый 30-секундный context, subprocess pipes — WaitDelay 1s.
+Runner задаёт GOMAXPROCS=2 и GOFLAGS=-p=2, ограничивая параллельную компиляцию
+на небольшом Docker host; конкурентные/process acceptance cases остаются обязательными.
 
-Runner выполняет `go test -mod=readonly -race -count=1 -timeout=3m -v ./...` внутри
+Runner выполняет `go test -mod=readonly -race -count=1 -timeout=6m -v ./...` внутри
 `integration`. Это отдельный модуль с pinned драйверами и `replace => ..`; корневой
 `go test ./...` не загружает эти зависимости и не обращается к сервисам. Отсутствие env
 или сервиса вызывает **fail**, а не Skip. Локально и в CI выполняется один и тот же набор:
@@ -54,9 +60,11 @@ Runner выполняет `go test -mod=readonly -race -count=1 -timeout=3m -v .
 - Redis/Memcached/SQL cache: общий contract miss, binary payload, overwrite, delete и expiry TTL.
 - Redis/RabbitMQ: готовые framework adapters, leases/reclaim, confirms, retry/quarantine, outage/reconnect и kill/restart между durable Save и Ack.
 - Redis/Memcached: TLS relay к реальным сервисам, auth, большие binary values; Redis session CAS/rotation и shared limiter.
+- OpenTelemetry Collector: HTTP/SQL/Redis/RabbitMQ/SQL queue trace tree с retries,
+  отдельный worker process, privacy; официальная Prometheus-библиотека разбирает metrics.
 
 Каждая таблица/ключ имеет случайное имя; cleanup использует независимый context, даже если
-тест отменён. AMQP queue exclusive и удаляется при закрытии connection. Скрипт сохраняет
+тест отменён. Durable AMQP queues удаляются вместе с изолированным стендом. Скрипт сохраняет
 ненулевой test/build/startup exit code, при ошибке печатает service logs и всегда вызывает
 `down --volumes --remove-orphans`. Ошибка cleanup тоже даёт ненулевой код.
 При принудительном убийстве shell/host автоматический cleanup не гарантируется:
@@ -64,8 +72,9 @@ Runner выполняет `go test -mod=readonly -race -count=1 -timeout=3m -v .
 `docker compose -p PROJECT -f compose.integration.yml down --volumes --remove-orphans`.
 Не используйте production credentials/DSN для стенда.
 
-Это conformance/crash/outage suite baseline из этапов 8–9. Он не доказывает disk durability
-при потере host, cluster compatibility или browser E2E. Оставшиеся gates — этапы 10–13.
+Это conformance/crash/outage suite этапов 8–10.1. Он не доказывает disk durability
+при потере host, cluster compatibility или browser E2E. Lifecycle/health — 10.2,
+остальные gates — этапы 11–13. [Observability contract](observability.md).
 
 ## Политика покрытия
 
@@ -77,7 +86,8 @@ Runner выполняет `go test -mod=readonly -race -count=1 -timeout=3m -v .
 
 Workflow `.github/workflows/ci.yml` запускается для pull request и push в `main`/`master`.
 Job `test` (Ubuntu 24.04 / Go 1.26.x) проверяет gofmt, `go vet`, race detector, все unit tests
-и coverage gate. Job `windows` (Windows 2025 / Go 1.26.x) выполняет vet/unit tests.
+и coverage gate. SDK adapters проходят vet/race на Linux и vet/tests на Windows.
+Job `windows` использует Windows 2025 / Go 1.26.x.
 Независимый `lint` запускает официальный golangci-lint action. `integration` запускает
 обязательный Compose baseline. Coverage profile сохраняется как artifact. Все jobs обязательны
 по контракту; настройка required checks в branch protection выполняется владельцем репозитория.

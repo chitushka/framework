@@ -921,7 +921,8 @@ HTTP-наблюдаемость подключается снаружи router, 
 
 ```go
 metrics, _ := observability.NewMetrics()
-tracer, _ := observability.NewTracer(otelExporterAdapter)
+tracer, _ := observability.NewTracer(applicationSpanExporter)
+// После HTTP drain вызовите tracer.Shutdown с независимым context и проверьте ошибку.
 
 handler := observability.HTTP(observability.HTTPConfig{
     Logger:  logger.Logger,
@@ -933,7 +934,11 @@ http.Handle("/", handler)
 http.Handle("/metrics", metrics)
 ```
 
-Prometheus endpoint экспортирует `chitu_http_requests_total`, `chitu_http_errors_total`, active requests и histogram времени ответа. Tracer поддерживает W3C `traceparent`; текущие trace/span ID доступны через `observability.SpanFromContext`. Exporter реализует малый `SpanExporter`, поэтому OpenTelemetry SDK подключается адаптером. Для CPU/heap/goroutine profiling доступен `observability.PprofHandler()`; endpoint необходимо размещать на закрытом listener или защищать авторизацией.
+Prometheus endpoint экспортирует `chitu_http_requests_total`, `chitu_http_errors_total`, active requests и histogram времени ответа с ограниченными method/status labels. Tracer поддерживает W3C `traceparent`; текущие trace/span ID доступны через `observability.SpanFromContext`. Legacy `SpanExporter` теперь вызывается асинхронно через очередь 256 spans; для чтения результата нужен Flush, после drain — Shutdown. Stats и ErrExport показывают потери/ошибки.
+
+Готовый `github.com/chitushka/framework/adapters/otel` связывает HTTP → SQL → queue → worker через OpenTelemetry SDK/OTLP HTTP. Он поставляет sampling, bounded batching и flush/shutdown, explicit TLS/auth и redaction без обязательного SDK в ядре. Конфигурация, пример подключения, SQL boundaries и breaking migration legacy tracer — в [observability guide](docs/guide/observability.md). Полный `scripts/integration.sh` / `scripts/integration.ps1` проверяет сквозную трассу на настоящем collector и отдельном worker process.
+
+Для CPU/heap/goroutine profiling доступен `observability.PprofHandler()`; endpoint размещается на закрытом listener или защищается авторизацией.
 
 ## Debug toolbar
 

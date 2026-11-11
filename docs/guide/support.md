@@ -9,13 +9,14 @@
 
 | Компонент | Обязательная конфигурация | CI job | Область проверки |
 | --- | --- | --- | --- |
-| Go / Linux amd64 | Go 1.26.10+, ветка 1.26, Ubuntu 24.04 runner | `test`, `lint` | Unit, vet, race, coverage, lint |
-| Go / Windows amd64 | Go 1.26.10+, ветка 1.26, Windows Server 2025 runner | `windows` | Unit и vet; без race |
+| Go / Linux amd64 | Go 1.26.11+, ветка 1.26, Ubuntu 24.04 runner | `test`, `lint` | Unit, vet, race, coverage, lint |
+| Go / Windows amd64 | Go 1.26.11+, ветка 1.26, Windows Server 2025 runner | `windows` | Unit и vet; без race |
 | PostgreSQL | 17, Linux, pgx/v5 через database/sql | `integration` | SQL conformance, concurrent/crash migrations и AR, generator compilation, cache/queue process recovery |
 | MySQL | 8.4 LTS, Linux, go-sql-driver/mysql | `integration` | Тот же набор; DDL не считается транзакционным |
 | Redis cache | 7.4, RESP2, TCP, password, DB 1 | `integration` | Binary/TTL, AUTH, TLS relay/outage, shared CAS/limiter, queue lease/reclaim |
 | Memcached cache | 1.6, text protocol, TCP | `integration` | Binary/TTL, TLS relay/outage/reconnect и большие values |
 | RabbitMQ queue SDK | 4.3, AMQP 0-9-1 | `integration` | Framework adapter: persistent publish confirms, retry/DLX/quarantine, consumer kill/restart |
+| OpenTelemetry | SDK/OTLP HTTP 1.47.0, Collector Contrib 0.147.0 | `test`, `integration` | HTTP/SQL/queue trace tree, retries, отдельный worker process, sampling, bounded export/flush/outage; Prometheus parser |
 
 Точные образы закреплены digest в [Compose](../../compose.integration.yml), версии Go-драйверов —
 в [integration/go.mod](../../integration/go.mod) и go.sum. Minor-ветки выбраны как baseline,
@@ -43,8 +44,9 @@
   distributed stampede control вне baseline; Redis SDK даёт CAS/rotation и shared limiter.
 - Persistent dead-letter требует application-owned volume либо иной реализации Store;
   container layer и volatile MemoryBroker не считаются durable storage.
-- OpenTelemetry SDK adapter, общий process shutdown budget и browser E2E остаются
-  этапами 10–12. Production authentication flows starters ещё не приняты.
+- OTLP gRPC, baggage/tracestate propagation, driver-level SQL spans и общий process
+  shutdown budget не входят в 10.1. Lifecycle/health — 10.2; browser E2E — этапы 11–12.
+  Production authentication flows starters ещё не приняты.
 - Frontend scaffold и три examples являются демонстрациями; они не входят в контракт
   готовых production starters. Полный список ограничений — в реестре гарантий.
 

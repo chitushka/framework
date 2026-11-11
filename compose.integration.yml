@@ -57,17 +57,32 @@ services:
       interval: 3s
       timeout: 5s
       retries: 40
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.147.0@sha256:e7c92c715f28ff142f3bcaccd4fc5603cf4c71276ef09954a38eb4038500a5a5
+    # Только тестовый root для записи в общий ephemeral volume; host ports нет.
+    user: "0:0"
+    command: ["--config=/etc/otelcol/config.yml"]
+    volumes:
+      - ./integration/otel-collector.yml:/etc/otelcol/config.yml:ro
+      - telemetry:/telemetry
   tests:
     build:
       context: .
       dockerfile: integration/Dockerfile
     environment:
       POSTGRES_DSN: postgres://chitu:integration@postgres:5432/chitu?sslmode=disable
+      GOMAXPROCS: "2"
+      GOFLAGS: "-p=2"
       MYSQL_DSN: chitu:integration@tcp(mysql:3306)/chitu?parseTime=true&timeout=5s&readTimeout=5s&writeTimeout=5s
       REDIS_ADDRESS: redis:6379
       REDIS_PASSWORD: integration
       MEMCACHED_ADDRESS: memcached:11211
       AMQP_URL: amqp://chitu:integration@rabbitmq:5672/
+      OTEL_TEST_ENDPOINT: http://otel-collector:4318/v1/traces
+      OTEL_TEST_HEALTH: http://otel-collector:13133/
+      OTEL_TEST_FILE: /telemetry/traces.json
+    volumes:
+      - telemetry:/telemetry:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,3 +94,7 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
+volumes:
+  telemetry:

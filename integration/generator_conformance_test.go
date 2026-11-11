@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -27,7 +28,7 @@ func TestGeneratedProjectsFromBaselineSchemas(t *testing.T) {
 		root := t.TempDir()
 		moduleRoot, err := filepath.Abs("..")
 		check(t, err)
-		check(t, os.WriteFile(filepath.Join(root, "go.mod"), []byte(fmt.Sprintf("module generated.test/app\n\ngo 1.26.10\nrequire github.com/chitushka/framework v0.0.0\nreplace github.com/chitushka/framework => %s\n", filepath.ToSlash(moduleRoot))), 0o600))
+		check(t, os.WriteFile(filepath.Join(root, "go.mod"), []byte(fmt.Sprintf("module generated.test/app\n\ngo 1.26.11\nrequire github.com/chitushka/framework v0.0.0\nreplace github.com/chitushka/framework => %s\n", filepath.ToSlash(moduleRoot))), 0o600))
 		modelPath := filepath.Join(root, "model", "record.go")
 		generator := ar.Generator{Inspector: inspector}
 		check(t, generator.GenerateFile(ctx, table, ar.GenerateOptions{Package: "model", TypeName: "Record", Output: modelPath}))
@@ -57,12 +58,17 @@ func TestGeneratedModel(t *testing.T){var m Record;if err:=json.Unmarshal([]byte
 import("testing";"generated.test/app/model")
 func TestInputExcludesIdentityAndPreservesMissingFields(t *testing.T){name:="updated";m:=model.Record{ID:7,Name:"old",Price:"1.500000",Version:3};input:=RecordInput{Name:&name};input.Apply(&m);if m.ID!=7||m.Version!=3||m.Name!="updated"||m.Price!="1.500000"{t.Fatalf("mass assignment: %+v",m)}}`
 		check(t, os.WriteFile(filepath.Join(root, "controller", "record_test.go"), []byte(crudTest), 0o600))
-		command := exec.CommandContext(ctx, "go", "test", "-mod=mod", "./...")
+		// Холодная сборка toolchain не расходует 30-секундный бюджет SQL-операций.
+		compileContext, cancelCompile := context.WithTimeout(t.Context(), 90*time.Second)
+		defer cancelCompile()
+		command := exec.CommandContext(compileContext, "go", "test", "-mod=mod", "./...")
+		command.WaitDelay = time.Second
 		command.Dir = root
 		command.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOSUMDB=off")
 		if out, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("generated project failed: %v\n%s", err, out)
 		}
+		ctx = testContext(t)
 		copySchema := schema
 		copySchema.Name = unique()
 		up, down, err := gii.GenerateMigrationSQL(copySchema, c.Dialect())

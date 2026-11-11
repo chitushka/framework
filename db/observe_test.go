@@ -48,6 +48,26 @@ func TestConnectionQueryObserver(t *testing.T) {
 	}
 }
 
+func TestAdditionalObserverPreservesExistingDiagnostics(t *testing.T) {
+	connection, err := db.Open(t.Context(), db.Config{Driver: testDriverName, DSN: "success", Dialect: db.PostgreSQL}, db.NewDefaultDialectRegistry())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := connection.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	first, second := &queryObserver{}, &queryObserver{}
+	ctx := db.AddQueryObserver(db.WithQueryObserver(t.Context(), first), second)
+	if _, err := connection.ExecContext(ctx, "UPDATE observed", 7); err != nil {
+		t.Fatal(err)
+	}
+	if len(first.events) != 1 || len(second.events) != 1 {
+		t.Fatal("SQL diagnostics observer was replaced")
+	}
+}
+
 func TestTransactionQueryObserver(t *testing.T) {
 	connection, _ := openTransactionConnection(t, db.PostgreSQL, nil)
 	transaction, err := connection.BeginTx(context.Background(), nil)

@@ -19,7 +19,7 @@ import (
 type HTTPConfig struct {
 	Logger  *slog.Logger
 	Metrics *Metrics
-	Tracer  *Tracer
+	Tracer  HTTPTracer
 }
 
 // HTTP возвращает net/http middleware для логов, метрик и tracing.
@@ -38,10 +38,11 @@ func HTTP(config HTTPConfig) func(http.Handler) http.Handler {
 			}
 			wrapped := &statusWriter{ResponseWriter: writer, status: http.StatusOK}
 			config.Metrics.begin()
-			attributes := map[string]string{"http.method": method, "http.path": path}
-			ctx, span, traceErr := config.Tracer.start(request.Context(), method+" "+path, request.Header.Get("traceparent"), attributes)
-			if traceErr == nil && span != nil {
-				wrapped.Header().Set("traceparent", "00-"+span.span.TraceID+"-"+span.span.SpanID+"-01")
+			var finish func(int, any)
+			if config.Tracer != nil {
+				ctx, end := config.Tracer.StartHTTP(request.Context(), request)
+				finish = end
+				config.Tracer.Inject(ctx, wrapped.Header())
 				request = request.WithContext(ctx)
 			}
 			var recovered any
@@ -51,7 +52,9 @@ func HTTP(config HTTPConfig) func(http.Handler) http.Handler {
 				}
 				duration := time.Since(started)
 				config.Metrics.observe(request.Method, wrapped.status, duration, recovered != nil)
-				span.finish(request.Context(), wrapped.status, recovered)
+				if finish != nil {
+					finish(wrapped.status, recovered)
+				}
 				if config.Logger != nil {
 					level := slog.LevelInfo
 					if wrapped.status >= http.StatusInternalServerError || recovered != nil {

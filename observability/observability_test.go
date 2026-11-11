@@ -37,6 +37,11 @@ func TestHTTPLogsMetricsAndPropagatesTrace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		if err := tracer.Shutdown(context.Background()); err != nil {
+			t.Error(err)
+		}
+	})
 	var logs bytes.Buffer
 	middleware := observability.HTTP(observability.HTTPConfig{
 		Logger: slog.New(slog.NewJSONHandler(&logs, nil)), Metrics: metrics, Tracer: tracer,
@@ -53,6 +58,9 @@ func TestHTTPLogsMetricsAndPropagatesTrace(t *testing.T) {
 	request.Header.Set("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
+	if err := tracer.Flush(t.Context()); err != nil {
+		t.Fatal(err)
+	}
 	if response.Code != http.StatusCreated || !strings.HasPrefix(response.Header().Get("traceparent"), "00-4bf92f3577b34da6a3ce929d0e0e4736-") {
 		t.Fatalf("unexpected traced response: %d %s", response.Code, response.Header())
 	}
@@ -76,6 +84,11 @@ func TestHTTPRecordsErrorsAndPanics(t *testing.T) {
 	metrics, _ := observability.NewMetrics()
 	exporter := &spanExporter{}
 	tracer, _ := observability.NewTracer(exporter)
+	t.Cleanup(func() {
+		if err := tracer.Shutdown(context.Background()); err != nil {
+			t.Error(err)
+		}
+	})
 	var logs bytes.Buffer
 	handler := observability.HTTP(observability.HTTPConfig{Metrics: metrics, Tracer: tracer, Logger: slog.New(slog.NewTextHandler(&logs, nil))})(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("boom") }))
 	func() {
@@ -86,6 +99,9 @@ func TestHTTPRecordsErrorsAndPanics(t *testing.T) {
 		}()
 		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/panic", nil))
 	}()
+	if err := tracer.Flush(t.Context()); err != nil {
+		t.Fatal(err)
+	}
 	if len(exporter.spans) != 1 || exporter.spans[0].Error != "boom" || !strings.Contains(logs.String(), "status=500") {
 		t.Fatalf("panic not observed: %#v %s", exporter.spans, logs.String())
 	}

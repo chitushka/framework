@@ -76,7 +76,7 @@ func (toolbar *Toolbar) Middleware(next web.Handler) web.Handler {
 		runtime.ReadMemStats(&before)
 		collector := &collector{captureArgs: toolbar.config.CaptureSQLArgs, limit: toolbar.config.MaxSQLQueries}
 		requestContext := context.WithValue(ctx.Request.Context(), collectorContextKey{}, collector)
-		requestContext = db.WithQueryObserver(requestContext, collector)
+		requestContext = db.AddQueryObserver(requestContext, collector)
 		ctx.Request = ctx.Request.WithContext(requestContext)
 
 		original := ctx.Writer

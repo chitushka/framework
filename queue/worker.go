@@ -46,6 +46,7 @@ type WorkerConfig struct {
 	RetryDelay        func(attempt int) time.Duration
 	OnFailure         func(Failure)
 	DeadLetters       DeadLetterStore
+	Observer          Observer
 }
 type Worker struct {
 	broker                    Broker
@@ -204,6 +205,13 @@ func (w *Worker) consume(reserveCtx, jobsCtx context.Context, handlers map[strin
 	}
 }
 func (w *Worker) process(ctx context.Context, handlers map[string]Handler, delivery Delivery) (err error) {
+	var handleErr error
+	var end func(error)
+	defer func() {
+		if end != nil {
+			end(errors.Join(handleErr, err))
+		}
+	}()
 	defer func() {
 		if value := recover(); value != nil {
 			err = &PanicError{value}
@@ -219,7 +227,10 @@ func (w *Worker) process(ctx context.Context, handlers map[string]Handler, deliv
 		}
 	}()
 	message := delivery.Message()
-	handleErr := w.handle(ctx, message, handlers[message.Name])
+	if w.config.Observer != nil {
+		ctx, end = w.config.Observer.StartProcess(ctx, message)
+	}
+	handleErr = w.handle(ctx, message, handlers[message.Name])
 	settleCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), w.config.SettlementTimeout)
 	defer cancel()
 	if errors.Is(handleErr, context.Canceled) && ctx.Err() != nil {

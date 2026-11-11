@@ -18,6 +18,8 @@ type SQLDatabase interface {
 }
 
 type DatabaseConfig struct {
+	// TraceContext требует traceparent/tracestate columns; старые таблицы работают без него.
+	TraceContext       bool
 	DB                 SQLDatabase
 	Dialect            frameworkdb.Dialect
 	Table              string
@@ -32,7 +34,7 @@ type DatabaseBroker struct {
 	now      func() time.Time
 	columns  databaseColumns
 }
-type databaseColumns struct{ id, name, payload, attempt, maxAttempts, available, created, reservation, reserved string }
+type databaseColumns struct{ id, name, payload, attempt, maxAttempts, available, created, reservation, reserved, traceParent, traceState string }
 
 var databaseIdentifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
@@ -67,7 +69,7 @@ func NewDatabaseBroker(config DatabaseConfig) (*DatabaseBroker, error) {
 		return nil, errors.New("queue: PollInterval cannot be negative")
 	}
 	q := config.Dialect.QuoteIdentifier
-	return &DatabaseBroker{database: config.DB, dialect: config.Dialect, table: strings.Join(quoted, "."), config: config, now: time.Now, columns: databaseColumns{q("id"), q("name"), q("payload"), q("attempt"), q("max_attempts"), q("available_at"), q("created_at"), q("reservation"), q("reserved_at")}}, nil
+	return &DatabaseBroker{database: config.DB, dialect: config.Dialect, table: strings.Join(quoted, "."), config: config, now: time.Now, columns: databaseColumns{q("id"), q("name"), q("payload"), q("attempt"), q("max_attempts"), q("available_at"), q("created_at"), q("reservation"), q("reserved_at"), q("traceparent"), q("tracestate")}}, nil
 }
 
 func (broker *DatabaseBroker) Enqueue(ctx context.Context, message Message, delay time.Duration) error {
@@ -80,9 +82,18 @@ func (broker *DatabaseBroker) Enqueue(ctx context.Context, message Message, dela
 	if err := validateMessage(message); err != nil {
 		return err
 	}
+	if !broker.config.TraceContext && (message.TraceParent != "" || message.TraceState != "") {
+		return errors.New("queue: SQL trace metadata requires TraceContext schema")
+	}
 	c := broker.columns
-	query := "INSERT INTO " + broker.table + " (" + strings.Join([]string{c.id, c.name, c.payload, c.attempt, c.maxAttempts, c.available, c.created, c.reservation, c.reserved}, ", ") + ") VALUES (" + dbPlaceholders(broker.dialect, 9) + ")"
-	_, err := broker.database.ExecContext(ctx, query, message.ID, message.Name, []byte(message.Payload), message.Attempt, message.MaxAttempts, broker.now().Add(delay).UnixNano(), message.CreatedAt.UnixNano(), nil, nil)
+	columns := []string{c.id, c.name, c.payload, c.attempt, c.maxAttempts, c.available, c.created, c.reservation, c.reserved}
+	args := []any{message.ID, message.Name, []byte(message.Payload), message.Attempt, message.MaxAttempts, broker.now().Add(delay).UnixNano(), message.CreatedAt.UnixNano(), nil, nil}
+	if broker.config.TraceContext {
+		columns = append(columns, c.traceParent, c.traceState)
+		args = append(args, message.TraceParent, message.TraceState)
+	}
+	query := "INSERT INTO " + broker.table + " (" + strings.Join(columns, ", ") + ") VALUES (" + dbPlaceholders(broker.dialect, len(args)) + ")"
+	_, err := broker.database.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("queue: database enqueue: %w", err)
 	}
@@ -129,10 +140,14 @@ func (broker *DatabaseBroker) tryReserve(ctx context.Context) (Delivery, bool, e
 	c := broker.columns
 	now := broker.now()
 	cutoff := now.Add(-broker.config.ReservationTimeout).UnixNano()
-	selectSQL := "SELECT " + strings.Join([]string{c.id, c.name, c.payload, c.attempt, c.maxAttempts, c.created}, ", ") + " FROM " + broker.table + " WHERE " + c.available + " <= " + broker.dialect.Placeholder(1) + " AND (" + c.reservation + " IS NULL OR " + c.reserved + " <= " + broker.dialect.Placeholder(2) + ") ORDER BY " + c.available + ", " + c.id
+	columns := []string{c.id, c.name, c.payload, c.attempt, c.maxAttempts, c.created}
+	if broker.config.TraceContext {
+		columns = append(columns, c.traceParent, c.traceState)
+	}
+	selectSQL := "SELECT " + strings.Join(columns, ", ") + " FROM " + broker.table + " WHERE " + c.available + " <= " + broker.dialect.Placeholder(1) + " AND (" + c.reservation + " IS NULL OR " + c.reserved + " <= " + broker.dialect.Placeholder(2) + ") ORDER BY " + c.available + ", " + c.id
 	switch broker.dialect.Name() {
 	case frameworkdb.SQLServer:
-		selectSQL = "SELECT TOP 1 " + strings.Join([]string{c.id, c.name, c.payload, c.attempt, c.maxAttempts, c.created}, ", ") + " FROM " + broker.table + " WHERE " + c.available + " <= " + broker.dialect.Placeholder(1) + " AND (" + c.reservation + " IS NULL OR " + c.reserved + " <= " + broker.dialect.Placeholder(2) + ") ORDER BY " + c.available + ", " + c.id
+		selectSQL = "SELECT TOP 1 " + strings.Join(columns, ", ") + " FROM " + broker.table + " WHERE " + c.available + " <= " + broker.dialect.Placeholder(1) + " AND (" + c.reservation + " IS NULL OR " + c.reserved + " <= " + broker.dialect.Placeholder(2) + ") ORDER BY " + c.available + ", " + c.id
 	case frameworkdb.Oracle:
 		selectSQL += " FETCH FIRST 1 ROWS ONLY"
 	default:
@@ -141,7 +156,12 @@ func (broker *DatabaseBroker) tryReserve(ctx context.Context) (Delivery, bool, e
 	var message Message
 	var payload []byte
 	var created int64
-	err := broker.database.QueryRowContext(ctx, selectSQL, now.UnixNano(), cutoff).Scan(&message.ID, &message.Name, &payload, &message.Attempt, &message.MaxAttempts, &created)
+	var traceParent, traceState sql.NullString
+	targets := []any{&message.ID, &message.Name, &payload, &message.Attempt, &message.MaxAttempts, &created}
+	if broker.config.TraceContext {
+		targets = append(targets, &traceParent, &traceState)
+	}
+	err := broker.database.QueryRowContext(ctx, selectSQL, now.UnixNano(), cutoff).Scan(targets...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, false, nil
 	}
@@ -150,6 +170,7 @@ func (broker *DatabaseBroker) tryReserve(ctx context.Context) (Delivery, bool, e
 	}
 	message.Payload = payload
 	message.CreatedAt = time.Unix(0, created).UTC()
+	message.TraceParent, message.TraceState = traceParent.String, traceState.String
 	token, err := messageID()
 	if err != nil {
 		return nil, false, err
@@ -240,5 +261,9 @@ func (broker *DatabaseBroker) SchemaSQL() string {
 		payloadType = "VARBINARY(MAX)"
 	}
 	c := broker.columns
-	return "CREATE TABLE " + broker.table + " (" + c.id + " VARCHAR(64) PRIMARY KEY, " + c.name + " VARCHAR(255) NOT NULL, " + c.payload + " " + payloadType + " NOT NULL, " + c.attempt + " INTEGER NOT NULL, " + c.maxAttempts + " INTEGER NOT NULL, " + c.available + " BIGINT NOT NULL, " + c.created + " BIGINT NOT NULL, " + c.reservation + " VARCHAR(64) NULL, " + c.reserved + " BIGINT NULL)"
+	traceColumns := ""
+	if broker.config.TraceContext {
+		traceColumns = ", " + c.traceParent + " VARCHAR(512) NULL, " + c.traceState + " VARCHAR(512) NULL"
+	}
+	return "CREATE TABLE " + broker.table + " (" + c.id + " VARCHAR(64) PRIMARY KEY, " + c.name + " VARCHAR(255) NOT NULL, " + c.payload + " " + payloadType + " NOT NULL, " + c.attempt + " INTEGER NOT NULL, " + c.maxAttempts + " INTEGER NOT NULL, " + c.available + " BIGINT NOT NULL, " + c.created + " BIGINT NOT NULL, " + c.reservation + " VARCHAR(64) NULL, " + c.reserved + " BIGINT NULL" + traceColumns + ")"
 }

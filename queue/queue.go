@@ -27,6 +27,15 @@ type Message struct {
 	Attempt     int             `json:"attempt"`
 	MaxAttempts int             `json:"maxAttempts"`
 	CreatedAt   time.Time       `json:"createdAt"`
+	TraceParent string          `json:"traceparent,omitempty"`
+	TraceState  string          `json:"tracestate,omitempty"`
+}
+
+// Observer связывает producer/consumer spans без зависимости queue от tracing SDK.
+// Методы и возвращённые callbacks должны быть быстрыми и безопасными конкурентно.
+type Observer interface {
+	StartEnqueue(context.Context, *Message) (context.Context, func(error))
+	StartProcess(context.Context, Message) (context.Context, func(error))
 }
 
 // Delivery must be acknowledged exactly once after Reserve.
@@ -49,15 +58,23 @@ type Options struct {
 
 // Queue serializes application payloads into broker messages.
 type Queue struct {
-	broker Broker
-	now    func() time.Time
+	broker   Broker
+	now      func() time.Time
+	observer Observer
 }
 
-func New(broker Broker) (*Queue, error) {
+func New(broker Broker, observers ...Observer) (*Queue, error) {
 	if broker == nil {
 		return nil, errors.New("queue: broker is required")
 	}
-	return &Queue{broker: broker, now: time.Now}, nil
+	if len(observers) > 1 || len(observers) == 1 && observers[0] == nil {
+		return nil, errors.New("queue: expected at most one non-nil observer")
+	}
+	result := &Queue{broker: broker, now: time.Now}
+	if len(observers) == 1 {
+		result.observer = observers[0]
+	}
+	return result, nil
 }
 
 func (queue *Queue) Push(ctx context.Context, name string, payload any, options Options) (string, error) {
@@ -85,7 +102,15 @@ func (queue *Queue) Push(ctx context.Context, name string, payload any, options 
 		return "", err
 	}
 	message := Message{ID: id, Name: name, Payload: encoded, MaxAttempts: options.MaxAttempts, CreatedAt: queue.now().UTC()}
-	if err := queue.broker.Enqueue(ctx, message, options.Delay); err != nil {
+	var end func(error)
+	if queue.observer != nil {
+		ctx, end = queue.observer.StartEnqueue(ctx, &message)
+	}
+	err = queue.broker.Enqueue(ctx, message, options.Delay)
+	if end != nil {
+		end(err)
+	}
+	if err != nil {
 		return "", fmt.Errorf("queue: enqueue %q: %w", name, err)
 	}
 	return id, nil
@@ -100,7 +125,7 @@ func messageID() (string, error) {
 }
 
 func validateMessage(message Message) error {
-	if len(message.ID) > 64 || len(message.Name) > 255 || len(message.Payload) > 16<<20 {
+	if len(message.ID) > 64 || len(message.Name) > 255 || len(message.Payload) > 16<<20 || len(message.TraceParent) > 512 || len(message.TraceState) > 512 {
 		return errors.New("queue: message identifiers/payload exceed limits")
 	}
 	if message.ID == "" || message.Name == "" {

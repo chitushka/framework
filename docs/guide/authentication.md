@@ -4,10 +4,10 @@
 bearer token verification. Он не хранит пользователей за приложение, не выдаёт
 access/refresh tokens и не является identity provider. Приложение задаёт password
 policy, canonical login, identity persistence, permissions, MFA и revocation.
-Минимальный Go — 1.26.10: прежний 1.26.0 имеет известные standard-library
-vulnerabilities. Dependency versions и checksums закреплены в go.mod/go.sum;
+Минимальный Go — 1.26.11: проверка шага 10.1 обнаружила GO-2026-6859 в net/http
+предыдущего 1.26.10. Dependency versions и checksums закреплены в go.mod/go.sum;
 обновление auth не отменяет необходимость регулярного security scan toolchain.
-Проверка govulncheck v1.9.0 на Go 1.26.10: нет уязвимостей в используемых
+Проверка шага 7.5 govulncheck v1.9.0 на Go 1.26.10 на тот момент не находила уязвимостей в используемых
 packages/symbols. Module-only advisory GO-2026-5932 относится к неиспользуемому
 `x/crypto/openpgp`; framework импортирует только поддерживаемый Argon2id,
 OpenPGP не используется. Это сообщение не подавляется конфигурацией сканера.
