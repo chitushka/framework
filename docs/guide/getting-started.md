@@ -4,7 +4,7 @@
 
 - Go версии из директивы `go` в `go.mod`;
 - Docker — опционально, для одинаковых проверок на разных рабочих станциях;
-- Node.js и npm — только при изменении Vue frontend.
+- Node.js 22.12+ и npm — для сборки frontend/Basic starter.
 
 Подключите модуль:
 
@@ -21,8 +21,6 @@ import (
     "context"
     "log"
     "net/http"
-    "os"
-    "os/signal"
 
     "github.com/chitushka/framework/app"
     "github.com/chitushka/framework/web"
@@ -45,7 +43,7 @@ func main() {
         log.Fatal(err)
     }
 
-    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+    ctx, stop := app.SignalContext(context.Background())
     defer stop()
     if err := application.Run(ctx); err != nil {
         log.Fatal(err)
@@ -72,4 +70,8 @@ frontend/                Vue-приложение, если оно требуе�
 
 ## Следующий шаг
 
-Запустите один из [готовых примеров](../../examples/README.md), затем перейдите к [приложению и модулям](application.md).
+Запустите browser Basic из checkout командой `node scripts/basic.mjs start`, откройте
+`http://localhost:8080` и войдите `admin / changeme` (development). Команда сама
+соберёт frontend и binary. [Basic guide](../../examples/basic/README.md) описывает
+production config и Chromium E2E. Затем перейдите к [приложению и модулям](application.md)
+или остальным [примерам](../../examples/README.md).

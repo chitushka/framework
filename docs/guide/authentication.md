@@ -141,9 +141,11 @@ REST-пример теперь только проверяет внешние Ed
 client credentials, HS256 и JWT_SECRET/fallback удалены. Нужны
 JWT_PUBLIC_KEY_FILE, JWT_KEY_ID, JWT_ISSUER, JWT_AUDIENCE и внешний issuer с
 typ=at+jwt, iat/exp и lifetime≤15 минут. [Запуск](../../examples/README.md).
-Basic/Admin пока остаются demo authentication; перевод на полноценные browser
-flows и persistent users остаётся для этапа 11. Новые reusable API не превращают
-примеры в production-ready приложения.
+Basic использует PasswordAuthenticator, native browser forms с CSRF/validation,
+bounded sessions/limiter и явный production PHC/host config; [Basic guide](../../examples/basic/README.md)
+описывает HTTP/HTTPS E2E и ограничения одного процесса. Admin пока использует demo
+authentication; persistent users и admin flows остаются для 11.2. Production-ready
+v1.0 всего framework этим не объявляется.
 
 Проверки: [password format/costs/cancellation](../../auth/password_test.go),
 [credentials/rehash/errors/concurrent throttle](../../auth/credentials_test.go),

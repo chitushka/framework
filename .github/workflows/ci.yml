@@ -76,3 +76,19 @@ jobs:
       - uses: actions/checkout@v6
       - name: SQL, Redis, Memcached, RabbitMQ and OpenTelemetry baseline
         run: sh scripts/integration.sh
+  basic:
+    name: Basic frontend build and browser E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build from checkout and test development and production browser flows
+        run: sh scripts/basic-e2e.sh
+      - name: Upload Basic browser report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: basic-browser-report
+          path: .cache/basic-e2e/
+          include-hidden-files: true
+          if-no-files-found: warn

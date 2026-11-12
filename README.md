@@ -15,14 +15,17 @@ Production-профиль, secret redaction и файловые ответы с 
 
 В каталоге [`examples`](examples/README.md) находятся три запускаемых приложения:
 
-- `basic` — сессионная авторизация и защищённый дашборд на стилях AdminKit;
+- `basic` — browser login/logout с CSRF, validation, Vite manifest и production config;
 - `advanced-admin` — наследуемые роли и разрешения RBAC, а также CRUD справочника;
 - `rest-api` — JSON-only микросервис с Bearer JWT и ресурсом articles.
 
 Каждый пример отделяет сборку HTTP handler от `main`, поэтому пользовательские сценарии проверяются через `httptest`. Команды запуска, демонстрационные учётные данные и запросы приведены в [руководстве по примерам](examples/README.md).
 
-Это учебные приложения: Basic использует фиксированные credentials, Advanced Admin принимает
-только username. REST проверяет внешние Ed25519 tokens через пакет auth и требует явной
+Basic собирается и запускается одной командой `node scripts/basic.mjs start`;
+[инструкция starter](examples/basic/README.md) описывает browser E2E и production за TLS proxy.
+Development defaults `admin / changeme` отсутствуют в production без явного PHC-файла.
+Advanced Admin остаётся учебным приложением и принимает только username.
+REST проверяет внешние Ed25519 tokens через пакет auth и требует явной
 конфигурации ключа/issuer/audience. [Reusable authentication](docs/guide/authentication.md)
 предоставляет Argon2id, credentials/throttling и JWT verifier; user persistence и identity provider
 подключает приложение.

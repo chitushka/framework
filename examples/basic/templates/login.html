@@ -1,0 +1,27 @@
+<main class="login-shell">
+  <a class="brand" href="/">chitu<span class="brand-dot">.</span> <span class="brand-edition">BASIC</span></a>
+  <section class="login-panel" aria-labelledby="login-title">
+    <p class="eyebrow">ВАШЕ РАБОЧЕЕ ПРОСТРАНСТВО</p>
+    <h1 id="login-title">С возвращением</h1>
+    <p class="text-muted mb-4">Войдите, чтобы открыть панель управления.</p>
+    <div class="card"><div class="card-body p-4 p-sm-5">
+      {{if .Message}}<div class="alert alert-danger" role="alert">{{.Message}}</div>{{end}}
+      <form method="post" action="/login" novalidate>
+        <input type="hidden" name="_csrf" value="{{.CSRF}}">
+        <div class="mb-4">
+          <label class="form-label" for="username">Имя пользователя</label>
+          <input class="form-control form-control-lg{{if index .Errors "username"}} is-invalid{{end}}" id="username" name="username" value="{{.Username}}" autocomplete="username" maxlength="256" required {{if index .Errors "username"}}aria-invalid="true" aria-describedby="username-error"{{end}}>
+          {{with index .Errors "username"}}<div id="username-error" class="invalid-feedback" role="alert">{{range .}}{{.Message}} {{end}}</div>{{end}}
+        </div>
+        <div class="mb-4">
+          <label class="form-label" for="password">Пароль</label>
+          <input class="form-control form-control-lg{{if index .Errors "password"}} is-invalid{{end}}" type="password" id="password" name="password" autocomplete="current-password" maxlength="1024" required {{if index .Errors "password"}}aria-invalid="true" aria-describedby="password-error"{{end}}>
+          {{with index .Errors "password"}}<div id="password-error" class="invalid-feedback" role="alert">{{range .}}{{.Message}} {{end}}</div>{{end}}
+        </div>
+        <button class="btn btn-primary btn-lg w-100" type="submit">Войти <span aria-hidden="true">→</span></button>
+      </form>
+    </div></div>
+    {{if .Demo}}<p class="demo-note">Локальный пример: <strong>admin</strong> / <strong>changeme</strong></p>{{end}}
+    <p class="login-footer">Chitu Framework <span aria-hidden="true">·</span> Пространство для ваших идей</p>
+  </section>
+</main>

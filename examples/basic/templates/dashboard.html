@@ -1,0 +1,36 @@
+<div class="dashboard-shell">
+  <aside class="app-sidebar" aria-label="Главное меню">
+    <a class="brand brand-light" href="/dashboard">chitu<span class="brand-dot">.</span> <span class="brand-edition">BASIC</span></a>
+    <p class="nav-caption">РАБОЧЕЕ ПРОСТРАНСТВО</p>
+    <a class="nav-item active" href="/dashboard" aria-current="page"><span aria-hidden="true">▦</span> Обзор</a>
+    <div class="sidebar-footer"><span class="status-dot"></span> Всё готово к работе</div>
+  </aside>
+  <div class="app-main">
+    <header class="app-header">
+      <span class="text-muted">Рабочее пространство <span class="breadcrumb-separator">/</span> <strong class="text-dark">Обзор</strong></span>
+      <form method="post" action="/logout" class="logout-form">
+        <input type="hidden" name="_csrf" value="{{.CSRF}}">
+        <span class="user-badge" aria-hidden="true">●</span><span class="account-name">{{.Username}}</span>
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Выйти</button>
+      </form>
+    </header>
+    <main class="dashboard-content" id="main">
+      <p class="eyebrow">ОБЗОР</p>
+      <h1>Панель управления</h1>
+      <p class="text-muted mb-4">Здравствуйте, <strong>{{.Username}}</strong>. Ваше рабочее пространство готово.</p>
+      <section class="welcome-card" aria-labelledby="welcome-title">
+        <span class="welcome-label">CHITU BASIC</span>
+        <h2 id="welcome-title">Начните с хорошей основы.</h2>
+        <p>Добавьте данные, настройте модули и создайте приложение<br class="wide-only"> под свои задачи. Всё начинается здесь.</p>
+        <a class="btn btn-light" href="https://github.com/chitushka/framework" rel="noreferrer">Открыть документацию <span aria-hidden="true">↗</span></a>
+        <span class="welcome-art" aria-hidden="true">C<span>.</span></span>
+      </section>
+      <div class="starter-grid">
+        <section class="card"><div class="card-body"><span class="feature-icon" aria-hidden="true">↗</span><h2 class="h4">Вы вошли в систему</h2><p class="text-muted mb-0">Сессия активна. Доступ к этой странице открыт только после входа.</p></div></section>
+        <section class="card"><div class="card-body"><span class="feature-icon" aria-hidden="true">✓</span><h2 class="h4">Всё под контролем</h2><p class="text-muted mb-0">Соберите важные разделы в одном месте и сосредоточьтесь на главном.</p></div></section>
+        <section class="card"><div class="card-body"><span class="feature-icon" aria-hidden="true">▦</span><h2 class="h4">Место для вашего проекта</h2><p class="text-muted mb-0">Замените эту панель своими разделами и рабочими процессами.</p></div></section>
+      </div>
+      <footer class="dashboard-footer">Chitu Framework <span>Basic starter</span></footer>
+    </main>
+  </div>
+</div>

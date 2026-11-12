@@ -1,0 +1,18 @@
+FROM golang:1.26.11@sha256:7af425da11f4fc1a9308eb704369e3f6d1c44e35bac0f874a59ade3f20fdc07e AS backend
+WORKDIR /workspace
+ENV GOMAXPROCS=2 GOFLAGS=-p=2
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -trimpath -o /out/basic ./examples/basic
+
+FROM mcr.microsoft.com/playwright:v1.64.1-noble
+WORKDIR /workspace
+COPY frontend/package.json frontend/package-lock.json ./frontend/
+RUN cd frontend && npm ci --no-audit --no-fund
+RUN cd frontend && npm audit --audit-level=high
+COPY . .
+COPY --from=backend /out/basic /workspace/.cache/basic/basic
+RUN cd frontend && npm run build && npm test
+ENV BASIC_BINARY=/workspace/.cache/basic/basic GOMAXPROCS=2 CI=1
+CMD ["node", "scripts/basic.mjs", "test-built"]

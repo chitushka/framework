@@ -2,27 +2,26 @@
 
 Примеры используют пакеты текущего Go-модуля и его зафиксированные зависимости. Запускайте команды из корня репозитория.
 
-**Только демонстрации, не production starters.** Basic содержит фиксированные credentials
-и имя CSS-файла, Admin принимает username без пароля и теряет данные после restart,
+Basic — browser starter для одного процесса с отдельной production-конфигурацией.
+Admin остаётся демонстрацией: принимает username без пароля и теряет данные после restart,
 REST требует внешний issuer и явно настроенный публичный ключ. Проверки `httptest` не заменяют
 browser E2E или security-аудит. Ограничения перечислены в [реестре гарантий](../docs/guide/guarantees.md).
 
 ## Basic
 
-Минимальный сайт использует server-side session, `auth.Middleware`, управляемый `web.Server` и готовую CSS-сборку AdminKit из `public`.
+HTML login/logout, CSRF, validation, session rotation, bounded sessions/limiter и
+AdminKit через Vite manifest. Вход работает без JavaScript.
 
 ```bash
-go run ./examples/basic
+node scripts/basic.mjs start
 ```
 
-Приложение слушает `http://localhost:8080`. Вход выполняется JSON-запросом; демонстрационные данные предназначены только для локального примера:
-
-```bash
-curl -i -c basic.cookie -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"changeme"}' \
-  http://localhost:8080/login
-curl -b basic.cookie http://localhost:8080/dashboard
-```
+Команда сама устанавливает frontend dependencies, собирает assets и Go binary.
+Откройте `http://localhost:8080`, войдите как `admin / changeme` и нажмите «Выйти».
+Эти credentials действуют только в development по умолчанию. Production требует
+username, PHC-файл и host allowlist, использует Secure cookies за TLS proxy.
+[Полная инструкция Basic](basic/README.md) содержит build, deployment config,
+ограничения одного процесса и воспроизводимый Chromium E2E для HTTP и production HTTPS.
 
 ## Advanced Admin
 

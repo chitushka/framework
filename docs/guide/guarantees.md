@@ -35,7 +35,7 @@
 | Vue 3/Vite/AdminKit scaffold | Source, lockfile, manifest loader | [frontend](../../frontend/package.json), [assets](../../asset/asset_test.go); browser E2E/frontend CI gate пока отсутствуют |
 | Logging | slog handlers, fanout, file/console | [logging](../../logging/logging_test.go); DB/Syslog/Elasticsearch/Telegram handlers реализует приложение |
 | Metrics/tracing/debug / production profile | Finite method/status labels, Prometheus parser, SDK OTLP HTTP, HTTP/SQL/queue propagation, parent-based sampling, bounded batching/flush/stats; production profile отключает diagnostics | [SDK sampling/privacy/limits](../../adapters/otel/otel_test.go), [outage/cleanup](../../adapters/otel/outage_test.go), [collector/process/retry/Prometheus](../../integration/observability_test.go), [legacy limits](../../observability/export_test.go), [production](../../web/security_audit_test.go), [контракт/миграция](observability.md); SQL spans ограничены вызовами Connection/Transaction до rows/Scan, baggage/tracestate не передаются, export best-effort; application exporters должны соблюдать context |
-| Basic/Advanced Admin/REST | Запускаемые учебные HTTP handlers; REST использует общий verifier внешних Ed25519 tokens без встроенного issuer/secret | [examples](../../examples/README.md), их main_test.go; Basic fixed credentials/CSS hash, Admin username-only и memory stores; полная production приёмка starters — этап 11 |
+| Basic browser starter / Advanced Admin / REST | Basic: HTML forms, CSRF, validation, bounded sessions, manifest build, explicit production PHC/hosts/Secure cookies; REST: внешний Ed25519 verifier | [Basic HTTP tests](../../examples/basic/main_test.go), [browser HTTP/HTTPS/no-JS E2E](../../frontend/e2e/basic.spec.js), [config/ограничения](../../examples/basic/README.md); Basic — один process без user/session persistence, Admin пока username-only и memory stores |
 | CI и coverage ≥80% | Unit/race/vet/lint/coverage, baseline OS и integration jobs | [workflow](../../.github/workflows/ci.yml), [script](../../scripts/check-coverage.sh); coverage только statement агрегат, не доказательство security и не автоматическая branch protection |
 
 ## Воспроизведение из чистого checkout
@@ -65,7 +65,8 @@ coverage 83,1%, actionlint, обе команды интеграционного
 Для обязательного real-service baseline: `sh scripts/integration.sh` (PowerShell:
 `./scripts/integration.ps1`). Нужен Docker Engine с Linux containers и Compose v2;
 сервисы/драйверы загружаются при первом запуске. Подробности — [testing](testing.md).
-Демонстрации запускаются через `go run ./examples/basic`, `go run ./examples/advanced-admin`
-и `go run ./examples/rest-api`, как описано в [examples](../../examples/README.md).
-Для frontend нужен отдельный `npm ci && npm run build` из `frontend`.
-Проверка frontend/browser и live CI results остаётся отдельной от Go baseline.
+Basic собирается и запускается через `node scripts/basic.mjs start`, остальные
+демонстрации — через `go run ./examples/advanced-admin` и `go run ./examples/rest-api`.
+[Basic guide](../../examples/basic/README.md) описывает автоматическую frontend build
+и отдельный Chromium HTTP/HTTPS job. Live remote CI results и branch protection
+по-прежнему не подтверждаются локальной проверкой.
