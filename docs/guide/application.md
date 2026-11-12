@@ -27,6 +27,10 @@ Singleton подходит для concurrency-safe клиентов и пуло�
 
 Сначала регистрируются все модули, затем они запускаются в порядке добавления. При ошибке уже запущенные модули останавливаются в обратном порядке. После успешного запуска runtime-ошибка модуля через `ErrorSource` завершает всё приложение.
 
+Общий finite shutdown budget, SIGTERM, rollback при отменённом Boot, quiesce/drain,
+finalizers и отдельные liveness/readiness endpoints описаны в
+[lifecycle contract](lifecycle.md). По умолчанию все cleanup callbacks делят 15 секунд.
+
 ## Components и events
 
 `component.Registry` полезен для именованных инфраструктурных объектов, например нескольких соединений с БД. Для обычной бизнес-зависимости предпочтительнее типизированный constructor DI.

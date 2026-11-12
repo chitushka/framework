@@ -70,13 +70,16 @@ type Server struct {
 	config  ServerConfig
 	handler http.Handler
 
-	mu         sync.Mutex
-	listener   net.Listener
-	httpServer *http.Server
-	errors     chan error
-	done       chan struct{}
-	started    bool
-	booted     bool
+	mu           sync.Mutex
+	listener     net.Listener
+	httpServer   *http.Server
+	errors       chan error
+	done         chan struct{}
+	started      bool
+	booted       bool
+	stopping     bool
+	shutdownDone chan struct{}
+	shutdownErr  error
 }
 
 // NewServer создаёт HTTP-сервер, готовый к регистрации как app.Module.
@@ -113,11 +116,12 @@ func NewServer(config ServerConfig, handler http.Handler, options ...ServerOptio
 		return nil, err
 	}
 	server := &Server{
-		id:      "web",
-		config:  config,
-		handler: limited,
-		errors:  make(chan error, 1),
-		done:    make(chan struct{}),
+		id:           "web",
+		config:       config,
+		handler:      limited,
+		errors:       make(chan error, 1),
+		done:         make(chan struct{}),
+		shutdownDone: make(chan struct{}),
 	}
 	for _, option := range options {
 		if option == nil {
@@ -135,11 +139,18 @@ func (s *Server) ID() string { return s.id }
 
 // Register добавляет сервер в реестр компонентов приложения.
 func (s *Server) Register(application *app.Application) error {
-	return application.Components.Instance(serverComponentName, s)
+	name := serverComponentName
+	if s.id != "web" {
+		name += "." + s.id
+	}
+	return application.Components.Instance(name, s)
 }
 
 // Boot открывает listener и запускает обслуживание запросов.
-func (s *Server) Boot(_ context.Context, _ *app.Application) error {
+func (s *Server) Boot(ctx context.Context, _ *app.Application) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.booted {
@@ -147,7 +158,8 @@ func (s *Server) Boot(_ context.Context, _ *app.Application) error {
 	}
 	listener := s.listener
 	if listener == nil {
-		opened, err := net.Listen("tcp", s.config.Address)
+		var config net.ListenConfig
+		opened, err := config.Listen(ctx, "tcp", s.config.Address)
 		if err != nil {
 			return fmt.Errorf("web: открыть listener %q: %w", s.config.Address, err)
 		}
@@ -178,9 +190,29 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	server := s.httpServer
 	done := s.done
-	s.started = false
+	if !s.stopping {
+		s.stopping = true
+		go func() {
+			err := s.shutdown(ctx, server, done)
+			s.mu.Lock()
+			s.shutdownErr = err
+			close(s.shutdownDone)
+			s.mu.Unlock()
+		}()
+	}
+	shutdownDone := s.shutdownDone
 	s.mu.Unlock()
+	select {
+	case <-shutdownDone:
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return s.shutdownErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
 
+func (s *Server) shutdown(ctx context.Context, server *http.Server, done <-chan struct{}) error {
 	shutdownContext := ctx
 	cancel := func() {}
 	if s.config.ShutdownTimeout > 0 {

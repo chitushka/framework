@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
 	"sync"
@@ -132,7 +131,7 @@ func main() {
 	if err := application.AddModule(server); err != nil {
 		log.Fatal(err)
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := app.SignalContext(context.Background())
 	defer stop()
 	if err := application.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		log.Fatal(err)

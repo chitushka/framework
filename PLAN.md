@@ -105,7 +105,7 @@
 ### Этап 10. Наблюдаемость и жизненный цикл — P1
 
 - [x] **10.1. Добавить стандартные observability adapters.** OpenTelemetry SDK/OTLP HTTP для HTTP/SQL/queue, parent-based sampling, bounded batching, Stats/Flush/Shutdown; legacy tracer также асинхронный. Privacy attributes и finite labels, Prometheus parser; SQL trace columns включаются явно с миграцией и совместимостью старых NULL rows. Приёмка: collector trace tree на PostgreSQL/MySQL с тремя brokers, retries и отдельным worker process; stalled exporter, overflow, TLS/auth, outage/recovery и cleanup budgets. [Отчёт 10.1](docs/stage-10-1-acceptance.md), [контракт/миграция](docs/guide/observability.md). Go обновлён до 1.26.11 после GO-2026-6859; Linux race, real-service suite, coverage 84,4%, lint новых изменений — 0 замечаний.
-- [ ] **10.2. Завершить lifecycle и health contracts.** Разделить liveness/readiness, ограничить dependency probes, обработать SIGTERM, boot rollback, drain HTTP/workers и завершение exporters. Проверить зависшие modules и общий shutdown budget. Приёмка: process-level тест завершает приложение в срок при активных запросах и задачах; readiness снимается до остановки приёма работы.
+- [x] **10.2. Завершить lifecycle и health contracts.** Разделить liveness/readiness, ограничить dependency probes, обработать SIGTERM, boot rollback, drain HTTP/workers и завершение exporters. Проверить зависшие modules и общий shutdown budget. Приёмка: process-level тест завершает приложение в срок при активных запросах и задачах; readiness снимается до остановки приёма работы. Проверено: независимый bounded rollback/shutdown, quiesce/reverse drain/finalizers, global probe slots, четыре Linux SIGTERM cases с Redis/PostgreSQL/collector; полный integration/race suite, coverage 84,6%, lint новых изменений и integration — 0 замечаний. [Отчёт 10.2](docs/stage-10-2-acceptance.md), [контракт](docs/guide/lifecycle.md).
 
 ### Этап 11. Полноценные starters и DX — P1
 
@@ -135,9 +135,9 @@
 - [x] **A2 / 9.2 — P0. Закрыть гонку SQL reserve с Nack.** Между SELECT envelope и UPDATE lease отложенная задача может быть захвачена со старым Attempt. Применить CAS выбранного состояния или атомарный claim; детерминированный interleaving должен сохранять delay и увеличивать Attempt ровно один раз. Приёмка на PostgreSQL/MySQL с независимыми подключениями. Закрыто: CAS выбранного Attempt/available_at и детерминированный interleaving на обеих baseline СУБД.
 - [x] **A3 / 9.3 — P0. Сохранить финальные ошибки до Ack.** Durable dead-letter с ошибками записи/replay; не подтверждать доставку при отказе хранилища. Затем явные состояния worker, запрет restart во время stopping, повторный Shutdown ждёт общий done, fatal останавливает всю группу. Crash/idempotency и callback failures — отдельные acceptance tests. Закрыто: FileDeadLetters, Save/Ack crash tests, Abandon, общий done, graceful drain и остановка группы.
 - [ ] **A4 / 12.1–12.2 — P1. Восстановить достоверный quality gate.** Устранить известный полный lint debt; проверить threshold/profile и ошибки subprocesses coverage script негативными тестами. Добавить frontend build/test и компиляцию generator output в CI. Выполнять вместе с ближайшими изменениями, не откладывать весь контроль до RC.
-- [ ] **A5 / 10.1–10.2 — P1. Ограничить exporter и cleanup.** Memory cache budgets/expiry закрыты в 9.1. Bounded trace export, наблюдаемые ошибки/потери и flush/shutdown budgets закрыты в 10.1. Остаётся независимый deadline application rollback/shutdown при отменённом Boot и process shutdown приёмка из 10.2; A5 целиком пока не закрыт.
+- [x] **A5 / 10.1–10.2 — P1. Ограничить exporter и cleanup.** Memory cache budgets/expiry закрыты в 9.1. Bounded trace export, наблюдаемые ошибки/потери и flush/shutdown budgets закрыты в 10.1. Независимый deadline application rollback/shutdown при отменённом Boot, общий budget зависших modules/hooks, quiesce/drain и process SIGTERM приёмка закрыты в 10.2. [Доказательства и ограничения](docs/stage-10-2-acceptance.md).
 
-Связанные A2/A3, этапы 8–9 и шаг 10.1 закрыты. Приёмка и ограничения — [отчёт этапов 8–9](docs/stages-8-9-acceptance.md) и [отчёт 10.1](docs/stage-10-1-acceptance.md). Ближайшие работы — 10.2 и незакрытые quality gates 12.
+Связанные A2/A3/A5, этапы 8–10 закрыты. Приёмка и ограничения — [отчёт этапов 8–9](docs/stages-8-9-acceptance.md), [отчёт 10.1](docs/stage-10-1-acceptance.md) и [отчёт 10.2](docs/stage-10-2-acceptance.md). Ближайшие работы — 11.1 и незакрытые quality gates 12.
 
 ## Порядок выполнения и критерий завершения
 
@@ -147,7 +147,7 @@ Production-ready означает подтверждённые безопасн�
 
 ## Ближайший инкремент
 
-**Этап 10.2: lifecycle, liveness/readiness и общий shutdown budget.** Observability 10.1 принята 11.11.2026; quality gates 12 расширяются параллельно. Полный прежний lint debt — 86 замечаний (57 errcheck, 28 staticcheck, 1 unused), новые изменения, adapters/integration проходят lint. [Результаты 10.1](docs/stage-10-1-acceptance.md).
+**Этап 11.1: рабочий Basic starter.** Lifecycle/health 10.2 приняты 12.11.2026; quality gates A4/12 расширяются параллельно. Полный прежний lint debt — 86 замечаний (57 errcheck, 28 staticcheck, 1 unused), новые изменения и integration проходят lint. [Результаты 10.2](docs/stage-10-2-acceptance.md).
 
 Этапы 8.1–8.4 и 9.1–9.3 завершены 09.11.2026. Пройдены Windows vet/tests, Linux vet/race ядра и adapters, полный real-service conformance/crash suite пяти сервисов, coverage 84,3% и lint новых изменений (0 замечаний). [Отчёт приёмки](docs/stages-8-9-acceptance.md) содержит точную область доказательств, migration/lease/DLQ настройки и ограничения. Полный прежний lint debt остаётся в 12.1; disk/host durability и production-ready v1.0 не объявляются.
 

@@ -21,6 +21,7 @@ HTTP-семантика и сетевые доказательства: [HTTP co
 Passwords, login throttling и token verification: [reusable authentication](authentication.md).
 Production-профиль и threat-model checklist: [HTTP/tooling security audit](security-audit.md).
 OpenTelemetry HTTP/SQL/queue, sampling и bounded export: [observability](observability.md).
+SIGTERM, bounded rollback/drain, finalizers и health probes: [lifecycle](lifecycle.md).
 
 ## Основная модель
 

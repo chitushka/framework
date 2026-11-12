@@ -8,7 +8,7 @@
 
 | Заявлено / API | Реализовано | Проверено / явное ограничение |
 | --- | --- | --- |
-| Lifecycle `app.Application`, modules, rollback | Register/Boot/Shutdown, runtime ErrorSource | [app tests](../../app/application_test.go); зависший module и process SIGTERM budget — этап 10.2 |
+| Lifecycle `app.Application`, modules, rollback / health | Shared finite shutdown/rollback budget, quiesce/reverse drain/finalizers, SIGTERM, bounded liveness/readiness probes | [app](../../app/lifecycle_test.go), [health](../../web/health_test.go), [Linux process + Redis/PostgreSQL/collector](../../integration/lifecycle_process_test.go), [контракт](lifecycle.md); некооперативная goroutine живёт до выхода процесса, module с неуспешным Boot сам отвечает за частичные ресурсы |
 | DI `di.Container`, component.Registry | Constructors, singleton/transient, bindings, cycle detection | [DI](../../di/container_test.go), [components](../../component/registry_test.go); зависимости должны быть concurrency-safe |
 | `event.Bus`, behavior decorators | Priority, unsubscribe, concurrent publish, typed decorators | [events](../../event/bus_test.go), [behaviors](../../behavior/behavior_test.go); нет durable event bus |
 | Config JSON/.env/env/defaults/required | Merge и typed decode | [config tests](../../config/loader_test.go); secret manager предоставляет приложение |

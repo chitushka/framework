@@ -106,7 +106,7 @@ if err := application.AddModule(server); err != nil {
     log.Fatal(err)
 }
 
-ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+ctx, stop := app.SignalContext(context.Background())
 defer stop()
 if err := application.Run(ctx); err != nil {
     log.Fatal(err)
@@ -114,6 +114,12 @@ if err := application.Run(ctx); err != nil {
 ```
 
 Ошибки, возникшие в `http.Server.Serve` после запуска, передаются в `Application.Run` и инициируют остановку остальных модулей.
+
+`app.SignalContext` обрабатывает interrupt/SIGTERM. Readiness снимается перед quiesce
+и reverse drain; rollback, HTTP/workers и exporter finalizers делят общий deadline
+(default 15s, `Application.SetShutdownTimeout`). Health probes ограничены временем
+и общей concurrency. Порядок подключения, миграция и process-level доказательства —
+в [lifecycle и health contract](docs/guide/lifecycle.md).
 
 `Server` и `Router` по умолчанию ограничивают body (8 MiB), формы и uploads до прикладных
 middleware; временные multipart-файлы удаляются после handler. `BindJSON` требует JSON

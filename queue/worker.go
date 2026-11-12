@@ -286,6 +286,21 @@ func (w *Worker) handle(ctx context.Context, message Message, handler Handler) (
 	}
 	return nil
 }
+
+// Quiesce stops reservations before application drain without cancelling active jobs.
+func (w *Worker) Quiesce(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("queue: context is nil")
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.started {
+		w.stopping = true
+		w.stopReserve()
+	}
+	return nil
+}
+
 func (w *Worker) Shutdown(ctx context.Context) error {
 	if ctx == nil {
 		return errors.New("queue: context is nil")

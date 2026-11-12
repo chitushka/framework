@@ -44,4 +44,11 @@ Debug toolbar и подробные ошибки отключайте в product
 
 ## Завершение и развёртывание
 
-При SIGTERM прекратите принимать запросы, завершите handlers и workers, затем закройте соединения. Shutdown timeout должен быть меньше grace period платформы. Миграции запускайте отдельным release job до переключения трафика.
+Используйте `app.SignalContext` для interrupt/SIGTERM и задавайте общий budget через
+`Application.SetShutdownTimeout` до Start (default 15s). Readiness снимается перед
+stop hooks, workers прекращают reserve в quiesce, modules останавливаются в обратном
+порядке; exporter finalizer добавляется до HTTP/worker modules. Независимый cleanup
+context и общий deadline ограничивают rollback, drain и flush. Health API, точный
+порядок, composition example и ограничения зависших callbacks — в
+[lifecycle contract](lifecycle.md). Grace period платформы должен превышать этот
+budget. Миграции запускайте отдельным release job до переключения трафика.
