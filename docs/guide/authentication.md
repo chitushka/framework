@@ -143,9 +143,12 @@ JWT_PUBLIC_KEY_FILE, JWT_KEY_ID, JWT_ISSUER, JWT_AUDIENCE и внешний issu
 typ=at+jwt, iat/exp и lifetime≤15 минут. [Запуск](../../examples/README.md).
 Basic использует PasswordAuthenticator, native browser forms с CSRF/validation,
 bounded sessions/limiter и явный production PHC/host config; [Basic guide](../../examples/basic/README.md)
-описывает HTTP/HTTPS E2E и ограничения одного процесса. Admin пока использует demo
-authentication; persistent users и admin flows остаются для 11.2. Production-ready
-v1.0 всего framework этим не объявляется.
+описывает HTTP/HTTPS E2E и ограничения одного процесса. [Advanced Admin](../../examples/advanced-admin/README.md)
+использует SQL CredentialStore/rehash, persisted auth epoch, password login и bounded
+sessions/limiter. Сброс пароля, disable/enable и SQL revoke проверяются при каждом
+защищённом запросе; данные переживают restart, sessions остаются process-local.
+[Приёмка 11.2](../stage-11-2-acceptance.md) содержит SQL и browser evidence.
+Production-ready v1.0 всего framework этим не объявляется.
 
 Проверки: [password format/costs/cancellation](../../auth/password_test.go),
 [credentials/rehash/errors/concurrent throttle](../../auth/credentials_test.go),

@@ -16,7 +16,7 @@ Production-профиль, secret redaction и файловые ответы с 
 В каталоге [`examples`](examples/README.md) находятся три запускаемых приложения:
 
 - `basic` — browser login/logout с CSRF, validation, Vite manifest и production config;
-- `advanced-admin` — наследуемые роли и разрешения RBAC, а также CRUD справочника;
+- `advanced-admin` — SQL users/RBAC/catalog, формы CRUD, назначения ролей и аудит;
 - `rest-api` — JSON-only микросервис с Bearer JWT и ресурсом articles.
 
 Каждый пример отделяет сборку HTTP handler от `main`, поэтому пользовательские сценарии проверяются через `httptest`. Команды запуска, демонстрационные учётные данные и запросы приведены в [руководстве по примерам](examples/README.md).
@@ -24,7 +24,9 @@ Production-профиль, secret redaction и файловые ответы с 
 Basic собирается и запускается одной командой `node scripts/basic.mjs start`;
 [инструкция starter](examples/basic/README.md) описывает browser E2E и production за TLS proxy.
 Development defaults `admin / changeme` отсутствуют в production без явного PHC-файла.
-Advanced Admin остаётся учебным приложением и принимает только username.
+Advanced Admin использует PostgreSQL/MySQL, password login и transactional authorization/audit.
+[Инструкция Admin](examples/advanced-admin/README.md) описывает отдельные build/migrate/seed,
+production config, browser/restart E2E и ограничения sessions одного процесса.
 REST проверяет внешние Ed25519 tokens через пакет auth и требует явной
 конфигурации ключа/issuer/audience. [Reusable authentication](docs/guide/authentication.md)
 предоставляет Argon2id, credentials/throttling и JWT verifier; user persistence и identity provider

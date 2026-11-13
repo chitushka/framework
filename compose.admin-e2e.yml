@@ -1,0 +1,61 @@
+# Private acceptance services: no host ports, no persistent user/deployment data.
+services:
+  postgres:
+    image: postgres:17-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
+    tmpfs: [/var/lib/postgresql/data:size=256m]
+    environment:
+      POSTGRES_USER: chitu
+      POSTGRES_PASSWORD: integration
+      POSTGRES_DB: admin
+    volumes:
+      - ./examples/advanced-admin/testdata/postgres-init.sql:/docker-entrypoint-initdb.d/admin.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -h 127.0.0.1 -U chitu -d admin"]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+  mysql:
+    image: mysql:8.4@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+    # Test-only trigger injects audit failures; do not require SUPER for its owner.
+    command: [--log-bin-trust-function-creators=ON]
+    tmpfs: [/var/lib/mysql:size=512m]
+    environment:
+      MYSQL_ROOT_PASSWORD: integration-root
+      MYSQL_USER: chitu
+      MYSQL_PASSWORD: integration
+      MYSQL_DATABASE: admin_tests
+    healthcheck:
+      test: [CMD-SHELL, "MYSQL_PWD=integration mysql -h 127.0.0.1 -u chitu -D admin_tests -e 'SELECT 1'"]
+      start_period: 60s
+      interval: 2s
+      timeout: 3s
+      retries: 60
+  integration:
+    build:
+      context: .
+      dockerfile: examples/advanced-admin/Dockerfile
+      target: integration
+    environment:
+      ADMIN_TEST_POSTGRES_DSN: postgres://chitu:integration@postgres:5432/admin_tests?sslmode=disable
+      ADMIN_TEST_MYSQL_DSN: chitu:integration@tcp(mysql:3306)/admin_tests?parseTime=true&timeout=5s&readTimeout=10s&writeTimeout=10s
+    volumes:
+      - admin_build_cache:/root/.cache/go-build
+    depends_on:
+      postgres: {condition: service_healthy}
+      mysql: {condition: service_healthy}
+  browser:
+    build:
+      context: .
+      dockerfile: examples/advanced-admin/Dockerfile
+      target: browser
+    environment:
+      ADMIN_DB_DRIVER: pgx
+      ADMIN_DB_DSN: postgres://chitu:integration@postgres:5432/admin?sslmode=disable
+    volumes:
+      - ./.cache/admin-e2e/test-results:/workspace/frontend/test-results
+      - ./.cache/admin-e2e/playwright-report:/workspace/frontend/playwright-report
+    depends_on:
+      postgres: {condition: service_healthy}
+
+volumes:
+  admin_build_cache:

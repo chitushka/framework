@@ -8,7 +8,7 @@ export default defineConfig({
     outDir: "../public",
     emptyOutDir: true,
     rollupOptions: {
-      input: ["src/main.js", "src/basic.js"],
+      input: ["src/main.js", "src/basic.js", "src/admin.js"],
     },
   },
   server: {

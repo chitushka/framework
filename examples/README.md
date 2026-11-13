@@ -1,9 +1,10 @@
 # Примеры приложений Chitu
 
-Примеры используют пакеты текущего Go-модуля и его зафиксированные зависимости. Запускайте команды из корня репозитория.
+Примеры используют пакеты framework и зафиксированные зависимости. Advanced Admin
+имеет отдельный Go module с SQL drivers. Запускайте команды из корня репозитория.
 
 Basic — browser starter для одного процесса с отдельной production-конфигурацией.
-Admin остаётся демонстрацией: принимает username без пароля и теряет данные после restart,
+Admin сохраняет users/RBAC/catalog/audit в PostgreSQL/MySQL; sessions живут в одном процессе.
 REST требует внешний issuer и явно настроенный публичный ключ. Проверки `httptest` не заменяют
 browser E2E или security-аудит. Ограничения перечислены в [реестре гарантий](../docs/guide/guarantees.md).
 
@@ -25,24 +26,24 @@ username, PHC-файл и host allowlist, использует Secure cookies з
 
 ## Advanced Admin
 
-Административный пример показывает иерархию `administrator -> editor -> dictionary.view`, отдельное разрешение `dictionary.manage` и CRUD справочника. Хранилища намеренно находятся в памяти, чтобы пример запускался без внешней базы.
+HTML password login, users/catalog CRUD, роли/назначения и аудит. SQL RBAC проверяется
+на сервере в одной транзакции с mutation/audit; editor управляет справочником,
+administrator — всеми разделами. Seed требует два явно подготовленных password PHC.
 
 ```bash
-go run ./examples/advanced-admin
+node scripts/admin.mjs build
+# Задайте ADMIN_DB_DRIVER/ADMIN_DB_DSN и подготовьте отдельную базу.
+node scripts/admin.mjs migrate
+# Задайте ADMIN_SEED_ADMIN_HASH_FILE и ADMIN_SEED_EDITOR_HASH_FILE.
+node scripts/admin.mjs seed
+node scripts/admin.mjs start
 ```
 
-Сервер слушает `http://localhost:8081`. Пользователь `editor` может читать справочник, но не изменять его; `admin` имеет оба разрешения. Сначала получите cookie:
-
-```bash
-curl -i -c admin.cookie -H "Content-Type: application/json" \
-  -d '{"username":"admin"}' http://localhost:8081/login
-curl -b admin.cookie http://localhost:8081/admin/rbac
-curl -b admin.cookie -H "Content-Type: application/json" \
-  -d '{"code":"archived","name":"Archived"}' \
-  http://localhost:8081/admin/dictionaries
-```
-
-Для production-приложения `MemoryStore` заменяется на `rbac.DatabaseStore`, а in-memory каталог — на репозиторий поверх `db.Connection`.
+Сервер слушает `http://127.0.0.1:8081`. [Полная инструкция](advanced-admin/README.md)
+содержит DSN, создание PHC, production proxy config и ограничения. Прежние JSON
+login, `/admin/rbac` и `/admin/dictionaries` заменены HTML forms с CSRF и страницами
+`/admin/roles`, `/admin/assignments`, `/admin/catalog`.
+SQL/race и browser/restart E2E запускаются через `sh scripts/admin-e2e.sh`.
 
 ## REST API
 
@@ -76,6 +77,8 @@ Verifier использует golang-jwt/jwt/v5 и проверяет алгор
 
 ```bash
 go test ./examples/...
+go -C examples/advanced-admin test ./...
 ```
 
-Тесты покрывают сессионный вход и защищённый дашборд, различие прав editor/admin, CRUD справочника, проверку внешнего JWT, доступ к API, подмену подписи, истечение токена и отзыв ключа.
+Автономные tests проверяют Basic/REST HTTP и Admin config/templates. SQL Admin tests
+с реальными drivers и browser сценарии выполняются отдельно обязательным E2E helper.

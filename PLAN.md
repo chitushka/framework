@@ -110,7 +110,7 @@
 ### Этап 11. Полноценные starters и DX — P1
 
 - [x] **11.1. Превратить Basic в рабочий starter.** Добавить browser login/logout с CSRF и validation, подключить AssetBundle через Vite manifest, автоматическую frontend build и production config. Приёмка: новый checkout собирается по инструкции, браузерный E2E проходит login/dashboard/logout без ручной отправки JSON и фиксированных hash filenames. Проверено: Node automatic build, embedded views/manifest assets, bounded sessions/limiter, production PHC/hosts/Secure cookies; Chromium desktop/no-JS mobile/production HTTPS — 3/3. Windows tests/vet, Linux vet/race, Basic lint — 0, coverage 84,6%, npm audit — 0. Добавлен CI browser job с artifacts. [Отчёт 11.1](docs/stage-11-1-acceptance.md), [Basic guide](examples/basic/README.md).
-- [ ] **11.2. Завершить Advanced Admin.** Подключить persistent users/RBAC/catalog, migrations/seed, формы CRUD и экраны ролей/назначений, аудит изменений и server-side authorization. Приёмка: admin/editor/guest E2E, сохранение данных после restart и запрет escalation через UI и прямые HTTP-запросы.
+- [x] **11.2. Завершить Advanced Admin.** SQL users/RBAC/catalog/audit на PostgreSQL/MySQL, отдельные migrations/идемпотентный seed с явными PHC, HTML CRUD пользователей/справочника/ролей и назначения. Авторизация и аудит атомарны с mutation; delegation ceiling, last-admin guard, auth epoch и optimistic locking проверены реальными SQL/race tests. Chromium: guest/editor/admin/delegated manager, UI/direct HTTP escalation и сохранение данных после restart — 4/4. [Приёмка и ограничения одного процесса](docs/stage-11-2-acceptance.md).
 - [ ] **11.3. Завершить REST starter.** Убрать fallback secret, подключить проверенный auth adapter, ввести единый error contract, pagination/filter allowlists, rate limits и OpenAPI. Приёмка: contract tests и E2E проверяют auth, CRUD и ошибки; документирована идемпотентность и обратная совместимость API.
 - [ ] **11.4. Доработать руководство и onboarding.** Добавить cookbook deployment/testing/security/migrations/queues, runnable snippets, generator quickstart и migration guide API. Приёмка: примеры и ссылки проверяются автоматически, инструкции выполняются в чистом окружении.
 
@@ -137,7 +137,7 @@
 - [ ] **A4 / 12.1–12.2 — P1. Восстановить достоверный quality gate.** Устранить известный полный lint debt; проверить threshold/profile и ошибки subprocesses coverage script негативными тестами. Добавить frontend build/test и компиляцию generator output в CI. Выполнять вместе с ближайшими изменениями, не откладывать весь контроль до RC. Частично в 11.1: отдельный frontend build/test, Basic browser E2E, npm audit high gate и browser artifacts в CI; полный прежний lint debt и negative coverage-script checks остаются открыты.
 - [x] **A5 / 10.1–10.2 — P1. Ограничить exporter и cleanup.** Memory cache budgets/expiry закрыты в 9.1. Bounded trace export, наблюдаемые ошибки/потери и flush/shutdown budgets закрыты в 10.1. Независимый deadline application rollback/shutdown при отменённом Boot, общий budget зависших modules/hooks, quiesce/drain и process SIGTERM приёмка закрыты в 10.2. [Доказательства и ограничения](docs/stage-10-2-acceptance.md).
 
-Связанные A2/A3/A5, этапы 8–10 и шаг 11.1 закрыты. Приёмка и ограничения — [отчёт этапов 8–9](docs/stages-8-9-acceptance.md), [отчёт 10.1](docs/stage-10-1-acceptance.md), [отчёт 10.2](docs/stage-10-2-acceptance.md) и [отчёт 11.1](docs/stage-11-1-acceptance.md). Ближайшие работы — 11.2 и незакрытые quality gates 12.
+Связанные A2/A3/A5, этапы 8–10 и шаги 11.1–11.2 закрыты. Приёмка и ограничения — [отчёт этапов 8–9](docs/stages-8-9-acceptance.md), [отчёт 10.1](docs/stage-10-1-acceptance.md), [отчёт 10.2](docs/stage-10-2-acceptance.md), [отчёт 11.1](docs/stage-11-1-acceptance.md) и [отчёт 11.2](docs/stage-11-2-acceptance.md). Ближайшие работы — 11.3 и незакрытые quality gates 12.
 
 ## Порядок выполнения и критерий завершения
 
@@ -147,7 +147,7 @@ Production-ready означает подтверждённые безопасн�
 
 ## Ближайший инкремент
 
-**Этап 11.2: полноценный Advanced Admin.** Basic 11.1 принят 13.11.2026: HTML login/logout, CSRF/validation, Vite manifest/automatic build, production config и Chromium E2E для desktop/no-JS mobile/HTTPS. Quality gates A4/12 расширены frontend build/test, npm audit и browser artifacts; прежний lint debt и negative coverage-script checks остаются. [Результаты 11.1](docs/stage-11-1-acceptance.md).
+**Этап 11.3: завершить REST starter.** Advanced Admin 11.2 принят 13.11.2026: persistent SQL users/RBAC/catalog/audit, migrations/seed, HTML CRUD/assignments и server-side authorization; PostgreSQL/MySQL race suite и Chromium restart/escalation E2E. Quality gates A4/12 расширены отдельным module vet/tests/lint и SQL/browser job с artifacts; прежний lint debt и negative coverage-script checks остаются. [Результаты 11.2](docs/stage-11-2-acceptance.md).
 
 Этапы 8.1–8.4 и 9.1–9.3 завершены 09.11.2026. Пройдены Windows vet/tests, Linux vet/race ядра и adapters, полный real-service conformance/crash suite пяти сервисов, coverage 84,3% и lint новых изменений (0 замечаний). [Отчёт приёмки](docs/stages-8-9-acceptance.md) содержит точную область доказательств, migration/lease/DLQ настройки и ограничения. Полный прежний lint debt остаётся в 12.1; disk/host durability и production-ready v1.0 не объявляются.
 

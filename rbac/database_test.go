@@ -35,6 +35,12 @@ func TestDatabaseStoreLifecycle(t *testing.T) {
 	if err := manager.UpdateItem(ctx, Item{Name: "post.read", Kind: Permission, Description: "Read published posts"}); err != nil {
 		t.Fatal(err)
 	}
+	if err := manager.UpdateItem(ctx, Item{Name: "post.read", Kind: Permission, Description: "Read published posts"}); err != nil {
+		t.Fatalf("idempotent update with zero changed rows: %v", err)
+	}
+	if err := store.UpdateItem(ctx, Item{Name: "missing", Kind: Role}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing row: %v", err)
+	}
 	if err := manager.AddChild(ctx, "admin", "post.read"); err != nil {
 		t.Fatal(err)
 	}
@@ -150,6 +156,7 @@ func (connection *rbacConnection) ExecContext(_ context.Context, query string, a
 		if !exists {
 			return driver.RowsAffected(0), nil
 		}
+		before := item
 		item.Kind = Kind(arguments[0].Value.(string))
 		item.Description, item.Rule = "", ""
 		if arguments[1].Value != nil {
@@ -157,6 +164,9 @@ func (connection *rbacConnection) ExecContext(_ context.Context, query string, a
 		}
 		if arguments[2].Value != nil {
 			item.Rule = arguments[2].Value.(string)
+		}
+		if item == before {
+			return driver.RowsAffected(0), nil
 		}
 		connection.state.items[name] = item
 	case strings.HasPrefix(query, `INSERT INTO "app_auth_item_child"`):

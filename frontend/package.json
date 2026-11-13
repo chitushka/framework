@@ -8,6 +8,7 @@
     "build": "vite build",
     "test": "node --test test/*.test.mjs",
     "test:e2e": "playwright test",
+    "test:admin": "playwright test --config playwright.admin.config.js",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -30,6 +30,12 @@ jobs:
       - name: Test SDK adapters
         working-directory: adapters
         run: go test -race ./...
+      - name: Vet Advanced Admin module
+        working-directory: examples/advanced-admin
+        run: go vet ./...
+      - name: Test Advanced Admin module
+        working-directory: examples/advanced-admin
+        run: go test -race ./...
       - name: Enforce core coverage
         run: sh ./scripts/check-coverage.sh coverage.out 80
       - name: Upload coverage report
@@ -51,6 +57,12 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.13
+      - name: Lint Advanced Admin module
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13
+          working-directory: examples/advanced-admin
+          args: --build-tags integration
   windows:
     name: Windows / Go 1.26
     runs-on: windows-2025
@@ -67,6 +79,12 @@ jobs:
         run: go vet ./...
       - name: Test SDK adapters
         working-directory: adapters
+        run: go test ./...
+      - name: Vet Advanced Admin module
+        working-directory: examples/advanced-admin
+        run: go vet ./...
+      - name: Test Advanced Admin module
+        working-directory: examples/advanced-admin
         run: go test ./...
   integration:
     name: Real service baseline
@@ -90,5 +108,21 @@ jobs:
         with:
           name: basic-browser-report
           path: .cache/basic-e2e/
+          include-hidden-files: true
+          if-no-files-found: warn
+  advanced-admin:
+    name: Persistent Advanced Admin SQL and browser E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: PostgreSQL/MySQL, transactional authorization/audit, browser and restart
+        run: sh scripts/admin-e2e.sh
+      - name: Upload Advanced Admin browser report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: admin-browser-report
+          path: .cache/admin-e2e/
           include-hidden-files: true
           if-no-files-found: warn

@@ -1,0 +1,10 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Data.Title}} · Chitu Admin</title>{{assetHead}}</head>
+<body class="basic admin">
+{{if .Data.Username}}<div class="dashboard-shell"><aside class="app-sidebar" aria-label="Главное меню"><a class="brand brand-light" href="/admin">chitu<span class="brand-dot">.</span><span class="brand-edition">ADMIN</span></a><p class="nav-caption">УПРАВЛЕНИЕ</p>
+<a class="nav-item" href="/admin">Обзор</a>
+{{if index .Data.Capabilities "catalog.view"}}<a class="nav-item" href="/admin/catalog">Каталог</a>{{end}}
+{{if index .Data.Capabilities "users.manage"}}<a class="nav-item" href="/admin/users">Пользователи</a>{{end}}
+{{if index .Data.Capabilities "rbac.manage"}}<a class="nav-item" href="/admin/roles">Роли</a><a class="nav-item" href="/admin/assignments">Назначения</a>{{end}}
+{{if index .Data.Capabilities "audit.view"}}<a class="nav-item" href="/admin/audit">Аудит</a>{{end}}
+<div class="sidebar-footer"><span class="status-dot"></span>Рабочее пространство</div></aside><div class="app-main"><header class="app-header"><span>Панель управления / {{.Data.Title}}</span><form class="logout-form" method="post" action="/logout"><input type="hidden" name="_csrf" value="{{.Data.CSRF}}"><span class="account-name">{{.Data.Username}}</span><button class="btn btn-outline-secondary btn-sm">Выйти</button></form></header><main class="dashboard-content"><p class="eyebrow">CHITU ADMIN</p><h1>{{.Data.Title}}</h1>{{.Content}}</main></div></div>
+{{else}}{{.Content}}{{end}}{{assetBody}}</body></html>

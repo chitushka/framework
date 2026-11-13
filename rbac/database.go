@@ -119,7 +119,23 @@ func (store *DatabaseStore) UpdateItem(ctx context.Context, item Item) error {
 	if err != nil {
 		return fmt.Errorf("rbac: update item %q: %w", item.Name, err)
 	}
-	return requireAffected(result, "item", item.Name)
+	// MySQL reports changed rows by default. An existing row whose values already
+	// match is a successful idempotent update, not ErrNotFound.
+	count, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rbac: inspect updated item: %w", err)
+	}
+	if count == 0 {
+		current, found, err := store.Item(ctx, item.Name)
+		if err != nil {
+			return err
+		}
+		if found && current == item {
+			return nil
+		}
+		return fmt.Errorf("rbac: item %q: %w", item.Name, ErrNotFound)
+	}
+	return nil
 }
 
 func (store *DatabaseStore) RemoveItem(ctx context.Context, name string) error {
