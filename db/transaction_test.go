@@ -216,11 +216,11 @@ func TestUnsupportedSavepointsAndValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer transaction.Rollback()
+	defer func() { _ = transaction.Rollback() }()
 	if _, err := transaction.Begin(context.Background()); !errors.Is(err, db.ErrSavepointsUnsupported) {
 		t.Fatalf("expected unsupported savepoints error, got %v", err)
 	}
-	if _, err := transaction.Begin(nil); err == nil {
+	if _, err := transaction.Begin(nil); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("expected nil context error")
 	}
 	if err := transaction.Transaction(context.Background(), nil); err == nil {
@@ -229,7 +229,7 @@ func TestUnsupportedSavepointsAndValidation(t *testing.T) {
 	if err := connection.Transaction(context.Background(), nil, nil); err == nil {
 		t.Fatal("expected nil root callback error")
 	}
-	if _, err := connection.BeginTx(nil, nil); err == nil {
+	if _, err := connection.BeginTx(nil, nil); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("expected nil root context error")
 	}
 	var nilTransaction *db.Transaction

@@ -9,8 +9,8 @@
 
 | Компонент | Обязательная конфигурация | CI job | Область проверки |
 | --- | --- | --- | --- |
-| Go / Linux amd64 | Go 1.26.11+, ветка 1.26, Ubuntu 24.04 runner | `test`, `lint` | Unit, vet, race, coverage, lint |
-| Go / Windows amd64 | Go 1.26.11+, ветка 1.26, Windows Server 2025 runner | `windows` | Unit и vet; без race |
+| Go / Linux amd64 | minimum 1.26.11 и latest patch 1.26.x, Ubuntu 24.04 runner | `test` matrix, `lint`, `coverage` | Unit, vet, race, coverage, lint |
+| Go / Windows amd64 | minimum 1.26.11 и latest patch 1.26.x, Windows Server 2025 runner | `test` matrix | Unit/vet, REST E2E и isolated onboarding; без race |
 | PostgreSQL | 17, Linux, pgx/v5 через database/sql | `integration` | SQL conformance, concurrent/crash migrations и AR, generator compilation, cache/queue process recovery |
 | MySQL | 8.4 LTS, Linux, go-sql-driver/mysql | `integration` | Тот же набор; DDL не считается транзакционным |
 | Redis cache | 7.4, RESP2, TCP, password, DB 1 | `integration` | Binary/TTL, AUTH, TLS relay/outage, shared CAS/limiter, queue lease/reclaim |
@@ -27,9 +27,11 @@
 [Redis](https://github.com/redis/redis/security),
 [RabbitMQ](https://www.rabbitmq.com/release-information).
 
-Обязательны все jobs workflow: `test`, `windows`, `lint`, `integration`. Администратор
-репозитория должен включить их как required checks в branch protection: YAML сам по себе
-не запрещает merge или release. CI запускает весь baseline без continue-on-error и silent skip.
+Обязательны `test`, `lint`, `coverage`, `frontend`, `security`, `integration`, `docs`,
+`rest`, `basic`, `advanced-admin`. Aggregate **Required quality gate** проверяет
+их success, включая matrix children. Администратор должен включить его как required
+check и ограничить bypass/release permissions: YAML сам по себе не запрещает ручной
+merge/release. [Контракт gate](quality-gates.md) и [статус приёмки 12.1](../stage-12-1-acceptance.md).
 Результат GitHub Actions появляется только после push владельцем; локальный прогон не заменяет его.
 
 ## Экспериментальные и отсутствующие возможности
@@ -44,9 +46,9 @@
   distributed stampede control вне baseline; Redis SDK даёт CAS/rotation и shared limiter.
 - Persistent dead-letter требует application-owned volume либо иной реализации Store;
   container layer и volatile MemoryBroker не считаются durable storage.
-- OTLP gRPC, baggage/tracestate propagation, driver-level SQL spans и общий process
-  shutdown budget не входят в 10.1. Lifecycle/health — 10.2; browser E2E — этапы 11–12.
-  Production authentication flows starters ещё не приняты.
+- OTLP gRPC, baggage/tracestate propagation и driver-level SQL spans вне baseline.
+  Bounded lifecycle/health приняты в 10.2; browser/REST authentication flows — 11.1–11.3,
+  с указанными process-local sessions/quotas и application authorization границами.
 - Frontend scaffold и три examples являются демонстрациями; они не входят в контракт
   готовых production starters. Полный список ограничений — в реестре гарантий.
 

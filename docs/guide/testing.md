@@ -24,7 +24,10 @@ make coverage
 make lint
 ```
 
-`make ci` объединяет все проверки. `lint` требует golangci-lint версии 2.13 или совместимой. Без локального Go тесты можно выполнить через Docker, как описано в корневом README.
+`make ci` объединяет module vet/tests, docs, positive/negative coverage, полный lint,
+frontend и security. `lint` требует golangci-lint 2.13.0; browser/real-service suites
+выполняются отдельно. [Полный контракт gate](quality-gates.md) содержит artifacts,
+security exceptions/expiry и release/required-check ограничения.
 
 `make docs` проверяет Markdown, `make docs-test` также исполняет guide examples
 в свежем Go-модуле. Эти команды входят в отдельный CI docs job и Windows job.
@@ -92,13 +95,16 @@ Runner выполняет `go test -mod=readonly -race -count=1 -timeout=6m -v .
 ## GitHub Actions
 
 Workflow `.github/workflows/ci.yml` запускается для pull request и push в `main`/`master`.
-Job `test` (Ubuntu 24.04 / Go 1.26.x) проверяет gofmt, `go vet`, race detector, все unit tests
-и coverage gate. SDK adapters проходят vet/race на Linux и vet/tests на Windows.
-Job `windows` использует Windows 2025 / Go 1.26.x, включая isolated onboarding.
+Job `test` — matrix Ubuntu 24.04/Windows 2025 × minimum Go 1.26.11/latest patch
+1.26.x. Все application modules проходят vet/tests, Linux — race, integration —
+compile/vet без runtime services. Windows включает REST process E2E и onboarding.
+Coverage имеет отдельный job с negative wrapper tests.
 Job `docs` проверяет ссылки/snippets, fresh module и generator output, сохраняет
 JSON test report; `basic`, `advanced-admin`, `rest` имеют отдельные starter E2E jobs.
-Независимый `lint` запускает официальный golangci-lint action. `integration` запускает
-обязательный Compose baseline. Coverage profile сохраняется как artifact. Все jobs обязательны
+Независимый `lint` проверяет все четыре modules. `frontend` и `security` включают
+lint/build/test/audit, govulncheck и secrets. `integration` запускает Compose baseline.
+`quality-gate` отклоняет также skipped/cancelled jobs; SHA pins и Dependabot описаны
+в [quality contract](quality-gates.md). Reports сохраняются как artifacts. Все jobs обязательны
 по контракту; настройка required checks в branch protection выполняется владельцем репозитория.
 
 Изменение обязательной проверки выполняется вместе с обновлением этого руководства, чтобы локальный и CI-контракты не расходились.

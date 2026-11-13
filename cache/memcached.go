@@ -63,7 +63,7 @@ func (backend *MemcachedBackend) Get(ctx context.Context, key string) ([]byte, b
 	if err != nil {
 		return nil, false, err
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	key = backend.config.KeyPrefix + key
 	if _, err := fmt.Fprintf(connection, "get %s\r\n", key); err != nil {
 		return nil, false, fmt.Errorf("cache: write Memcached GET: %w", err)
@@ -107,7 +107,7 @@ func (backend *MemcachedBackend) Set(ctx context.Context, key string, value []by
 	if err != nil {
 		return err
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	expiration := memcachedExpiration(ttl, time.Now())
 	if _, err := fmt.Fprintf(connection, "set %s 0 %d %d\r\n", backend.config.KeyPrefix+key, expiration, len(value)); err != nil {
 		return fmt.Errorf("cache: write Memcached SET: %w", err)
@@ -136,7 +136,7 @@ func (backend *MemcachedBackend) Delete(ctx context.Context, key string) error {
 	if err != nil {
 		return err
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	if _, err := fmt.Fprintf(connection, "delete %s\r\n", backend.config.KeyPrefix+key); err != nil {
 		return fmt.Errorf("cache: write Memcached DELETE: %w", err)
 	}
@@ -163,7 +163,7 @@ func (backend *MemcachedBackend) connect(ctx context.Context) (net.Conn, *bufio.
 		deadline = contextDeadline
 	}
 	if err := connection.SetDeadline(deadline); err != nil {
-		connection.Close()
+		_ = connection.Close()
 		return nil, nil, fmt.Errorf("cache: set Memcached deadline: %w", err)
 	}
 	return connection, bufio.NewReader(connection), nil

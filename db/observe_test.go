@@ -24,7 +24,7 @@ func TestConnectionQueryObserver(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	observer := &queryObserver{}
 	ctx := db.WithQueryObserver(context.Background(), observer)
 	if _, err := connection.ExecContext(ctx, "UPDATE observed", 7); err != nil {

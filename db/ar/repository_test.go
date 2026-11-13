@@ -33,7 +33,7 @@ func (testPost) TableName() string { return "posts" }
 
 func TestRepositoryInsertUpdateDeleteAndOptimisticLock(t *testing.T) {
 	connection, recorder := openARConnection(t)
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	repository, err := NewRepository[testUser](connection, Options{})
 	if err != nil {
 		t.Fatalf("NewRepository() error = %v", err)
@@ -75,7 +75,7 @@ func TestRepositoryInsertUpdateDeleteAndOptimisticLock(t *testing.T) {
 
 func TestRepositoryFindAndFinderImmutability(t *testing.T) {
 	connection, recorder := openARConnection(t)
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	repository, _ := NewRepository[testUser](connection, Options{})
 	recorder.pushQuery(arQueryResponse{rows: [][]driver.Value{{int64(3), "a@test", int64(4)}}})
 	user, err := repository.FindByPK(context.Background(), int64(3))
@@ -109,7 +109,7 @@ func TestRepositoryFindAndFinderImmutability(t *testing.T) {
 
 func TestRelationsLazyAndEager(t *testing.T) {
 	connection, recorder := openARConnection(t)
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	posts, _ := NewRepository[testPost](connection, Options{})
 	relation := Relation{LocalColumn: "id", ForeignColumn: "user_id"}
 
@@ -144,7 +144,7 @@ func TestRelationsLazyAndEager(t *testing.T) {
 
 func TestRepositoryValidation(t *testing.T) {
 	connection, _ := openARConnection(t)
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	if _, err := NewRepository[struct{ Value string }](connection, Options{}); err == nil {
 		t.Fatal("repository without table error = nil")
 	}
@@ -182,7 +182,7 @@ func TestRepositoryGeneratedIDsForBuiltInDialects(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			connection, recorder := openARConnectionDialect(t, tt.dialect)
-			defer connection.Close()
+			defer func() { _ = connection.Close() }()
 			repository, _ := NewRepository[testUser](connection, Options{})
 			if tt.useQuery {
 				recorder.pushQuery(arQueryResponse{columns: []string{"id"}, rows: [][]driver.Value{{int64(9)}}})
@@ -211,7 +211,7 @@ func TestRepositoryGeneratedIDsForBuiltInDialects(t *testing.T) {
 
 func TestInsertFailureRestoresInitializedVersion(t *testing.T) {
 	connection, recorder := openARConnection(t)
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	repository, _ := NewRepository[testUser](connection, Options{})
 	recorder.pushQuery(arQueryResponse{err: errors.New("insert failed")})
 	model := &testUser{Email: "fail@test"}
@@ -225,7 +225,7 @@ func TestInsertFailureRestoresInitializedVersion(t *testing.T) {
 
 func TestSaveChoosesInsertForEmptyAutoKey(t *testing.T) {
 	connection, recorder := openARConnection(t)
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	repository, _ := NewRepository[testUser](connection, Options{})
 	recorder.pushQuery(arQueryResponse{columns: []string{"id"}, rows: [][]driver.Value{{int64(5)}}})
 	model := &testUser{Email: "save@test"}

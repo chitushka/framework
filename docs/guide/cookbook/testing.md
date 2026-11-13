@@ -48,7 +48,7 @@ Fences вида `go file=relative/source.go` сверяются байт-в-ба
 или cleanup даёт ненулевой exit code. Negative tests checker проверяют, что битые
 paths/anchors/references, stale source fence и пустое дерево отклоняются.
 
-CI job `docs` сохраняет test report и выполняет этот же entry point. Windows job
+CI job `docs` сохраняет test report и выполняет этот же entry point. Windows matrix
 также запускает checker с isolated module. `make docs` и `make docs-test` — aliases.
 
 ## Когда нужны настоящие сервисы

@@ -38,7 +38,7 @@ func (inspector DatabaseInspector) Inspect(ctx context.Context, table string) (T
 	if err != nil {
 		return TableSchema{}, fmt.Errorf("ar: inspect columns for %s: %w", table, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	types, err := rows.ColumnTypes()
 	if err != nil {
 		return TableSchema{}, fmt.Errorf("ar: inspect column types for %s: %w", table, err)

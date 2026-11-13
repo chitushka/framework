@@ -161,7 +161,7 @@ func TestRegistryValidatesInputAndType(t *testing.T) {
 	if _, err := registry.Get(context.Background(), "missing"); err == nil {
 		t.Fatal("ожидалась ошибка отсутствующего компонента")
 	}
-	if _, err := registry.Get(nil, "value"); err == nil {
+	if _, err := registry.Get(nil, "value"); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("ожидалась ошибка nil context")
 	}
 	if _, err := component.GetAs[string](context.Background(), nil, "value"); err == nil {

@@ -18,7 +18,7 @@ import (
 
 func TestDatabaseStoreLifecycle(t *testing.T) {
 	database := openRBACDatabase(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	dialect, _ := frameworkdb.NewDefaultDialectRegistry().Require(frameworkdb.PostgreSQL)
 	store, err := NewDatabaseStore(DatabaseConfig{DB: database, Dialect: dialect, TablePrefix: "app_auth"})
 	if err != nil {
@@ -78,7 +78,7 @@ func TestDatabaseStoreValidationAndDialects(t *testing.T) {
 		t.Fatal("nil database accepted")
 	}
 	database := openRBACDatabase(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	if _, err := NewDatabaseStore(DatabaseConfig{DB: database, Dialect: dialect, TablePrefix: "bad;drop"}); err == nil {
 		t.Fatal("unsafe prefix accepted")
 	}

@@ -129,8 +129,8 @@ func (application *Application) help(args []string) error {
 		if command == nil {
 			return fmt.Errorf("console: unknown command %q", args[1])
 		}
-		fmt.Fprintf(application.Out, "%s\t%s\n", command.Name(), command.Description())
-		return nil
+		_, err := fmt.Fprintf(application.Out, "%s\t%s\n", command.Name(), command.Description())
+		return err
 	}
 	application.mu.RLock()
 	commands := make([]Command, 0, len(application.commands))
@@ -140,9 +140,13 @@ func (application *Application) help(args []string) error {
 	application.mu.RUnlock()
 	sort.Slice(commands, func(i, j int) bool { return commands[i].Name() < commands[j].Name() })
 	writer := tabwriter.NewWriter(application.Out, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(writer, "COMMAND\tDESCRIPTION")
+	if _, err := fmt.Fprintln(writer, "COMMAND\tDESCRIPTION"); err != nil {
+		return err
+	}
 	for _, command := range commands {
-		fmt.Fprintf(writer, "%s\t%s\n", command.Name(), command.Description())
+		if _, err := fmt.Fprintf(writer, "%s\t%s\n", command.Name(), command.Description()); err != nil {
+			return err
+		}
 	}
 	return writer.Flush()
 }

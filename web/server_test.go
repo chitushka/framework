@@ -38,7 +38,7 @@ func TestServerLifecycleServesHTTPAndRegistersComponent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(response.Body)
 	if response.StatusCode != http.StatusOK || !strings.Contains(string(body), `"status":"ok"`) {
 		t.Fatalf("неверный ответ: %d %s", response.StatusCode, body)
@@ -71,7 +71,7 @@ func TestServerGracefulShutdownWaitsForRequest(t *testing.T) {
 	go func() {
 		response, err := http.Get("http://" + server.Address())
 		if err == nil {
-			response.Body.Close()
+			_ = response.Body.Close()
 		}
 		requestDone <- err
 	}()

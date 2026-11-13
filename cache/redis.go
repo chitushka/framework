@@ -120,7 +120,7 @@ func (backend *RedisBackend) commandBytes(ctx context.Context, arguments ...[]by
 	if err != nil {
 		return redisResponse{}, fmt.Errorf("cache: connect to Redis: %w", err)
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	deadline := time.Now().Add(backend.config.IOTimeout)
 	if contextDeadline, ok := ctx.Deadline(); ok && contextDeadline.Before(deadline) {
 		deadline = contextDeadline

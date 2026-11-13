@@ -84,8 +84,8 @@ func (cli *CLI) create(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cli.Out, "created %s\ncreated %s\n", files.Up, files.Down)
-	return nil
+	_, err = fmt.Fprintf(cli.Out, "created %s\ncreated %s\n", files.Up, files.Down)
+	return err
 }
 
 func (cli *CLI) up(ctx context.Context, args []string) error {
@@ -108,12 +108,14 @@ func (cli *CLI) up(ctx context.Context, args []string) error {
 		return err
 	}
 	for _, result := range results {
-		fmt.Fprintf(cli.Out, "applied %s (%s)\n", result.ID, result.Duration.Round(time.Millisecond))
+		if _, err := fmt.Fprintf(cli.Out, "applied %s (%s)\n", result.ID, result.Duration.Round(time.Millisecond)); err != nil {
+			return err
+		}
 	}
 	if len(results) == 0 {
-		fmt.Fprintln(cli.Out, "no pending migrations")
+		_, err = fmt.Fprintln(cli.Out, "no pending migrations")
 	}
-	return nil
+	return err
 }
 
 func (cli *CLI) down(ctx context.Context, args []string) error {
@@ -139,12 +141,14 @@ func (cli *CLI) down(ctx context.Context, args []string) error {
 		return err
 	}
 	for _, result := range results {
-		fmt.Fprintf(cli.Out, "reverted %s (%s)\n", result.ID, result.Duration.Round(time.Millisecond))
+		if _, err := fmt.Fprintf(cli.Out, "reverted %s (%s)\n", result.ID, result.Duration.Round(time.Millisecond)); err != nil {
+			return err
+		}
 	}
 	if len(results) == 0 {
-		fmt.Fprintln(cli.Out, "no applied migrations")
+		_, err = fmt.Fprintln(cli.Out, "no applied migrations")
 	}
-	return nil
+	return err
 }
 
 func (cli *CLI) status(ctx context.Context, args []string) error {
@@ -167,7 +171,9 @@ func (cli *CLI) status(ctx context.Context, args []string) error {
 		return err
 	}
 	writer := tabwriter.NewWriter(cli.Out, 0, 4, 2, ' ', 0)
-	_, _ = fmt.Fprintln(writer, "STATE\tMIGRATION\tAPPLIED AT\tCHECKSUM\tDIRECTION\tSTARTED AT")
+	if _, err := fmt.Fprintln(writer, "STATE\tMIGRATION\tAPPLIED AT\tCHECKSUM\tDIRECTION\tSTARTED AT"); err != nil {
+		return err
+	}
 	for _, status := range statuses {
 		appliedAt := "-"
 		if !status.AppliedAt.IsZero() {
@@ -177,7 +183,9 @@ func (cli *CLI) status(ctx context.Context, args []string) error {
 		if !status.StartedAt.IsZero() {
 			startedAt = status.StartedAt.UTC().Format(time.RFC3339)
 		}
-		_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\t%s\n", status.State, status.ID, appliedAt, status.Checksum, status.Direction, startedAt)
+		if _, err := fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\t%s\n", status.State, status.ID, appliedAt, status.Checksum, status.Direction, startedAt); err != nil {
+			return err
+		}
 	}
 	return writer.Flush()
 }

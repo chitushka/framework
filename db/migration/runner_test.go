@@ -21,7 +21,7 @@ var migrationDriverSequence atomic.Uint64
 
 func TestRunnerUpStatusAndDown(t *testing.T) {
 	connection, recorder := openMigrationConnection(t, frameworkdb.PostgreSQL)
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	now := time.Date(2026, 11, 1, 10, 0, 0, 123, time.UTC)
 	source := memorySource{
 		{Version: "20261101090000", Name: "users", UpSQL: "UP users", DownSQL: "DOWN users"},
@@ -62,7 +62,7 @@ func TestRunnerUpStatusAndDown(t *testing.T) {
 
 func TestRunnerDetectsModifiedAndMissingMigrations(t *testing.T) {
 	connection, _ := openMigrationConnection(t, frameworkdb.PostgreSQL)
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	original := Migration{Version: "20261101090000", Name: "users", UpSQL: "UP", DownSQL: "DOWN"}
 	source := &mutableSource{migrations: []Migration{original}}
 	runner, _ := NewRunner(connection, source, Options{})
@@ -91,7 +91,7 @@ func TestRunnerDetectsModifiedAndMissingMigrations(t *testing.T) {
 
 func TestRunnerRollsBackFailedMigration(t *testing.T) {
 	connection, recorder := openMigrationConnection(t, frameworkdb.PostgreSQL)
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	recorder.failQuery = "BROKEN"
 	runner, _ := NewRunner(connection, memorySource{{
 		Version: "20261101090000", Name: "broken", UpSQL: "BROKEN", DownSQL: "DOWN",
@@ -115,7 +115,7 @@ func TestRunnerUsesDialectHistoryDDL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.dialect, func(t *testing.T) {
 			connection, recorder := openMigrationConnection(t, tt.dialect)
-			defer connection.Close()
+			defer func() { _ = connection.Close() }()
 			runner, _ := NewRunner(connection, memorySource{}, Options{})
 			if _, err := runner.Status(context.Background()); err != nil {
 				t.Fatalf("Status() error = %v", err)

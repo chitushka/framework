@@ -95,7 +95,7 @@ func (store *DatabaseStore) Items(ctx context.Context, kind Kind) ([]Item, error
 	if err != nil {
 		return nil, fmt.Errorf("rbac: query items: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	return scanItems(rows)
 }
 
@@ -158,7 +158,7 @@ func (store *DatabaseStore) Children(ctx context.Context, parent string) ([]Item
 	if err != nil {
 		return nil, fmt.Errorf("rbac: query children of %q: %w", parent, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	return scanItems(rows)
 }
 
@@ -194,7 +194,7 @@ func (store *DatabaseStore) Assignments(ctx context.Context, userID string) ([]A
 	if err != nil {
 		return nil, fmt.Errorf("rbac: query assignments: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var result []Assignment
 	for rows.Next() {
 		var assignment Assignment

@@ -17,7 +17,7 @@ import (
 
 func TestUniqueAndExistValidators(t *testing.T) {
 	connection, recorder := openValidationConnection(t)
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	database := DatabaseFrom(connection)
 	model := &testInput{ID: 7, Email: "used@example.test"}
 
@@ -57,7 +57,7 @@ func TestUniqueAndExistValidators(t *testing.T) {
 
 func TestDatabaseValidatorPropagatesOperationalError(t *testing.T) {
 	connection, recorder := openValidationConnection(t)
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	databaseError := errors.New("database unavailable")
 	recorder.push(false, databaseError)
 	set := Set{Rules: []Rule{For([]string{"email"}, Unique{

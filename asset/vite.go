@@ -138,9 +138,7 @@ func normalizeServerURL(value string) (string, error) {
 }
 
 func joinBase(base, file string) string {
-	if strings.HasPrefix(file, "/") {
-		file = strings.TrimPrefix(file, "/")
-	}
+	file = strings.TrimPrefix(file, "/")
 	if strings.Contains(base, "://") || strings.HasPrefix(base, "//") {
 		return base + file
 	}

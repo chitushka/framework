@@ -75,7 +75,7 @@ func (finder *Finder[T]) All(ctx context.Context) ([]*T, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ar: find %s: %w", finder.repository.table, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	models := make([]*T, 0)
 	for rows.Next() {
 		model := new(T)

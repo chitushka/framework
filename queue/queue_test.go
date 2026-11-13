@@ -160,7 +160,7 @@ func TestValidation(t *testing.T) {
 	}
 	broker := NewMemoryBroker()
 	producer, _ := New(broker)
-	if _, err := producer.Push(nil, "job", nil, Options{}); err == nil {
+	if _, err := producer.Push(nil, "job", nil, Options{}); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("nil context accepted")
 	}
 	if _, err := producer.Push(context.Background(), "", nil, Options{}); err == nil {
@@ -178,10 +178,10 @@ func TestValidation(t *testing.T) {
 	if _, err := broker.Reserve(context.Background(), -1); err == nil {
 		t.Fatal("negative wait accepted")
 	}
-	if _, err := broker.Reserve(nil, 0); err == nil {
+	if _, err := broker.Reserve(nil, 0); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("nil reserve context accepted")
 	}
-	if err := broker.Enqueue(nil, Message{}, 0); err == nil {
+	if err := broker.Enqueue(nil, Message{}, 0); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("nil enqueue context accepted")
 	}
 	if err := broker.Enqueue(context.Background(), Message{}, -1); err == nil {
@@ -203,7 +203,7 @@ func TestValidation(t *testing.T) {
 	if err := worker.RegisterHandler("job", func(context.Context, json.RawMessage) error { return nil }); err == nil {
 		t.Fatal("duplicate handler accepted")
 	}
-	if err := worker.Shutdown(nil); err == nil {
+	if err := worker.Shutdown(nil); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("nil shutdown context accepted")
 	}
 	if _, err := NewWorker(broker, WorkerConfig{Concurrency: -1}); err == nil {
@@ -350,7 +350,7 @@ func TestAdapterValidationAndCorruptMessages(t *testing.T) {
 	if _, err := redis.Reserve(context.Background(), -1); err == nil {
 		t.Fatal("negative Redis wait accepted")
 	}
-	if _, err := redis.Reserve(nil, 0); err == nil {
+	if _, err := redis.Reserve(nil, 0); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("nil Redis context accepted")
 	}
 	if _, err := NewRabbitMQBroker(RabbitMQConfig{}); err == nil {
@@ -364,7 +364,7 @@ func TestAdapterValidationAndCorruptMessages(t *testing.T) {
 	if _, err := rabbit.Reserve(context.Background(), -1); err == nil {
 		t.Fatal("negative RabbitMQ wait accepted")
 	}
-	if _, err := rabbit.Reserve(nil, 0); err == nil {
+	if _, err := rabbit.Reserve(nil, 0); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("nil Rabbit context accepted")
 	}
 	if err := rabbit.Enqueue(context.Background(), Message{}, 0); err == nil {
@@ -374,7 +374,7 @@ func TestAdapterValidationAndCorruptMessages(t *testing.T) {
 		t.Fatalf("empty RabbitMQ = %v", err)
 	}
 	valid := Message{ID: "valid", Name: "job", Payload: json.RawMessage(`null`), MaxAttempts: 2, CreatedAt: time.Now()}
-	if err := redis.Enqueue(nil, valid, 0); err == nil {
+	if err := redis.Enqueue(nil, valid, 0); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("nil Redis context accepted")
 	}
 	if err := redis.Enqueue(context.Background(), valid, -1); err == nil {
@@ -387,7 +387,7 @@ func TestAdapterValidationAndCorruptMessages(t *testing.T) {
 	if err := redisDelivery.Nack(context.Background(), -1); err == nil {
 		t.Fatal("negative Redis retry accepted")
 	}
-	if err := rabbit.Enqueue(nil, valid, 0); err == nil {
+	if err := rabbit.Enqueue(nil, valid, 0); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("nil Rabbit context accepted")
 	}
 	if err := rabbit.Enqueue(context.Background(), valid, -1); err == nil {

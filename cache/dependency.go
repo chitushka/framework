@@ -34,7 +34,7 @@ func (dependency DBDependency) Fingerprint(ctx context.Context) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("execute DB dependency: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	columns, err := rows.Columns()
 	if err != nil {
 		return "", fmt.Errorf("read DB dependency columns: %w", err)

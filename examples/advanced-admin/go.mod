@@ -5,7 +5,7 @@ go 1.26.11
 require (
 	github.com/chitushka/framework v0.0.0
 	github.com/go-sql-driver/mysql v1.9.3
-	github.com/jackc/pgx/v5 v5.7.6
+	github.com/jackc/pgx/v5 v5.9.2
 )
 
 require (

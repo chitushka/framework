@@ -290,7 +290,7 @@ func renderTag(name string, attributes map[string]string, void bool) (string, er
 		source.WriteByte(' ')
 		source.WriteString(attribute)
 		source.WriteString(`="{{index . `)
-		source.WriteString(fmt.Sprint(index))
+		_, _ = fmt.Fprint(&source, index)
 		source.WriteString(`}}"`)
 		values = append(values, attributes[attribute])
 	}

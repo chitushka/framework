@@ -18,7 +18,7 @@ import (
 
 func TestDatabaseBrokerLifecycleAndLeaseRecovery(t *testing.T) {
 	database := openQueueDatabase(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	dialect, _ := frameworkdb.NewDefaultDialectRegistry().Require(frameworkdb.PostgreSQL)
 	broker, err := NewDatabaseBroker(DatabaseConfig{DB: database, Dialect: dialect, Table: "app.jobs", ReservationTimeout: time.Second, PollInterval: time.Millisecond})
 	if err != nil {
@@ -127,7 +127,7 @@ func TestDatabaseBrokerValidationAndDialects(t *testing.T) {
 		t.Fatal("nil database accepted")
 	}
 	database := openQueueDatabase(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	if _, err := NewDatabaseBroker(DatabaseConfig{DB: database, Dialect: dialect, Table: "bad;drop"}); err == nil {
 		t.Fatal("unsafe table accepted")
 	}
@@ -141,7 +141,7 @@ func TestDatabaseBrokerValidationAndDialects(t *testing.T) {
 	if _, err := broker.Reserve(context.Background(), 3*time.Millisecond); !errors.Is(err, ErrEmpty) {
 		t.Fatalf("wait empty = %v", err)
 	}
-	if _, err := broker.Reserve(nil, 0); err == nil {
+	if _, err := broker.Reserve(nil, 0); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("nil reserve context accepted")
 	}
 	if _, err := broker.Reserve(context.Background(), -1); err == nil {
@@ -151,7 +151,7 @@ func TestDatabaseBrokerValidationAndDialects(t *testing.T) {
 		t.Fatal("invalid database message accepted")
 	}
 	valid := Message{ID: "validation", Name: "job", Payload: jsonPayload(`null`), MaxAttempts: 2, CreatedAt: time.Now()}
-	if err := broker.Enqueue(nil, valid, 0); err == nil {
+	if err := broker.Enqueue(nil, valid, 0); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("nil database context accepted")
 	}
 	if err := broker.Enqueue(context.Background(), valid, -1); err == nil {

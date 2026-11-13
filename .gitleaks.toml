@@ -1,0 +1,10 @@
+title = "Chitu secret scanning"
+
+[extend]
+useDefault = true
+
+# Build caches/dependencies are not repository source. No secret fingerprints or
+# application paths are allowlisted. CI also scans the complete Git history.
+[[allowlists]]
+description = "Generated dependencies and local build artifacts"
+paths = ['''(^|/)(\.git|\.cache|node_modules|public)(/|$)''']

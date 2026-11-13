@@ -68,6 +68,11 @@ docker run --rm -v "$PWD:/workspace" -w /workspace golang:1.26 go test ./...
 
 ## Качество
 
+[Quality gate contract](docs/guide/quality-gates.md) описывает обязательную OS/Go
+matrix, lint всех modules, security/secret scans, negative coverage checks,
+artifacts, SHA pins и Dependabot. [Приёмка 12.1](docs/stage-12-1-acceptance.md)
+отделяет локальные результаты от ещё не выполненных hosted checks.
+
 Локальные проверки собраны в `Makefile`: `make test`, `make vet`, `make lint` и `make coverage`. Команда coverage контролирует взвешенное statement coverage библиотечных пакетов на уровне не ниже 80%. Те же проверки, включая race detector, выполняет [GitHub Actions workflow](.github/workflows/ci.yml).
 
 ## Минимальный пример

@@ -237,7 +237,7 @@ func TestManagerValidationAndRuleFailures(t *testing.T) {
 	if err := manager.Revoke(ctx, "user", "missing"); !errors.Is(err, rbac.ErrNotFound) {
 		t.Fatalf("revoke missing = %v", err)
 	}
-	if _, err := manager.Roles(nil); err == nil {
+	if _, err := manager.Roles(nil); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("nil context accepted")
 	}
 }

@@ -178,7 +178,7 @@ func TestCatalogAndConfigurationValidation(t *testing.T) {
 	if locales := catalog.Locales(); len(locales) != 1 || locales[0] != "ru" {
 		t.Fatalf("locales = %#v", locales)
 	}
-	if _, _, err := catalog.Lookup(nil, i18n.MustLocale("ru"), "app", "ok"); err == nil {
+	if _, _, err := catalog.Lookup(nil, i18n.MustLocale("ru"), "app", "ok"); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("nil lookup context accepted")
 	}
 	if err := catalog.Add(i18n.MustLocale("en"), "app", map[string]i18n.Message{"bad": i18n.Plural(map[i18n.Form]string{i18n.One: "one"})}); err == nil {
@@ -207,7 +207,7 @@ func TestCatalogAndConfigurationValidation(t *testing.T) {
 	if _, err := i18n.NewMatcher(nil, "en"); err == nil {
 		t.Fatal("empty matcher accepted")
 	}
-	if _, err := i18n.WithLocale(nil, "en"); err == nil {
+	if _, err := i18n.WithLocale(nil, "en"); err == nil { //nolint:staticcheck // SA1012: intentionally tests rejection of a nil context.
 		t.Fatal("nil locale context accepted")
 	}
 	if _, err := i18n.LoadFS(fstest.MapFS{"nested/en/app.json": {Data: []byte(`{}`)}}); err == nil {

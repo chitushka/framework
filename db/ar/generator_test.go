@@ -102,7 +102,7 @@ func TestGenerateModelValidation(t *testing.T) {
 
 func TestDatabaseInspectorAndGenerator(t *testing.T) {
 	connection, recorder := openARConnection(t)
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	recorder.pushQuery(arQueryResponse{
 		columns:  []string{"id", "email", "version"},
 		types:    []string{"BIGINT", "VARCHAR", "INTEGER"},

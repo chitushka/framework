@@ -124,7 +124,7 @@ func startRedisTestServer(t *testing.T) (string, func()) {
 				return
 			}
 			go func() {
-				defer connection.Close()
+				defer func() { _ = connection.Close() }()
 				reader := bufio.NewReader(connection)
 				for {
 					arguments, err := readRESPRequest(reader)
@@ -209,7 +209,7 @@ func startMemcachedTestServer(t *testing.T) (string, func()) {
 				return
 			}
 			go func() {
-				defer connection.Close()
+				defer func() { _ = connection.Close() }()
 				reader := bufio.NewReader(connection)
 				line, err := reader.ReadString('\n')
 				if err != nil {

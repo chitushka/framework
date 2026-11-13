@@ -4,184 +4,261 @@ on:
   push:
     branches: [master, main]
   pull_request:
+  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   test:
-    name: Test and coverage
-    runs-on: ubuntu-24.04
+    name: Go ${{ matrix.go }} / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+        go: ["1.26.11", "1.26.x"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ matrix.go }}
+          cache-dependency-path: |
+            go.sum
+            adapters/go.sum
+            integration/go.sum
+            examples/advanced-admin/go.sum
+      - name: Formatting, vet and tests for all application modules
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/matrix
+          test -z "$(find . -name '*.go' -not -path './.cache/*' -not -path './frontend/node_modules/*' -print0 | xargs -0 gofmt -l)"
+          race=()
+          if [ "$RUNNER_OS" = Linux ]; then race=(-race); fi
+          for module in . adapters examples/advanced-admin; do
+            name=$(printf '%s' "$module" | tr '/.' '__')
+            go -C "$module" vet ./...
+            go -C "$module" test "${race[@]}" -json ./... | tee ".cache/matrix/$name.json"
+          done
+          go -C integration vet ./...
+          go -C integration test -run '^$' ./...
+      - name: Windows isolated onboarding and REST process E2E
+        if: runner.os == 'Windows'
+        run: |
+          go run ./tools/checkdocs -run
+          go test -tags e2e ./examples/rest-api
+      - name: Upload matrix reports
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: go-${{ matrix.os }}-${{ matrix.go }}
+          path: .cache/matrix/
+          include-hidden-files: true
+          if-no-files-found: error
+  coverage:
+    name: Coverage and gate regression tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-          cache: true
-      - name: Check formatting
-        run: test -z "$(find . -name '*.go' -not -path './.cache/*' -not -path './frontend/node_modules/*' -print0 | xargs -0 gofmt -l)"
-      - name: Vet
-        run: go vet ./...
-      - name: Test with race detector
-        run: go test -race ./...
-      - name: Vet SDK adapters
-        working-directory: adapters
-        run: go vet ./...
-      - name: Test SDK adapters
-        working-directory: adapters
-        run: go test -race ./...
-      - name: Vet Advanced Admin module
-        working-directory: examples/advanced-admin
-        run: go vet ./...
-      - name: Test Advanced Admin module
-        working-directory: examples/advanced-admin
-        run: go test -race ./...
-      - name: Enforce core coverage
-        run: sh ./scripts/check-coverage.sh coverage.out 80
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v5
+      - run: sh scripts/test-coverage.sh
+      - run: sh scripts/check-coverage.sh coverage.out 80
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: coverage
           path: coverage.out
           if-no-files-found: error
   lint:
-    name: Lint
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.13
-      - name: Lint Advanced Admin module
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.13
-          working-directory: examples/advanced-admin
-          args: --build-tags integration
-  windows:
-    name: Windows / Go 1.26
-    runs-on: windows-2025
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: true
-      - run: go vet ./...
-      - run: go test ./...
-      - name: Check docs and isolated onboarding on Windows
-        run: go run ./tools/checkdocs -run
-      - name: REST process E2E on Windows
-        run: go test -tags e2e ./examples/rest-api
-      - name: Vet SDK adapters
-        working-directory: adapters
-        run: go vet ./...
-      - name: Test SDK adapters
-        working-directory: adapters
-        run: go test ./...
-      - name: Vet Advanced Admin module
-        working-directory: examples/advanced-admin
-        run: go vet ./...
-      - name: Test Advanced Admin module
-        working-directory: examples/advanced-admin
-        run: go test ./...
-  integration:
-    name: Real service baseline
+    name: Lint / ${{ matrix.module }}
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [".", adapters, integration, examples/advanced-admin]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
-      - name: SQL, Redis, Memcached, RabbitMQ and OpenTelemetry baseline
-        run: sh scripts/integration.sh
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
+        with:
+          version: v2.13.0
+          working-directory: ${{ matrix.module }}
+          args: --timeout=10m --build-tags=e2e,integration
+  frontend:
+    name: Frontend lint, test, build and dependency audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - run: npm run lint && npm run build && npm test
+        working-directory: frontend
+      - run: node --test scripts/*.test.mjs
+      - run: node scripts/npm-audit.mjs
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: always()
+        with:
+          name: frontend-security
+          path: .cache/security/npm-audit.json
+          include-hidden-files: true
+          if-no-files-found: warn
+  security:
+    name: Go vulnerabilities and secret scanning
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            adapters/go.sum
+            integration/go.sum
+            examples/advanced-admin/go.sum
+            tools/security/go.sum
+      - run: sh scripts/security.sh
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            .cache/security/*.json
+            .cache/security/*.txt
+          include-hidden-files: true
+          if-no-files-found: error
+  integration:
+    name: Real service baseline and generator compilation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: |
+          mkdir -p .cache/integration
+          sh scripts/integration.sh 2>&1 | tee .cache/integration/tests.log
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: always()
+        with:
+          name: integration-report
+          path: .cache/integration/
+          include-hidden-files: true
+          if-no-files-found: error
   docs:
     name: Documentation and clean onboarding
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-          cache: true
-      - name: Prefetch pinned Go dependencies
-        run: go mod download
-      - name: Negative checker tests and runnable examples
-        shell: bash
-        run: |
+      - run: go mod download
+      - run: |
           mkdir -p .cache/docs
           go test -race -count=1 -json ./internal/doccheck ./examples/guide/... | tee .cache/docs/tests.json
-      - name: Check links, source fences and fresh external module
-        run: go run ./tools/checkdocs -run
-      - name: Upload docs test report
+          go run ./tools/checkdocs -run
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         if: always()
-        uses: actions/upload-artifact@v5
         with:
           name: docs-test-report
           path: .cache/docs/
           include-hidden-files: true
           if-no-files-found: warn
   rest:
-    name: REST contracts and process E2E
+    name: REST process E2E
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-          cache: true
-      - name: Lint REST including E2E
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.13
-          args: --build-tags e2e ./examples/rest-api/...
-      - name: Contract, concurrency and real process HTTP tests
-        shell: bash
-        run: |
+      - run: |
           mkdir -p .cache/rest-e2e
           go test -race -tags e2e -count=1 -json ./examples/rest-api | tee .cache/rest-e2e/results.json
-      - name: Upload REST test report
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         if: always()
-        uses: actions/upload-artifact@v5
         with:
           name: rest-e2e-report
           path: .cache/rest-e2e/
           include-hidden-files: true
           if-no-files-found: warn
   basic:
-    name: Basic frontend build and browser E2E
+    name: Basic browser E2E
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v6
-      - name: Build from checkout and test development and production browser flows
-        run: sh scripts/basic-e2e.sh
-      - name: Upload Basic browser report
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: sh scripts/basic-e2e.sh
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         if: always()
-        uses: actions/upload-artifact@v5
         with:
           name: basic-browser-report
           path: .cache/basic-e2e/
           include-hidden-files: true
           if-no-files-found: warn
   advanced-admin:
-    name: Persistent Advanced Admin SQL and browser E2E
+    name: Advanced Admin SQL and browser E2E
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v6
-      - name: PostgreSQL/MySQL, transactional authorization/audit, browser and restart
-        run: sh scripts/admin-e2e.sh
-      - name: Upload Advanced Admin browser report
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: sh scripts/admin-e2e.sh
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         if: always()
-        uses: actions/upload-artifact@v5
         with:
           name: admin-browser-report
           path: .cache/admin-e2e/
           include-hidden-files: true
           if-no-files-found: warn
+  quality-gate:
+    name: Required quality gate
+    if: always()
+    needs: [test, coverage, lint, frontend, security, integration, docs, rest, basic, advanced-admin]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: node scripts/require-success.mjs test coverage lint frontend security integration docs rest basic advanced-admin
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}

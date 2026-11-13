@@ -1,4 +1,4 @@
-.PHONY: fmt fmt-check test vet lint coverage ci integration basic basic-build basic-e2e admin admin-build admin-e2e rest rest-e2e docs docs-test
+.PHONY: fmt fmt-check test vet lint coverage ci integration basic basic-build basic-e2e admin admin-build admin-e2e rest rest-e2e docs docs-test security frontend coverage-test
 
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './.cache/*' -not -path './frontend/node_modules/*')
@@ -8,17 +8,37 @@ fmt-check:
 
 test:
 	go test ./...
+	go -C adapters test ./...
+	go -C examples/advanced-admin test ./...
+	go -C integration test -run '^$$' ./...
 
 vet:
 	go vet ./...
+	go -C adapters vet ./...
+	go -C examples/advanced-admin vet ./...
+	go -C integration vet ./...
 
 lint:
-	golangci-lint run
+	golangci-lint run --build-tags=e2e ./...
+	cd adapters && golangci-lint run
+	cd integration && golangci-lint run
+	cd examples/advanced-admin && golangci-lint run --build-tags=integration
+
+coverage-test:
+	sh ./scripts/test-coverage.sh
+
+frontend:
+	cd frontend && npm ci --no-audit --no-fund && npm run lint && npm run build && npm test
+	node --test scripts/*.test.mjs
+	node scripts/npm-audit.mjs
+
+security:
+	sh ./scripts/security.sh
 
 coverage:
 	sh ./scripts/check-coverage.sh coverage.out 80
 
-ci: fmt-check vet test docs-test coverage lint
+ci: fmt-check vet test docs-test coverage-test coverage lint frontend security
 
 docs:
 	go run ./tools/checkdocs

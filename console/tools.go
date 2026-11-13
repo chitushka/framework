@@ -111,8 +111,8 @@ func runMigrationGenerator(ctx context.Context, console *Context, args []string,
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(console.Out, "created %s\ncreated %s\n", files.Up, files.Down)
-	return nil
+	_, err = fmt.Fprintf(console.Out, "created %s\ncreated %s\n", files.Up, files.Down)
+	return err
 }
 
 type generatorFlags struct {
@@ -181,8 +181,8 @@ func runModelGenerator(ctx context.Context, console *Context, args []string, opt
 	if err := generator.GenerateFile(ctx, table, ar.GenerateOptions{Package: values.packageName, TypeName: values.typeName, Output: values.output}); err != nil {
 		return err
 	}
-	fmt.Fprintf(console.Out, "created %s (%d bytes)\n", values.output, len(source))
-	return nil
+	_, err = fmt.Fprintf(console.Out, "created %s (%d bytes)\n", values.output, len(source))
+	return err
 }
 
 type staticInspector struct{ schema ar.TableSchema }
@@ -237,7 +237,9 @@ func runCRUDGenerator(ctx context.Context, console *Context, args []string, opti
 		return err
 	}
 	for _, path := range created {
-		fmt.Fprintf(console.Out, "created %s\n", path)
+		if _, err := fmt.Fprintf(console.Out, "created %s\n", path); err != nil {
+			return err
+		}
 	}
 	return nil
 }

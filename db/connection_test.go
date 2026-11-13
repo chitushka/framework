@@ -63,7 +63,7 @@ func TestOpenConfiguresPoolAndDelegatesQueries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 
 	if connection.DB() == nil || connection.Dialect().Name() != db.PostgreSQL || connection.Config() != config {
 		t.Fatalf("unexpected connection metadata: %#v", connection.Config())
@@ -92,7 +92,7 @@ func TestOpenConfiguresPoolAndDelegatesQueries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer statement.Close()
+	defer func() { _ = statement.Close() }()
 	if _, err := statement.ExecContext(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestOpenConfiguresPoolAndDelegatesQueries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		t.Fatal("expected query row")
 	}

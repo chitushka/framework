@@ -17,9 +17,9 @@ FROM mcr.microsoft.com/playwright:v1.64.1-noble AS assets
 WORKDIR /workspace
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 RUN cd frontend && npm ci --no-audit --no-fund
-RUN cd frontend && npm audit --audit-level=high
 COPY . .
-RUN cd frontend && npm run build && npm test
+RUN cd frontend && npm run lint && npm run build && npm test
+RUN node scripts/npm-audit.mjs
 
 FROM assets AS browser
 COPY --from=backend /out/admin /workspace/.cache/admin/admin

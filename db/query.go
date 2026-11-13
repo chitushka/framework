@@ -326,7 +326,7 @@ func (b *QueryBuilder) buildSelect(ctx *queryBuildContext) (string, error) {
 		query.WriteString("DISTINCT ")
 	}
 	if b.dialect.Name() == SQLServer && b.limit != nil && b.offset == nil {
-		query.WriteString(fmt.Sprintf("TOP (%d) ", *b.limit))
+		_, _ = fmt.Fprintf(&query, "TOP (%d) ", *b.limit)
 	}
 	columns := b.columns
 	if len(columns) == 0 {
@@ -577,36 +577,36 @@ func (b *QueryBuilder) appendPagination(query *strings.Builder) error {
 		if len(b.orderBy) == 0 {
 			return errors.New("db: SQL Server OFFSET requires ORDER BY")
 		}
-		query.WriteString(fmt.Sprintf(" OFFSET %d ROWS", offset))
+		_, _ = fmt.Fprintf(query, " OFFSET %d ROWS", offset)
 		if b.limit != nil {
-			query.WriteString(fmt.Sprintf(" FETCH NEXT %d ROWS ONLY", *b.limit))
+			_, _ = fmt.Fprintf(query, " FETCH NEXT %d ROWS ONLY", *b.limit)
 		}
 	case Oracle:
 		if b.offset != nil {
-			query.WriteString(fmt.Sprintf(" OFFSET %d ROWS", offset))
+			_, _ = fmt.Fprintf(query, " OFFSET %d ROWS", offset)
 		}
 		if b.limit != nil {
 			if b.offset == nil {
-				query.WriteString(fmt.Sprintf(" FETCH FIRST %d ROWS ONLY", *b.limit))
+				_, _ = fmt.Fprintf(query, " FETCH FIRST %d ROWS ONLY", *b.limit)
 			} else {
-				query.WriteString(fmt.Sprintf(" FETCH NEXT %d ROWS ONLY", *b.limit))
+				_, _ = fmt.Fprintf(query, " FETCH NEXT %d ROWS ONLY", *b.limit)
 			}
 		}
 	case MySQL:
 		if b.limit != nil {
-			query.WriteString(fmt.Sprintf(" LIMIT %d", *b.limit))
+			_, _ = fmt.Fprintf(query, " LIMIT %d", *b.limit)
 		} else {
 			query.WriteString(" LIMIT 18446744073709551615")
 		}
 		if b.offset != nil {
-			query.WriteString(fmt.Sprintf(" OFFSET %d", offset))
+			_, _ = fmt.Fprintf(query, " OFFSET %d", offset)
 		}
 	default:
 		if b.limit != nil {
-			query.WriteString(fmt.Sprintf(" LIMIT %d", *b.limit))
+			_, _ = fmt.Fprintf(query, " LIMIT %d", *b.limit)
 		}
 		if b.offset != nil {
-			query.WriteString(fmt.Sprintf(" OFFSET %d", offset))
+			_, _ = fmt.Fprintf(query, " OFFSET %d", offset)
 		}
 	}
 	return nil

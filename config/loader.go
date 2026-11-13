@@ -108,7 +108,7 @@ func loadJSON(path string, target any) error {
 	if err != nil {
 		return fmt.Errorf("config: открыть JSON-файл %q: %w", path, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	info, err := file.Stat()
 	if err != nil {
 		return fmt.Errorf("config: получить информацию о JSON-файле %q: %w", path, err)
@@ -136,7 +136,7 @@ func loadEnvFile(path string) (map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("config: открыть .env-файл %q: %w", path, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	info, err := file.Stat()
 	if err != nil {
 		return nil, fmt.Errorf("config: получить информацию о .env-файле %q: %w", path, err)

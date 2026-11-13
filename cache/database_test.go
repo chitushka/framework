@@ -18,7 +18,7 @@ import (
 
 func TestDatabaseBackendLifecycleAndSchema(t *testing.T) {
 	database := openCacheTestDatabase(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	dialect, _ := frameworkdb.NewDefaultDialectRegistry().Require(frameworkdb.PostgreSQL)
 	backend, err := NewDatabaseBackend(DatabaseConfig{DB: database, Dialect: dialect, Table: "app.cache_items"})
 	if err != nil {
@@ -64,7 +64,7 @@ func TestDatabaseBackendValidation(t *testing.T) {
 		t.Fatal("nil database accepted")
 	}
 	database := openCacheTestDatabase(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	if _, err := NewDatabaseBackend(DatabaseConfig{DB: database, Dialect: dialect, Table: "cache;drop"}); err == nil {
 		t.Fatal("unsafe table accepted")
 	}
@@ -79,7 +79,7 @@ func TestDatabaseBackendValidation(t *testing.T) {
 
 func TestDBDependencyFingerprintChanges(t *testing.T) {
 	database := openCacheTestDatabase(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	dependency := DBDependency{DB: database, Query: "dependency"}
 	first, err := dependency.Fingerprint(context.Background())
 	if err != nil {

@@ -86,7 +86,7 @@ func lookupExists(ctx context.Context, database Database, table, column string, 
 	if err != nil {
 		return false, fmt.Errorf("validation: database lookup: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if rows.Next() {
 		return true, nil
 	}

@@ -183,7 +183,7 @@ func (repository *Repository[T]) executeInsert(ctx context.Context, query *frame
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 		if !rows.Next() {
 			if err := rows.Err(); err != nil {
 				return nil, err
@@ -205,7 +205,7 @@ func (repository *Repository[T]) executeInsert(ctx context.Context, query *frame
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 		if !rows.Next() {
 			return nil, errors.New("ar: INSERT OUTPUT produced no row")
 		}
@@ -324,13 +324,6 @@ func (repository *Repository[T]) identityConditions(value reflect.Value) []frame
 }
 
 func isZero(value reflect.Value) bool { return value.IsZero() }
-
-func integerValue(value reflect.Value) int64 {
-	if value.Kind() >= reflect.Uint && value.Kind() <= reflect.Uint64 {
-		return int64(value.Uint())
-	}
-	return value.Int()
-}
 
 func setInteger(value reflect.Value, number int64) {
 	if value.Kind() >= reflect.Uint && value.Kind() <= reflect.Uint64 {
