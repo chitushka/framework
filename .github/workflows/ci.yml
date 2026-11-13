@@ -74,6 +74,8 @@ jobs:
           cache: true
       - run: go vet ./...
       - run: go test ./...
+      - name: Check docs and isolated onboarding on Windows
+        run: go run ./tools/checkdocs -run
       - name: REST process E2E on Windows
         run: go test -tags e2e ./examples/rest-api
       - name: Vet SDK adapters
@@ -96,6 +98,33 @@ jobs:
       - uses: actions/checkout@v6
       - name: SQL, Redis, Memcached, RabbitMQ and OpenTelemetry baseline
         run: sh scripts/integration.sh
+  docs:
+    name: Documentation and clean onboarding
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Prefetch pinned Go dependencies
+        run: go mod download
+      - name: Negative checker tests and runnable examples
+        shell: bash
+        run: |
+          mkdir -p .cache/docs
+          go test -race -count=1 -json ./internal/doccheck ./examples/guide/... | tee .cache/docs/tests.json
+      - name: Check links, source fences and fresh external module
+        run: go run ./tools/checkdocs -run
+      - name: Upload docs test report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: docs-test-report
+          path: .cache/docs/
+          include-hidden-files: true
+          if-no-files-found: warn
   rest:
     name: REST contracts and process E2E
     runs-on: ubuntu-24.04

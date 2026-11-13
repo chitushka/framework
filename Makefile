@@ -1,4 +1,4 @@
-.PHONY: fmt fmt-check test vet lint coverage ci integration basic basic-build basic-e2e admin admin-build admin-e2e rest rest-e2e
+.PHONY: fmt fmt-check test vet lint coverage ci integration basic basic-build basic-e2e admin admin-build admin-e2e rest rest-e2e docs docs-test
 
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './.cache/*' -not -path './frontend/node_modules/*')
@@ -18,7 +18,13 @@ lint:
 coverage:
 	sh ./scripts/check-coverage.sh coverage.out 80
 
-ci: fmt-check vet test coverage lint
+ci: fmt-check vet test docs-test coverage lint
+
+docs:
+	go run ./tools/checkdocs
+
+docs-test:
+	go run ./tools/checkdocs -run
 
 integration:
 	sh ./scripts/integration.sh

@@ -1,5 +1,11 @@
 # Примеры приложений Chitu
 
+Короткие исполняемые примеры без внешних сервисов находятся в `guide/http`,
+`guide/jobs`, `guide/generate`. [Onboarding](../docs/guide/getting-started.md),
+[worker recipe](../docs/guide/cookbook/queues.md) и
+[generator quickstart](../docs/guide/generator-quickstart.md) содержат полные
+source-backed snippets. `go run ./tools/checkdocs -run` проверяет их в новом модуле.
+
 Примеры используют пакеты framework и зафиксированные зависимости. Advanced Admin
 имеет отдельный Go module с SQL drivers. Запускайте команды из корня репозитория.
 

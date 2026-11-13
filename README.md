@@ -4,6 +4,12 @@ Chitu — модульный веб-фреймворк с module path `github.co
 
 Последовательное руководство по проектированию, разработке, безопасности и эксплуатации находится в [Chitu Definitive Guide](docs/guide/README.md).
 
+[Onboarding](docs/guide/getting-started.md) запускает первый HTTP-сервис без Node/SQL.
+[Cookbook](docs/guide/cookbook/README.md), [generator quickstart](docs/guide/generator-quickstart.md)
+и [API migration guide](docs/guide/api-migration.md) содержат рабочие рецепты.
+Проверка документации и примеров в отдельном Go-модуле:
+`go mod download`, затем `go run ./tools/checkdocs -run`.
+
 Production-профиль, secret redaction и файловые ответы с защитой от traversal:
 [HTTP/tooling security audit и checklist](docs/guide/security-audit.md).
 

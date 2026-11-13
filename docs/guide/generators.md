@@ -1,5 +1,10 @@
 # Проверяемая генерация
 
+Для первого запуска используйте [generator quickstart](generator-quickstart.md):
+полный runnable source, offline schema, model/CRUD/Vue/DDL и compilation в новом
+Go-модуле. Ни SQL drivers, ни сервер не нужны. Для schema из настоящей DB далее
+используйте DatabaseInspector и CLI своего приложения, зарегистрировав driver.
+
 generate:model, generate:crud и generate:migration принимают `-dry-run` (пути и
 new/changed/unchanged) и `-diff` (whole-file unified diff). Обе опции ничего не пишут,
 включая каталоги. Diff показывает результат для review, но не разрешает overwrite.

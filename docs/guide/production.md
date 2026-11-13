@@ -1,5 +1,9 @@
 # Production
 
+Пошаговые рецепты: [deployment](cookbook/deployment.md),
+[migration release/recovery](cookbook/migrations.md) и [worker/replay](cookbook/queues.md).
+Обновление существующего приложения — [API migration guide](api-migration.md).
+
 Это рекомендации по проектированию приложения. Текущие ограничения, модель угроз,
 TLS reverse proxy deployment и границы ответственности определяет [контракт поддержки](support.md).
 Наличие API не подтверждает production readiness.

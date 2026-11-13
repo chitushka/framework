@@ -12,6 +12,10 @@
 
 ## Локальные команды
 
+Onboarding и documentation gate: `go mod download`, затем
+`go run ./tools/checkdocs -run`. [Testing recipe](cookbook/testing.md) описывает
+local links/anchors/source fences, negative checks и isolated external module.
+
 ```bash
 make fmt-check
 make vet
@@ -21,6 +25,9 @@ make lint
 ```
 
 `make ci` объединяет все проверки. `lint` требует golangci-lint версии 2.13 или совместимой. Без локального Go тесты можно выполнить через Docker, как описано в корневом README.
+
+`make docs` проверяет Markdown, `make docs-test` также исполняет guide examples
+в свежем Go-модуле. Эти команды входят в отдельный CI docs job и Windows job.
 
 ## Обязательный real-service baseline
 
@@ -87,7 +94,9 @@ Runner выполняет `go test -mod=readonly -race -count=1 -timeout=6m -v .
 Workflow `.github/workflows/ci.yml` запускается для pull request и push в `main`/`master`.
 Job `test` (Ubuntu 24.04 / Go 1.26.x) проверяет gofmt, `go vet`, race detector, все unit tests
 и coverage gate. SDK adapters проходят vet/race на Linux и vet/tests на Windows.
-Job `windows` использует Windows 2025 / Go 1.26.x.
+Job `windows` использует Windows 2025 / Go 1.26.x, включая isolated onboarding.
+Job `docs` проверяет ссылки/snippets, fresh module и generator output, сохраняет
+JSON test report; `basic`, `advanced-admin`, `rest` имеют отдельные starter E2E jobs.
 Независимый `lint` запускает официальный golangci-lint action. `integration` запускает
 обязательный Compose baseline. Coverage profile сохраняется как artifact. Все jobs обязательны
 по контракту; настройка required checks в branch protection выполняется владельцем репозитория.

@@ -14,6 +14,12 @@ Production readiness ещё не подтверждена: сначала про
 5. [Безопасность](security.md) — validation, sessions, authentication, CSRF и RBAC.
 6. [Production](production.md) — конфигурация, cache, queues, observability и завершение работы.
 7. [Качество](testing.md) — тесты, lint, CI и обязательное покрытие ядра.
+8. [Cookbook](cookbook/README.md) — deployment/testing/security/migrations/queues.
+
+Практика: [generator quickstart](generator-quickstart.md) создаёт и компилирует
+model/CRUD без SQL-сервера. [API migration guide](api-migration.md) сводит breaking
+pre-v1 changes и порядок rollout. Проверка links/snippets и fresh module:
+`go mod download`, затем `go run ./tools/checkdocs -run` из корня checkout.
 
 Дополнительный контракт: [proxy trust, Host, redirects и CORS](proxy.md).
 HTTP-семантика и сетевые доказательства: [HTTP compatibility](http-compatibility.md).
