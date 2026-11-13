@@ -1,4 +1,4 @@
-.PHONY: fmt fmt-check test vet lint coverage ci integration basic basic-build basic-e2e admin admin-build admin-e2e
+.PHONY: fmt fmt-check test vet lint coverage ci integration basic basic-build basic-e2e admin admin-build admin-e2e rest rest-e2e
 
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './.cache/*' -not -path './frontend/node_modules/*')
@@ -40,3 +40,9 @@ admin-build:
 
 admin-e2e:
 	sh ./scripts/admin-e2e.sh
+
+rest:
+	go run ./examples/rest-api
+
+rest-e2e:
+	go test -race -tags e2e -count=1 ./examples/rest-api

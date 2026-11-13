@@ -35,7 +35,7 @@
 | Vue 3/Vite/AdminKit scaffold | Source, lockfile, manifest loader, starter build/browser jobs | [frontend](../../frontend/package.json), [assets](../../asset/asset_test.go), [Basic/Admin CI](../../.github/workflows/ci.yml); все scaffold views не объявляются принятым продуктом |
 | Logging | slog handlers, fanout, file/console | [logging](../../logging/logging_test.go); DB/Syslog/Elasticsearch/Telegram handlers реализует приложение |
 | Metrics/tracing/debug / production profile | Finite method/status labels, Prometheus parser, SDK OTLP HTTP, HTTP/SQL/queue propagation, parent-based sampling, bounded batching/flush/stats; production profile отключает diagnostics | [SDK sampling/privacy/limits](../../adapters/otel/otel_test.go), [outage/cleanup](../../adapters/otel/outage_test.go), [collector/process/retry/Prometheus](../../integration/observability_test.go), [legacy limits](../../observability/export_test.go), [production](../../web/security_audit_test.go), [контракт/миграция](observability.md); SQL spans ограничены вызовами Connection/Transaction до rows/Scan, baggage/tracestate не передаются, export best-effort; application exporters должны соблюдать context |
-| Basic browser starter / Advanced Admin / REST | Basic: HTML/CSRF/password login; Admin: SQL users/RBAC/catalog/audit, CRUD/assignments, transactional authorization и restart persistence; REST: внешний Ed25519 verifier | [Basic](../../examples/basic/README.md), [Admin SQL tests](../../examples/advanced-admin/integration_test.go), [Admin browser/restart](../../frontend/e2e-admin/admin.spec.js), [Admin boundaries](../../examples/advanced-admin/README.md); sessions/limiter Basic/Admin process-local |
+| Basic browser starter / Advanced Admin / REST | Basic: HTML/CSRF/password login; Admin: SQL users/RBAC/catalog/audit, CRUD/assignments, transactional authorization и restart persistence; REST: внешний Ed25519 verifier, полный CRUD, единые JSON errors, pagination/allowlists, bounded quotas и OpenAPI | [Basic](../../examples/basic/README.md), [Admin SQL tests](../../examples/advanced-admin/integration_test.go), [Admin browser/restart](../../frontend/e2e-admin/admin.spec.js), [Admin boundaries](../../examples/advanced-admin/README.md), [REST contracts](../../examples/rest-api/contract_test.go), [REST process](../../examples/rest-api/e2e_test.go), [REST boundaries](../../examples/rest-api/README.md); sessions/limiter Basic/Admin и каталог/quotas REST process-local |
 | CI и coverage ≥80% | Unit/race/vet/lint/coverage, baseline OS и integration jobs | [workflow](../../.github/workflows/ci.yml), [script](../../scripts/check-coverage.sh); coverage только statement агрегат, не доказательство security и не автоматическая branch protection |
 
 ## Воспроизведение из чистого checkout
@@ -67,7 +67,9 @@ coverage 83,1%, actionlint, обе команды интеграционного
 сервисы/драйверы загружаются при первом запуске. Подробности — [testing](testing.md).
 Basic собирается и запускается через `node scripts/basic.mjs start`; Admin требует
 отдельных build/migrate/seed по [инструкции](../../examples/advanced-admin/README.md).
-REST запускается через `go run ./examples/rest-api`.
+REST запускается через `go run ./examples/rest-api` с обязательной JWT-конфигурацией;
+[REST guide](../../examples/rest-api/README.md) содержит OpenAPI, error/retry contract
+и отдельный process E2E без внешних сервисов.
 [Basic guide](../../examples/basic/README.md) описывает автоматическую frontend build
 и отдельный Chromium HTTP/HTTPS job. Live remote CI results и branch protection
 по-прежнему не подтверждаются локальной проверкой.

@@ -100,6 +100,14 @@ final output/hijack на его writer boundary, включая прямые wri
 отслеживаются только вызовы response helpers. Защита от повторного вызова helpers сохраняется
 и при ещё буферизованном ответе.
 
+`web.WithServerHandlerWrapper` оборачивает полный handler управляемого HTTP server,
+включая ответы внешнего resource limiter. Это позволяет задать application error
+contract или instrumentation для ранних 413/415. Wrapper не должен читать body
+перед вызовом next: body/form limits находятся внутри next. Wrappers применяются
+в порядке объявления (последний — внешний). Нормализация REST responses не
+поддерживает streaming/upgrades; для них требуется wrapper с сохранением нужных
+writer capabilities. [Network regression](../../web/server_wrapper_test.go).
+
 ## Доказательства
 
 - [HTTP methods, escaped paths, HEAD, ranges и validators](../../web/http_conformance_test.go).

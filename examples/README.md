@@ -60,9 +60,11 @@ $env:JWT_AUDIENCE = "articles-api"
 go run ./examples/rest-api
 ```
 
-Сервер слушает `http://localhost:8082`. Получите TOKEN у своего issuer: alg=EdDSA,
+Сервер слушает `http://127.0.0.1:8082`. Получите TOKEN у своего issuer: alg=EdDSA,
 typ=at+jwt, kid/iss/aud совпадают с конфигурацией, sub непустой, iat/exp обязательны,
-lifetime не превышает 15 минут. Для production включите TLS и application authorization.
+lifetime не превышает 15 минут. Каждый token для выделенного audience разрешает весь
+CRUD общего каталога; issuer должен ограничивать его выдачу доверенными клиентами.
+Для production настройте TLS proxy и `REST_ALLOWED_HOSTS`.
 
 ```bash
 curl -H "Authorization: Bearer TOKEN" http://localhost:8082/v1/articles
@@ -72,6 +74,12 @@ Verifier использует golang-jwt/jwt/v5 и проверяет алгор
 Ротация через `ReplaceKeys`, варианты интеграции и ограничения описаны в
 [authentication contract](../docs/guide/authentication.md). Для multiple active keys
 расширьте конфигурацию main до key set; этот CLI-пример загружает один публичный ключ.
+
+[REST guide](rest-api/README.md) описывает полный CRUD, единые ошибки, pagination/filter
+allowlists, bounded IP/subject quotas, OpenAPI, идемпотентность и migration прежнего demo.
+Данные и квоты хранятся в памяти одного процесса и сбрасываются при restart.
+Contract/process E2E: `go test -race -tags e2e ./examples/rest-api` на Linux;
+на Windows без C compiler уберите `-race`. OpenAPI доступен через `/openapi.json`.
 
 ## Проверка
 

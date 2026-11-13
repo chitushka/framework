@@ -41,6 +41,24 @@ type ServerConfig struct {
 // ServerOption настраивает HTTP-сервер.
 type ServerOption func(*Server) error
 
+// WithServerHandlerWrapper wraps the complete HTTP handler, including the server's
+// request-limit errors. Use it for response contracts or instrumentation that must
+// see those errors. The wrapper must not read request bodies before calling next;
+// body/form limits are enforced inside next. Options wrap in declaration order.
+func WithServerHandlerWrapper(wrap func(http.Handler) http.Handler) ServerOption {
+	return func(server *Server) error {
+		if wrap == nil {
+			return errors.New("web: server handler wrapper is required")
+		}
+		handler := wrap(server.handler)
+		if handler == nil {
+			return errors.New("web: server handler wrapper returned nil")
+		}
+		server.handler = handler
+		return nil
+	}
+}
+
 // WithListener передаёт заранее открытый listener.
 // Опция удобна для socket activation и интеграционных тестов.
 func WithListener(listener net.Listener) ServerOption {

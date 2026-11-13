@@ -17,7 +17,7 @@ Production-профиль, secret redaction и файловые ответы с 
 
 - `basic` — browser login/logout с CSRF, validation, Vite manifest и production config;
 - `advanced-admin` — SQL users/RBAC/catalog, формы CRUD, назначения ролей и аудит;
-- `rest-api` — JSON-only микросервис с Bearer JWT и ресурсом articles.
+- `rest-api` — полный articles CRUD с внешним Bearer JWT, pagination, rate limits и OpenAPI.
 
 Каждый пример отделяет сборку HTTP handler от `main`, поэтому пользовательские сценарии проверяются через `httptest`. Команды запуска, демонстрационные учётные данные и запросы приведены в [руководстве по примерам](examples/README.md).
 
@@ -27,6 +27,8 @@ Development defaults `admin / changeme` отсутствуют в production б�
 Advanced Admin использует PostgreSQL/MySQL, password login и transactional authorization/audit.
 [Инструкция Admin](examples/advanced-admin/README.md) описывает отдельные build/migrate/seed,
 production config, browser/restart E2E и ограничения sessions одного процесса.
+REST [starter guide](examples/rest-api/README.md) описывает JSON errors, allowlists,
+IP/subject quotas, OpenAPI и process E2E; каталог и квоты process-local.
 REST проверяет внешние Ed25519 tokens через пакет auth и требует явной
 конфигурации ключа/issuer/audience. [Reusable authentication](docs/guide/authentication.md)
 предоставляет Argon2id, credentials/throttling и JWT verifier; user persistence и identity provider

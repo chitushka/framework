@@ -74,6 +74,8 @@ jobs:
           cache: true
       - run: go vet ./...
       - run: go test ./...
+      - name: REST process E2E on Windows
+        run: go test -tags e2e ./examples/rest-api
       - name: Vet SDK adapters
         working-directory: adapters
         run: go vet ./...
@@ -94,6 +96,34 @@ jobs:
       - uses: actions/checkout@v6
       - name: SQL, Redis, Memcached, RabbitMQ and OpenTelemetry baseline
         run: sh scripts/integration.sh
+  rest:
+    name: REST contracts and process E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Lint REST including E2E
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13
+          args: --build-tags e2e ./examples/rest-api/...
+      - name: Contract, concurrency and real process HTTP tests
+        shell: bash
+        run: |
+          mkdir -p .cache/rest-e2e
+          go test -race -tags e2e -count=1 -json ./examples/rest-api | tee .cache/rest-e2e/results.json
+      - name: Upload REST test report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: rest-e2e-report
+          path: .cache/rest-e2e/
+          include-hidden-files: true
+          if-no-files-found: warn
   basic:
     name: Basic frontend build and browser E2E
     runs-on: ubuntu-24.04
