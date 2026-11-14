@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process"
 import { randomBytes, generateKeyPairSync, sign } from "node:crypto"
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs"
 import { resolve, join } from "node:path"
+import { request as httpRequest } from "node:http"
 
 const output = resolve(process.argv[2] ?? "")
 const report = JSON.parse(readFileSync(join(output, "release.json"), "utf8"))
@@ -11,7 +12,7 @@ const id = `chitu-smoke-${randomBytes(6).toString("hex")}`
 const secrets = join(output, id), containers = []
 mkdirSync(secrets)
 const docker = (...args) => execFileSync("docker", args, { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"], windowsHide: true }).trim()
-const image = (starter) => `chitu-rc-${revision.slice(0, 12)}-${starter}:${version}`
+const image = (starter) => report.images[starter].indexDigest
 const password = randomBytes(24).toString("hex"), sqlPassword = randomBytes(24).toString("hex")
 const hash = execFileSync("docker", ["run", "--rm", "--network=none", "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges", "-i", image("basic"), "-hash-password"], { input: password + "\n", encoding: "utf8" }).trim()
 writeFileSync(join(secrets, "password.phc"), hash + "\n", { mode: 0o444 })
@@ -26,7 +27,22 @@ function options(name, env = {}) {
   return ["--name", name, "--network", id, "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges", "--mount", `type=bind,source=${secrets},target=/run/secrets,readonly`, ...Object.entries(env).flatMap(([key, value]) => ["-e", `${key}=${value}`])]
 }
 async function request(base, path, options = {}) {
-  return fetch(base + path, { ...options, redirect: "manual", signal: AbortSignal.timeout(3000), headers: { host: "rc.test", ...options.headers } })
+  // Native HTTP preserves the explicit test Host independently of fetch's
+  // forbidden-header policy. Redirects and Secure cookies are handled manually.
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(base + path, { method: options.method ?? "GET", headers: { host: "rc.test", ...options.headers }, signal: AbortSignal.timeout(3000) }, (res) => {
+      const chunks = []; let bytes = 0
+      res.on("data", (chunk) => { bytes += chunk.length; if (bytes > 2 * 1024 * 1024) res.destroy(Error("Smoke response exceeds limit")); else chunks.push(chunk) })
+      res.on("error", reject)
+      res.on("end", () => {
+        const headers = new Headers()
+        for (let i = 0; i < res.rawHeaders.length; i += 2) headers.append(res.rawHeaders[i], res.rawHeaders[i + 1])
+        resolve(new Response([204, 205, 304].includes(res.statusCode) ? null : Buffer.concat(chunks), { status: res.statusCode, headers }))
+      })
+    })
+    req.on("error", reject)
+    req.end(options.body?.toString())
+  })
 }
 async function start(starter, port, env) {
   const name = `${id}-${starter}`
@@ -34,23 +50,25 @@ async function start(starter, port, env) {
   docker("run", "-d", ...options(name, env), "-p", `127.0.0.1::${port}`, image(starter))
   const address = docker("port", name, `${port}/tcp`)
   const base = `http://${address}`
-  for (let i = 0; i < 90; i++) {
+  let last = "no response"
+  for (const deadline = Date.now() + 45000; Date.now() < deadline;) {
+    let ready = false
     try {
       const r = await request(base, starter === "rest" ? "/openapi.json" : "/login")
-      if (r.status === 200) {
-        const container = JSON.parse(docker("inspect", name))[0]
-        assert.equal(container.Config.User, "65532:65532")
-        assert.equal(container.HostConfig.ReadonlyRootfs, true)
-        // Do not trust a mutable local tag to select the verified runtime.
-        const manifest = report.images[starter].digest
-        const inspected = docker("image", "inspect", "--format", "{{.Id}}", manifest)
-        assert.equal(container.Image, inspected)
-        return { name, base }
-      }
-    } catch { /* bounded readiness; failure includes container logs below */ }
+      ready = r.status === 200
+      last = `HTTP ${r.status}`
+    } catch (err) { last = err.message }
+    if (ready) {
+      const container = JSON.parse(docker("inspect", name))[0]
+      assert.equal(container.Config.User, "65532:65532")
+      assert.equal(container.HostConfig.ReadonlyRootfs, true)
+      // Do not trust a mutable local tag to select the verified runtime.
+      assert.equal(container.Image, image(starter))
+      return { name, base }
+    }
     await delay()
   }
-  throw Error(`Runtime did not become ready: ${name}\n${docker("logs", name)}`)
+  throw Error(`Runtime did not become ready: ${name} (${last})\n${docker("logs", name)}`)
 }
 async function login(base, dashboard) {
   let r = await request(base, "/login")

@@ -28,7 +28,7 @@ RUN node release/licenses.mjs go /out/licenses/go \
 FROM scratch AS common
 ARG VERSION
 ARG REVISION
-LABEL org.opencontainers.image.version=$VERSION org.opencontainers.image.revision=$REVISION org.opencontainers.image.licenses=MIT
+LABEL org.opencontainers.image.version=$VERSION org.opencontainers.image.revision=$REVISION
 WORKDIR /app
 COPY LICENSE NOTICE /app/
 COPY --from=backend /out/licenses /app/licenses

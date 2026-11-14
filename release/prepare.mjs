@@ -39,12 +39,13 @@ for (let pass = 1; pass <= 2; pass++) {
     if (starter !== "rest" && !image.sbom.packages.some((p) => p.name === "@adminkit/core" && p.versionInfo === "3.5.0")) throw Error("SBOM omits audited frontend")
     if (image.config.config.Labels["org.opencontainers.image.revision"] !== revision || image.config.config.Labels["org.opencontainers.image.version"] !== version) throw Error("Incorrect source/version label")
     if (pass === 1) {
-      report.images[starter] = { digest: image.digest, archiveSHA256: sha256(readFileSync(dest)), bytes: readFileSync(dest).length }
+      report.images[starter] = { digest: image.digest, indexDigest: image.indexDigest, archiveSHA256: sha256(readFileSync(dest)), bytes: readFileSync(dest).length }
       writeFileSync(join(out, `${starter}.spdx.json`), JSON.stringify(image.sbom, null, 2) + "\n")
       writeFileSync(join(out, `${starter}.provenance.json`), JSON.stringify(image.provenance, null, 2) + "\n")
       // Loading is local only. Runtime platforms and attestations remain in OCI.
       run("docker", ["load", "-i", dest])
-      run("docker", ["tag", image.digest, `chitu-rc-${revision.slice(0, 12)}-${starter}:${version}`])
+      const loaded = run("docker", ["image", "inspect", "--format", "{{.Id}}", `chitu-rc-${revision.slice(0, 12)}-${starter}:${version}`], root, { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }).trim()
+      if (loaded !== image.indexDigest) throw Error("Loaded OCI index differs from verified artifact")
       if (starter === "basic") {
         const container = run("docker", ["create", `chitu-rc-${revision.slice(0, 12)}-${starter}:${version}`], root, { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }).trim()
         try { run("docker", ["cp", `${container}:/app/licenses/npm/frontend.spdx.json`, join(out, "frontend.spdx.json")]) }

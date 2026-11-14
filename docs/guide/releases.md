@@ -29,7 +29,8 @@ GitHub Release — отдельное разрешённое владельце�
 
 ## Подготовка из чистого commit
 
-Нужны Git, tar, Node 22+ и Docker Desktop/Engine с Buildx и OCI exporter. На
+Нужны Git, tar, Node 22+ и Docker Desktop/Engine с Buildx, OCI exporter и
+containerd image store для локального OCI load/smoke. На
 Windows Docker должен использовать Linux containers. Из корня чистого checkout:
 
 ```bash

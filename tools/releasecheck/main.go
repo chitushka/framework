@@ -137,7 +137,7 @@ func TestInstalledRouter(t *testing.T) { if web.NewRouter() == nil { t.Fatal("mi
 	}
 	filtered = append(filtered, "GOWORK=off", "GOPROXY="+uri+",https://proxy.golang.org", "GONOSUMDB=github.com/chitushka/framework*", "GOSUMDB=sum.golang.org", "GOMODCACHE="+filepath.Join(output, "module-cache"))
 	command(consumer, filtered, "go", "mod", "init", "example.com/rc-consumer")
-	command(consumer, filtered, "go", "get", "github.com/chitushka/framework@"+version, "github.com/chitushka/framework/adapters@"+version)
+	command(consumer, filtered, "go", "get", "github.com/chitushka/framework@"+version, "github.com/chitushka/framework/adapters/redis@"+version, "github.com/chitushka/framework/adapters/rabbitmq@"+version, "github.com/chitushka/framework/adapters/otel@"+version)
 	command(consumer, filtered, "go", "test", "-mod=readonly", "./...")
 	command(consumer, filtered, "go", "mod", "verify")
 	command(consumer, filtered, "go", "get", "github.com/chitushka/framework/examples/advanced-admin@"+version)

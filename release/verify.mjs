@@ -9,9 +9,14 @@ export function inspectOCI(dir, platform = "linux/amd64") {
     if (sha256(data) !== descriptor.digest.slice(7) || data.length !== descriptor.size) throw Error("Corrupted OCI blob")
     return data
   }
-  const index = JSON.parse(readFileSync(join(dir, "index.json"), "utf8"))
+  const indexBytes = readFileSync(join(dir, "index.json"))
+  const index = JSON.parse(indexBytes)
   let descriptors = index.manifests
-  if (descriptors.length === 1 && /image.index/.test(descriptors[0].mediaType)) descriptors = JSON.parse(blob(descriptors[0])).manifests
+  let indexDigest = "sha256:" + sha256(indexBytes)
+  if (descriptors.length === 1 && /image.index/.test(descriptors[0].mediaType)) {
+    indexDigest = descriptors[0].digest
+    descriptors = JSON.parse(blob(descriptors[0])).manifests
+  }
   const images = descriptors.filter((d) => `${d.platform?.os}/${d.platform?.architecture}` === platform)
   if (images.length !== 1) throw Error(`Expected exactly one ${platform} runtime`)
   const image = images[0], manifest = JSON.parse(blob(image))
@@ -33,5 +38,5 @@ export function inspectOCI(dir, platform = "linux/amd64") {
   if (!sbom || sbom.spdxVersion !== "SPDX-2.3" || !sbom.packages?.length) throw Error("Missing SPDX SBOM")
   const provenance = predicates.get("https://slsa.dev/provenance/v0.2") ?? predicates.get("https://slsa.dev/provenance/v1")
   if (!provenance || !(provenance.buildType ?? provenance.buildDefinition?.buildType)) throw Error("Missing build provenance")
-  return { digest: image.digest, config, sbom, provenance }
+  return { digest: image.digest, indexDigest, config, sbom, provenance }
 }
