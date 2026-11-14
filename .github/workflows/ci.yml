@@ -130,7 +130,7 @@ jobs:
         with:
           version: v2.13.0
           working-directory: ${{ matrix.module }}
-          args: --timeout=10m --build-tags=e2e,integration
+          args: --timeout=10m --build-tags=e2e,integration,performance
   frontend:
     name: Frontend lint, test, build and dependency audit
     runs-on: ubuntu-24.04
@@ -279,16 +279,36 @@ jobs:
           path: .cache/admin-e2e/
           include-hidden-files: true
           if-no-files-found: warn
+  performance:
+    name: Performance protocol and operational budgets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+      - run: node --test scripts/performance-report.test.mjs
+      - run: node scripts/performance.mjs full
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: always()
+        with:
+          name: performance-report
+          path: .cache/performance/
+          include-hidden-files: true
+          if-no-files-found: error
   quality-gate:
     name: Required quality gate
     if: always()
-    needs: [test, coverage, fuzz, lint, frontend, security, integration, docs, rest, basic, advanced-admin]
+    needs: [test, coverage, fuzz, lint, frontend, security, integration, docs, rest, basic, advanced-admin, performance]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - run: node scripts/require-success.mjs test coverage fuzz lint frontend security integration docs rest basic advanced-admin
+      - run: node scripts/require-success.mjs test coverage fuzz lint frontend security integration docs rest basic advanced-admin performance
         env:
           CI_NEEDS: ${{ toJSON(needs) }}

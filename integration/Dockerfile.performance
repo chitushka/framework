@@ -1,0 +1,9 @@
+FROM golang:1.26.11@sha256:7af425da11f4fc1a9308eb704369e3f6d1c44e35bac0f874a59ade3f20fdc07e
+WORKDIR /workspace
+COPY go.mod go.sum ./
+COPY integration/go.mod integration/go.sum ./integration/
+COPY adapters/go.mod adapters/go.sum ./adapters/
+RUN go -C integration mod download
+COPY . .
+ENV GOMAXPROCS=2 GOFLAGS="-p=2 -mod=readonly"
+CMD ["sh", "scripts/performance-run.sh"]

@@ -1,4 +1,4 @@
-.PHONY: fmt fmt-check test vet lint coverage ci integration basic basic-build basic-e2e admin admin-build admin-e2e rest rest-e2e docs docs-test security frontend coverage-test fuzz
+.PHONY: fmt fmt-check test vet lint coverage ci integration basic basic-build basic-e2e admin admin-build admin-e2e rest rest-e2e docs docs-test security frontend coverage-test fuzz performance performance-smoke
 
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './.cache/*' -not -path './frontend/node_modules/*')
@@ -21,7 +21,7 @@ vet:
 lint:
 	golangci-lint run --build-tags=e2e ./...
 	cd adapters && golangci-lint run
-	cd integration && golangci-lint run
+	cd integration && golangci-lint run --build-tags=performance
 	cd examples/advanced-admin && golangci-lint run --build-tags=integration
 
 coverage-test:
@@ -31,6 +31,14 @@ coverage-test:
 fuzz:
 	sh ./scripts/test-fuzz.sh
 	sh ./scripts/fuzz.sh 3s
+
+performance:
+	node --test scripts/performance-report.test.mjs
+	node scripts/performance.mjs full
+
+performance-smoke:
+	node --test scripts/performance-report.test.mjs
+	node scripts/performance.mjs smoke
 
 frontend:
 	cd frontend && npm ci --no-audit --no-fund && npm run lint && npm run build && npm test

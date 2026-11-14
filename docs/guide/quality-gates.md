@@ -21,6 +21,7 @@ workflow используют один набор jobs.
 | `rest` | `go test -race -tags e2e -count=1 ./examples/rest-api` |
 | `basic` | `sh scripts/basic-e2e.sh`, production HTTPS/CSRF/browser flows |
 | `advanced-admin` | `sh scripts/admin-e2e.sh`, SQL/race и browser/restart/escalation |
+| `performance` | `make performance`: frozen protocol, benchmem/SQL/HTTP comparisons и четыре SQL fault soaks; artifacts своего hardware profile |
 
 `quality-gate` имеет `if: always()` и зависит от каждого job выше. Его script
 принимает только `success`: missing/failure/cancelled/skipped дают ошибку.
@@ -96,6 +97,13 @@ PHC costs/canonical encoding и encrypted session cookies. Данные и worke
 из отчёта). Сохраните минимальный input в `testdata/fuzz/<target>` или добавьте
 именной regression test; после исправления выполните обычные/race tests и fuzz
 target. Не удаляйте input и не ослабляйте инвариант только ради прохождения gate.
+
+## Performance
+
+Workload, заранее выбранные budgets, hardware compatibility и команды сравнения
+описаны в [performance protocol](performance.md). Hosted runner проверяет
+operational budgets и полноту report; сравнение абсолютных ns/op требует того же
+hardware profile. Smoke mode не может использоваться как приёмочный baseline.
 
 ## Vulnerabilities и исключения
 

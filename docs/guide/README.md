@@ -17,6 +17,7 @@ Production readiness ещё не подтверждена: сначала про
 8. [Cookbook](cookbook/README.md) — deployment/testing/security/migrations/queues.
 9. [Quality gates](quality-gates.md) — OS/Go matrix, security scans, critical coverage/fuzz,
    handling, required checks и контролируемые dependency updates.
+10. [Performance](performance.md) — frozen workload, benchmarks, SQL fault soaks и comparison budgets.
 
 Практика: [generator quickstart](generator-quickstart.md) создаёт и компилирует
 model/CRUD без SQL-сервера. [API migration guide](api-migration.md) сводит breaking

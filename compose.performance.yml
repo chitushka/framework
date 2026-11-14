@@ -1,0 +1,32 @@
+# Overlay: only performance and its two SQL dependencies are started.
+services:
+  postgres:
+    cpus: 1
+    mem_limit: 512m
+  mysql:
+    cpus: 1
+    mem_limit: 512m
+    command: [--innodb-buffer-pool-size=64M, --innodb-log-buffer-size=8M, --performance-schema=OFF, --max-connections=32]
+  performance:
+    build:
+      context: .
+      dockerfile: integration/Dockerfile.performance
+    cpus: 2
+    mem_limit: 1g
+    environment:
+      GOMAXPROCS: "2"
+      GOFLAGS: "-p=2 -mod=readonly"
+      POSTGRES_DSN: postgres://chitu:integration@postgres:5432/chitu?sslmode=disable
+      MYSQL_DSN: chitu:integration@tcp(mysql:3306)/chitu?parseTime=true&timeout=5s&readTimeout=5s&writeTimeout=5s
+      PERF_OUTPUT_DIR: /results
+      PERF_SMOKE: ${PERF_SMOKE:-0}
+      PERF_BENCH_TIME: ${PERF_BENCH_TIME:?}
+      PERF_BENCH_COUNT: ${PERF_BENCH_COUNT:?}
+      PERF_BENCH_CPUS: ${PERF_BENCH_CPUS:?}
+    volumes:
+      - type: bind
+        source: ${PERF_RESULT_DIR:?}
+        target: /results
+    depends_on:
+      postgres: {condition: service_healthy}
+      mysql: {condition: service_healthy}

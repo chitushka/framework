@@ -116,6 +116,12 @@ lint/build/test/audit, govulncheck и secrets. `integration` запускает 
 в [quality contract](quality-gates.md). Reports сохраняются как artifacts. Все jobs обязательны
 по контракту; настройка required checks в branch protection выполняется владельцем репозитория.
 
+Job `performance` исполняет [performance protocol](performance.md): пять benchmem
+повторов с CPU=1/2 и четыре 120s HTTP/SQL soaks с pool exhaustion/slow queries.
+`make performance-smoke` проверяет harness при разработке; `make performance`
+записывает полный report из чистого source commit. Ns/op сравниваются только при
+совместимом hardware/runtime profile; absolute local numbers не переносятся на CI.
+
 Изменение обязательной проверки выполняется вместе с обновлением этого руководства, чтобы локальный и CI-контракты не расходились.
 
 Для DLX target-outage теста Compose задаёт RabbitMQ dead_letter_worker_publisher_confirm_timeout=1000ms.

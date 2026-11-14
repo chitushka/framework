@@ -79,6 +79,9 @@ fuzz smoke и scheduled runs, artifacts, SHA pins и Dependabot. [Приёмка
 парсеры; [приёмка 12.2](docs/stage-12-2-acceptance.md) описывает результаты и ограничения.
 Те же проверки, включая race detector, выполняет [GitHub Actions workflow](.github/workflows/ci.yml).
 
+`make performance-smoke` проверяет benchmark/SQL fault harness; `make performance`
+создаёт полный benchmem/HTTP/SQL report по [зафиксированному протоколу](docs/guide/performance.md).
+
 ## Минимальный пример
 
 ```go
