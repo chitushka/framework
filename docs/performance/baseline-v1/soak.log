@@ -1,0 +1,16 @@
+=== RUN   TestPerformanceSoak
+=== RUN   TestPerformanceSoak/postgresql/NetHTTP
+    soak_test.go:348: postgresql/NetHTTP: 5 phases, 24 samples, heap slope -29373 B/min, goroutines 3 -> 3, server connections 1 -> 1
+=== RUN   TestPerformanceSoak/postgresql/Chitu
+    soak_test.go:348: postgresql/Chitu: 5 phases, 24 samples, heap slope -147979 B/min, goroutines 3 -> 3, server connections 1 -> 1
+=== RUN   TestPerformanceSoak/mysql/NetHTTP
+    soak_test.go:348: mysql/NetHTTP: 5 phases, 24 samples, heap slope -12102 B/min, goroutines 3 -> 3, server connections 1 -> 1
+=== RUN   TestPerformanceSoak/mysql/Chitu
+    soak_test.go:348: mysql/Chitu: 5 phases, 24 samples, heap slope -16215 B/min, goroutines 3 -> 3, server connections 1 -> 1
+--- PASS: TestPerformanceSoak (480.76s)
+    --- PASS: TestPerformanceSoak/postgresql/NetHTTP (120.20s)
+    --- PASS: TestPerformanceSoak/postgresql/Chitu (120.18s)
+    --- PASS: TestPerformanceSoak/mysql/NetHTTP (120.18s)
+    --- PASS: TestPerformanceSoak/mysql/Chitu (120.20s)
+PASS
+ok  	github.com/chitushka/framework/integration/performance	480.763s

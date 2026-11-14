@@ -1,0 +1,4 @@
+{
+  "reason": "BenchmarkRouting/Routes100/NetHTTP@1 MAD 33.6% exceeds preregistered 25% limit",
+  "action": "Stopped after benchmark validation; incomplete soak data is not accepted. Repeat whole run with unchanged source/protocol."
+}

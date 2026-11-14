@@ -1,7 +1,8 @@
 # Performance baseline: протокол 12.3 / v1
 
-Протокол фиксируется до первого benchmark run. Результаты и точное оборудование
-появятся в отдельном отчёте после исполнения. Изменение workload/budgets требует
+Протокол зафиксирован до первого benchmark run. [Приёмка 12.3](../stage-12-3-acceptance.md)
+и [baseline v1](../performance/baseline-v1/report.md) содержат результаты, точное
+оборудование и исходные samples. Изменение workload/budgets требует
 новой версии протокола и свежего baseline; результаты разных версий не сравниваются.
 Числовой источник параметров — [protocol.json](../../internal/performance/protocol.json).
 

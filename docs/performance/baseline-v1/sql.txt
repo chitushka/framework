@@ -1,0 +1,46 @@
+goos: linux
+goarch: amd64
+pkg: github.com/chitushka/framework/integration/performance
+cpu: Intel(R) Core(TM) i5-9300H CPU @ 2.40GHz
+BenchmarkSQL/postgresql/NetSQL    	    2812	    208400 ns/op	    1448 B/op	      28 allocs/op
+BenchmarkSQL/postgresql/NetSQL    	    3325	    193846 ns/op	    1448 B/op	      28 allocs/op
+BenchmarkSQL/postgresql/NetSQL    	    2754	    188886 ns/op	    1448 B/op	      28 allocs/op
+BenchmarkSQL/postgresql/NetSQL    	    2534	    283807 ns/op	    1448 B/op	      28 allocs/op
+BenchmarkSQL/postgresql/NetSQL    	    3204	    172674 ns/op	    1448 B/op	      28 allocs/op
+BenchmarkSQL/postgresql/NetSQL-2  	    4275	    149450 ns/op	    1451 B/op	      28 allocs/op
+BenchmarkSQL/postgresql/NetSQL-2  	    4405	    116580 ns/op	    1451 B/op	      28 allocs/op
+BenchmarkSQL/postgresql/NetSQL-2  	    4341	    116362 ns/op	    1448 B/op	      28 allocs/op
+BenchmarkSQL/postgresql/NetSQL-2  	    5148	    113461 ns/op	    1448 B/op	      28 allocs/op
+BenchmarkSQL/postgresql/NetSQL-2  	    4574	    138559 ns/op	    1448 B/op	      28 allocs/op
+BenchmarkSQL/postgresql/Chitu     	    2876	    230474 ns/op	    1472 B/op	      29 allocs/op
+BenchmarkSQL/postgresql/Chitu     	    2697	    211670 ns/op	    1472 B/op	      29 allocs/op
+BenchmarkSQL/postgresql/Chitu     	    2820	    229725 ns/op	    1472 B/op	      29 allocs/op
+BenchmarkSQL/postgresql/Chitu     	    2414	    217758 ns/op	    1472 B/op	      29 allocs/op
+BenchmarkSQL/postgresql/Chitu     	    3200	    202193 ns/op	    1472 B/op	      29 allocs/op
+BenchmarkSQL/postgresql/Chitu-2   	    4545	    136221 ns/op	    1472 B/op	      29 allocs/op
+BenchmarkSQL/postgresql/Chitu-2   	    4464	    120509 ns/op	    1472 B/op	      29 allocs/op
+BenchmarkSQL/postgresql/Chitu-2   	    4344	    131202 ns/op	    1472 B/op	      29 allocs/op
+BenchmarkSQL/postgresql/Chitu-2   	    4506	    113928 ns/op	    1472 B/op	      29 allocs/op
+BenchmarkSQL/postgresql/Chitu-2   	    5288	    138615 ns/op	    1472 B/op	      29 allocs/op
+BenchmarkSQL/mysql/NetSQL         	    1743	    355874 ns/op	    1069 B/op	      28 allocs/op
+BenchmarkSQL/mysql/NetSQL         	    1836	    360879 ns/op	    1069 B/op	      28 allocs/op
+BenchmarkSQL/mysql/NetSQL         	    1702	    331120 ns/op	    1069 B/op	      28 allocs/op
+BenchmarkSQL/mysql/NetSQL         	    1825	    349432 ns/op	    1069 B/op	      28 allocs/op
+BenchmarkSQL/mysql/NetSQL         	    1790	    361697 ns/op	    1069 B/op	      28 allocs/op
+BenchmarkSQL/mysql/NetSQL-2       	    2953	    211298 ns/op	    1072 B/op	      28 allocs/op
+BenchmarkSQL/mysql/NetSQL-2       	    2636	    222242 ns/op	    1069 B/op	      28 allocs/op
+BenchmarkSQL/mysql/NetSQL-2       	    2954	    210453 ns/op	    1070 B/op	      28 allocs/op
+BenchmarkSQL/mysql/NetSQL-2       	    3040	    218364 ns/op	    1069 B/op	      28 allocs/op
+BenchmarkSQL/mysql/NetSQL-2       	    3031	    209770 ns/op	    1069 B/op	      28 allocs/op
+BenchmarkSQL/mysql/Chitu          	    1778	    330325 ns/op	    1093 B/op	      29 allocs/op
+BenchmarkSQL/mysql/Chitu          	    1719	    340495 ns/op	    1093 B/op	      29 allocs/op
+BenchmarkSQL/mysql/Chitu          	    1753	    366217 ns/op	    1093 B/op	      29 allocs/op
+BenchmarkSQL/mysql/Chitu          	    1770	    344523 ns/op	    1093 B/op	      29 allocs/op
+BenchmarkSQL/mysql/Chitu          	    1629	    359411 ns/op	    1093 B/op	      29 allocs/op
+BenchmarkSQL/mysql/Chitu-2        	    3038	    203390 ns/op	    1093 B/op	      29 allocs/op
+BenchmarkSQL/mysql/Chitu-2        	    2942	    241679 ns/op	    1095 B/op	      29 allocs/op
+BenchmarkSQL/mysql/Chitu-2        	    2799	    204037 ns/op	    1093 B/op	      29 allocs/op
+BenchmarkSQL/mysql/Chitu-2        	    3019	    233528 ns/op	    1093 B/op	      29 allocs/op
+BenchmarkSQL/mysql/Chitu-2        	    2955	    219497 ns/op	    1093 B/op	      29 allocs/op
+PASS
+ok  	github.com/chitushka/framework/integration/performance	43.513s

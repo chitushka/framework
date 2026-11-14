@@ -1,0 +1,16 @@
+{
+  "cpuModel": "Intel(R) Core(TM) i5-9300H CPU @ 2.40GHz",
+  "cpuQuota": "200000 100000",
+  "cpus": 8,
+  "go": "go1.26.11",
+  "goarch": "amd64",
+  "gomaxprocs": 2,
+  "goos": "linux",
+  "kernel": "6.18.58.1-microsoft-standard-WSL2",
+  "memoryLimit": "1073741824",
+  "protocolHash": "7b75ef237316ca6a35505ca98105a9ceac911149da94dc0f15e787aa01f935e2",
+  "services": {
+    "mysql": "8.4.13",
+    "postgresql": "PostgreSQL 17.11 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit"
+  }
+}

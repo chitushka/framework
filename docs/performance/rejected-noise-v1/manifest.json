@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "mode": "full",
+  "protocolHash": "7b75ef237316ca6a35505ca98105a9ceac911149da94dc0f15e787aa01f935e2",
+  "source": {
+    "head": "ac8306eec37796e90d5215db3a3d6fc62e912975",
+    "cleanBefore": true
+  },
+  "serviceConfigHash": "2ebe983831446c9365544b189f46be39095921c4535f5787c4375cdceb98cf3f",
+  "startedUTC": "2026-11-14T19:47:08.185Z",
+  "host": {
+    "cpuModel": "Intel(R) Core(TM) i5-9300H CPU @ 2.40GHz",
+    "logicalCPUs": 8,
+    "memoryBytes": 8454787072,
+    "os": "win32",
+    "arch": "x64",
+    "release": "10.0.19045"
+  },
+  "docker": {
+    "serverVersion": "29.2.0",
+    "kernel": "6.18.58.1-microsoft-standard-WSL2",
+    "cpus": 8,
+    "memoryBytes": 4038758400
+  },
+  "project": "chitu-perf-bcf7723b-335",
+  "error": "docker up failed: 137",
+  "finishedUTC": "2026-11-14T19:56:13.185Z",
+  "cleanupSucceeded": true
+}
