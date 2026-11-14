@@ -1,0 +1,32 @@
+{
+  "version": "12.3-v1",
+  "bench": { "time": "500ms", "count": 5, "cpus": [1, 2], "routes": [10, 100, 1000] },
+  "sql": { "rows": 256, "nameBytes": 128, "pool": 4 },
+  "worker": { "cpus": 2, "memoryBytes": 1073741824 },
+  "soak": {
+    "rate": 100,
+    "inflight": 8,
+    "sqlBudgetMS": 40,
+    "clientTimeoutMS": 750,
+    "sampleMS": 5000,
+    "cleanupMS": 5000,
+    "phases": [
+      { "name": "warmup", "seconds": 20 },
+      { "name": "healthy", "seconds": 20 },
+      { "name": "pool", "seconds": 20 },
+      { "name": "slow", "seconds": 20 },
+      { "name": "recovery", "seconds": 40 }
+    ],
+    "budget": {
+      "successMinPercent": 99,
+      "dropMaxPercent": 1,
+      "fault503MinPercent": 80,
+      "unexpectedMaxPercent": 1,
+      "p99MS": 250,
+      "heapGrowthBytes": 16777216,
+      "slopeBytesPerMinute": 1048576,
+      "goroutines": 6
+    }
+  },
+  "regression": { "nsPercent": 20, "bytesPercent": 10, "allocDelta": 1, "maxMADPercent": 25 }
+}
