@@ -6,6 +6,8 @@ import { inspectOCI } from "./verify.mjs"
 import { sha256 } from "./licenses.mjs"
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)))
+// Git for Windows may put GNU tar first on PATH; it treats D: as a remote host.
+const tar = process.platform === "win32" ? join(process.env.SystemRoot ?? "C:\\Windows", "System32/tar.exe") : "tar"
 const run = (cmd, args, cwd = root, extra = {}) => execFileSync(cmd, args, { cwd, stdio: "inherit", ...extra })
 const git = (...args) => run("git", args, root, { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }).trim()
 if (git("status", "--porcelain").length) throw Error("Commit reviewed source before preparing a candidate")
@@ -18,7 +20,7 @@ const source = join(out, "source")
 mkdirSync(source)
 const archive = join(out, "source.tar")
 run("git", ["archive", "--format=tar", "-o", archive, "HEAD"])
-run("tar", ["-xf", archive, "-C", source])
+run(tar, ["-xf", archive, "-C", source])
 const report = { version, revision, epoch, platform, sourceSHA256: sha256(readFileSync(archive)), sbomGenerator, unsignedLocalEvidence: true, images: {} }
 console.log(`Release output: ${out}`)
 for (let pass = 1; pass <= 2; pass++) {
@@ -31,7 +33,7 @@ for (let pass = 1; pass <= 2; pass++) {
       "--output", `type=oci,dest=${dest},rewrite-timestamp=true`, "."], source)
     const extracted = join(out, name)
     mkdirSync(extracted)
-    run("tar", ["-xf", dest, "-C", extracted])
+    run(tar, ["-xf", dest, "-C", extracted])
     const image = inspectOCI(extracted, platform)
     if (!["github.com/chitushka/framework", "stdlib"].every((name) => image.sbom.packages.some((p) => p.name === name))) throw Error("SBOM omits Go runtime/modules")
     if (starter !== "rest" && !image.sbom.packages.some((p) => p.name === "@adminkit/core" && p.versionInfo === "3.5.0")) throw Error("SBOM omits audited frontend")

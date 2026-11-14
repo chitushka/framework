@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -17,6 +18,9 @@ import (
 )
 
 func command(dir string, env []string, name string, args ...string) {
+	if name == "tar" && runtime.GOOS == "windows" {
+		name = filepath.Join(os.Getenv("SystemRoot"), "System32", "tar.exe")
+	}
 	c := exec.Command(name, args...)
 	c.Dir, c.Env, c.Stdout, c.Stderr = dir, env, os.Stdout, os.Stderr
 	if err := c.Run(); err != nil {
