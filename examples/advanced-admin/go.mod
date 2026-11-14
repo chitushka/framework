@@ -3,7 +3,7 @@ module github.com/chitushka/framework/examples/advanced-admin
 go 1.26.11
 
 require (
-	github.com/chitushka/framework v0.0.0
+	github.com/chitushka/framework v0.1.0-rc.1
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/jackc/pgx/v5 v5.9.2
 )

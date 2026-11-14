@@ -1,0 +1,22 @@
+Chitu framework
+Copyright (c) 2026 Chitu contributors. Original project code: MIT (LICENSE).
+
+Third-party code retains its own copyright and license. The project MIT grant
+does not replace dependency licenses. Go dependencies are pinned by go.sum;
+frontend packages and registry integrity hashes by frontend/package-lock.json.
+
+Frontend: AdminKit Core 3.5.0 (AdminKit Authors, MIT), Vue and their dependency
+closure. AdminKit's precompiled JavaScript includes vendor code: its upstream
+dist/js/app.js.LICENSE.txt is retained in full, alongside each production npm
+package's LICENSE/COPYING/NOTICE. This includes Apache-2.0, BSD, ISC and MIT
+texts. release/frontend-audit.json pins the reviewed precompiled asset bytes.
+AdminKit CSS uses inline Bootstrap SVG controls; no remote fonts, images or
+styles are fetched. Release starter images contain only their Vite entry's
+reachable assets (no demo Vue/Chart.js/vector map JavaScript).
+
+Run `node release/licenses.mjs frontend OUTPUT` after `npm ci` in frontend to
+produce the complete frontend license inventory and original notices. Runtime
+builds also collect licenses for their Go dependency graph, Go's standard
+library, and the CA certificate bundle. Every release image contains
+/app/LICENSE, /app/NOTICE and /app/licenses/; OCI bundles include an SPDX SBOM
+and BuildKit provenance. See docs/guide/releases.md for verification and scope.

@@ -1,0 +1,11 @@
+{
+  "package": "@adminkit/core",
+  "version": "3.5.0",
+  "review": "Precompiled Bootstrap controls inline SVG; no external CSS/font/image references. Preserve bundled JS notices and the complete production npm dependency license closure.",
+  "sha256": {
+    "dist/css/app.css": "c8b94f9a1efe8668be5fd83eeadc5543bc2528211d9c3fea01eb87ae57de9b21",
+    "dist/js/app.js": "fb06dbf625f050f7f1e906f9f037182fa71f125c2b194ef0225eccca16d3b6e8",
+    "dist/js/app.js.LICENSE.txt": "f9557eac574bddc30572340bac09a304373329e5cb9930c4ed38319b519b55cd",
+    "LICENSE": "064da96c011cb20f5da015d62053e103aebc28945573c1af6e540d0e7cd40a95"
+  }
+}

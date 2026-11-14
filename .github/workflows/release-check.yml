@@ -14,5 +14,28 @@ jobs:
   release-ready:
     needs: quality
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
-      - run: echo "All quality gates passed for this revision. Publishing is a separate owner-authorized operation."
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22.22.3"
+      - name: Validate candidate tag
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; const {version}=JSON.parse(fs.readFileSync("release/version.json")); if(process.env.GITHUB_REF_TYPE === "tag" && process.env.GITHUB_REF_NAME !== version) throw Error("Tag differs from candidate version");'
+      - name: Reproduce, attest and smoke candidate locally
+        run: node release/prepare.mjs
+      - name: Retain candidate evidence (no publication)
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: candidate-${{ github.sha }}
+          include-hidden-files: true
+          if-no-files-found: error
+          path: |
+            .cache/releases/*/source.tar
+            .cache/releases/*/*-1.oci.tar
+            .cache/releases/*/*.json
+            .cache/releases/*/SHA256SUMS

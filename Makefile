@@ -85,3 +85,6 @@ rest:
 
 rest-e2e:
 	go test -race -tags e2e -count=1 ./examples/rest-api
+
+release-check:
+	node release/prepare.mjs

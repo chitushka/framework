@@ -3,7 +3,7 @@ module github.com/chitushka/framework/adapters
 go 1.26.11
 
 require (
-	github.com/chitushka/framework v0.0.0
+	github.com/chitushka/framework v0.1.0-rc.1
 	github.com/rabbitmq/amqp091-go v1.16.0
 	github.com/redis/go-redis/v9 v9.23.0
 	go.opentelemetry.io/otel v1.47.0

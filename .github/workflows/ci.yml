@@ -43,7 +43,7 @@ jobs:
           test -z "$(find . -name '*.go' -not -path './.cache/*' -not -path './frontend/node_modules/*' -print0 | xargs -0 gofmt -l)"
           race=()
           if [ "$RUNNER_OS" = Linux ]; then race=(-race); fi
-          for module in . adapters examples/advanced-admin; do
+          for module in . adapters examples/advanced-admin tools/releasecheck; do
             name=$(printf '%s' "$module" | tr '/.' '__')
             go -C "$module" vet ./...
             go -C "$module" test "${race[@]}" -json ./... | tee ".cache/matrix/$name.json"

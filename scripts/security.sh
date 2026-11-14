@@ -4,7 +4,7 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$root"
 mkdir -p .cache/security/bin
 GOBIN="$root/.cache/security/bin" go -C tools/security install golang.org/x/vuln/cmd/govulncheck github.com/zricethezav/gitleaks/v8
-for module in . adapters integration examples/advanced-admin; do
+for module in . adapters integration examples/advanced-admin tools/releasecheck; do
   name=$(printf '%s' "$module" | tr '/.' '__')
   # JSON/SARIF always exit 0, even on findings. Text mode preserves the scanner's
   # failure status; include tests so integration-only drivers are actually seen.

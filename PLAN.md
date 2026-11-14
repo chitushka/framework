@@ -122,7 +122,7 @@
 
 ### Этап 13. Release candidate и v1.0 — P1
 
-- [ ] **13.1. Подготовить поставку.** Добавить LICENSE/NOTICE с проверкой frontend assets, SECURITY.md/private disclosure, CONTRIBUTING, changelog и release policy. Подготовить минимальные non-root runtime images для starters, SBOM и provenance релизных артефактов; подтвердить воспроизводимость сборки. Приёмка: RC устанавливается по version tag в сторонний модуль и проходит smoke deployment.
+- [~] **13.1. Подготовить поставку.** Добавить LICENSE/NOTICE с проверкой frontend assets, SECURITY.md/private disclosure, CONTRIBUTING, changelog и release policy. Подготовить минимальные non-root runtime images для starters, SBOM и provenance релизных артефактов; подтвердить воспроизводимость сборки. Приёмка: RC устанавливается по version tag в сторонний модуль и проходит smoke deployment.
 - [ ] **13.2. Провести эксплуатационную приёмку RC.** Развернуть эталонное приложение с SQL/cache/queue за TLS proxy, проверить backup/restore, migration recovery, rolling update, key rotation и аварии зависимостей. Задать измеримые SLO и длительность наблюдения перед прогоном. Приёмка: опубликован отчёт с нагрузкой, latency/error rate, ресурсами и результатами recovery; блокирующие дефекты закрыты регрессионными тестами.
 - [ ] **13.3. Заморозить API и выпустить v1.0.** Проверить все обязательные пункты, compatibility suite и upgrade guide; экспериментальные adapters явно вынести из стабильных гарантий. Приёмка: нет открытых P0-дефектов и необоснованных исключений security gates, RC принят, release checklist подписан владельцем. Публикация tag/artifacts выполняется отдельным разрешённым действием.
 

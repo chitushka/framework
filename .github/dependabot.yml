@@ -6,7 +6,7 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
   - package-ecosystem: gomod
-    directories: ["/", /adapters, /integration, /examples/advanced-admin, /tools/security]
+    directories: ["/", /adapters, /integration, /examples/advanced-admin, /tools/security, /tools/releasecheck]
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -22,7 +22,7 @@ updates:
       frontend-patch-minor:
         update-types: [minor, patch]
   - package-ecosystem: docker
-    directories: ["/", /integration, /examples/basic, /examples/advanced-admin]
+    directories: ["/", /integration, /examples/basic, /examples/advanced-admin, /release]
     schedule:
       interval: weekly
     open-pull-requests-limit: 5

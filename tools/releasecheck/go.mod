@@ -1,0 +1,5 @@
+module github.com/chitushka/framework/tools/releasecheck
+
+go 1.26.11
+
+require golang.org/x/mod v0.42.0
