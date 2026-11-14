@@ -11,7 +11,8 @@ workflow используют один набор jobs.
 | Job | Проверка и локальный эквивалент |
 | --- | --- |
 | `test` | OS/Go matrix: Ubuntu 24.04, Windows 2025; minimum 1.26.11 и latest patch 1.26.x. Root/adapters/Admin vet/tests, Linux race, integration compile/vet. Windows также REST process E2E и isolated onboarding |
-| `coverage` | `sh scripts/test-coverage.sh`, затем `sh scripts/check-coverage.sh coverage.out 80` |
+| `coverage` | `make coverage-test coverage`: общий core ≥80%, отдельно auth/session ≥85%, security ≥90%; Go + Node 22 |
+| `fuzz` | `sh scripts/fuzz.sh 3s`: восемь targets с двумя workers, обязательный smoke на каждом CI run |
 | `lint` | golangci-lint v2.13.0 во всех четырёх application modules, включая e2e/integration tags; `make lint` |
 | `frontend` | Node 22, `npm ci`, `npm run lint`, build/test, `node --test scripts/*.test.mjs`, `node scripts/npm-audit.mjs` |
 | `security` | `sh scripts/security.sh`: checksum-locked tools, govulncheck с tests, Gitleaks worktree/full history |
@@ -47,9 +48,54 @@ core packages и профиль с mode/statements. `go list`, `go test`, `go to
 проверяет все subprocess failures, empty/header-only/zero-statement profiles,
 неверные totals/thresholds, below-threshold и сохранение прежнего файла.
 
+[Critical coverage gate](../../scripts/check-critical-coverage.mjs) независимо
+суммирует statements из того же профиля для `auth` (85%), `session` (85%) и
+`security` (90%). Пакет нельзя скрыть высоким покрытием остальных packages или
+удалить из профиля: missing/zero-statement packages, malformed/duplicate blocks
+отклоняются. Порог сравнивается до округления; 84,99% не проходит 85%.
+Общий threshold также перепроверяется по исходным счётчикам: 79,992% не проходит
+80%, даже если `go tool cover` округлил total до 80,0%. Decimal thresholds
+сравниваются точно, без преобразования к float.
+[Negative tests](../../scripts/check-critical-coverage.test.mjs) проверяют эти
+случаи, shell suite также проверяет сохранение старого файла при critical failure.
+Node 22 требуется для coverage wrapper и проверяется в CI отдельным setup step.
+
+Go coverage измеряет statements, а не все логические ветви. Ошибки CSRF/session
+commit и JWT configuration дополнительно закреплены regression tests; это не
+доказательство исчерпывающего покрытия всех error paths. Текущие результаты и
+границы проверки — в [отчёте 12.2](../stage-12-2-acceptance.md).
+
 `frontend/go.mod` — граница без Go packages: npm dependencies могут содержать Go
 source, который не должен попадать в root `./...`, lint или coverage. Library code
 и coverage threshold не исключаются ради зелёного результата.
+
+## Fuzzing критических парсеров
+
+`make fuzz` запускает тот же [runner](../../scripts/fuzz.sh), что обязательный
+CI job `fuzz`: каждый target выполняется отдельно, ошибка Go или найденный crasher
+останавливает runner с ненулевым кодом. Перед прогоном проверяется точное имя
+через `go test -list`: отсутствие target тоже блокирует gate, даже если Go вернул
+успех без fuzz tests. [Negative runner suite](../../scripts/test-fuzz.sh) проверяет
+missing target, ошибки discovery/fuzz subprocess и остановку после первой ошибки.
+Проверяются raw/encoded router paths и
+обратная генерация URL, JSON binding с обычными/chunked bodies, SQL identifiers и
+отдельные bound values, raw placeholders, RESP lengths/delimiters, JWT verification,
+PHC costs/canonical encoding и encrypted session cookies. Данные и workers
+ограничены; PHC fuzzing не выполняет дорогостоящий Argon2.
+
+[Extended fuzzing](../../.github/workflows/fuzz.yml) запускается по воскресеньям
+в 02:23 UTC или через workflow_dispatch: по 5 минут на каждый из восьми targets,
+общий timeout 60 минут. Локальный эквивалент: `sh scripts/fuzz.sh 5m`.
+Оба workflow сохраняют `.cache/fuzz/*.log` и найденные `testdata/fuzz` inputs,
+в том числе при failure. Без `-fuzz` все corpus seeds исполняются обычным
+`go test ./...` и Linux race matrix. Scheduled run не заменяет обязательный smoke
+и не входит в PR gate, поскольку он запускается независимо от PR.
+
+При находке воспроизведите конкретный input командой
+`go test ./web -run 'FuzzRouterURLRoundTrip/<hash>'` (подставьте package/target/hash
+из отчёта). Сохраните минимальный input в `testdata/fuzz/<target>` или добавьте
+именной regression test; после исправления выполните обычные/race tests и fuzz
+target. Не удаляйте input и не ослабляйте инвариант только ради прохождения gate.
 
 ## Vulnerabilities и исключения
 

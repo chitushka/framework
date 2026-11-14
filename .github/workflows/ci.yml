@@ -74,12 +74,42 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
       - run: sh scripts/test-coverage.sh
+      - run: node --test scripts/check-critical-coverage.test.mjs
       - run: sh scripts/check-coverage.sh coverage.out 80
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: coverage
           path: coverage.out
+          if-no-files-found: error
+  fuzz:
+    name: Fuzz smoke / critical parsers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+      - run: sh scripts/test-fuzz.sh
+      - run: sh scripts/fuzz.sh 3s
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: always()
+        with:
+          name: fuzz-smoke
+          path: |
+            .cache/fuzz/
+            web/testdata/fuzz/
+            db/testdata/fuzz/
+            cache/testdata/fuzz/
+            auth/testdata/fuzz/
+            session/testdata/fuzz/
+          include-hidden-files: true
           if-no-files-found: error
   lint:
     name: Lint / ${{ matrix.module }}
@@ -252,13 +282,13 @@ jobs:
   quality-gate:
     name: Required quality gate
     if: always()
-    needs: [test, coverage, lint, frontend, security, integration, docs, rest, basic, advanced-admin]
+    needs: [test, coverage, fuzz, lint, frontend, security, integration, docs, rest, basic, advanced-admin]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - run: node scripts/require-success.mjs test coverage lint frontend security integration docs rest basic advanced-admin
+      - run: node scripts/require-success.mjs test coverage fuzz lint frontend security integration docs rest basic advanced-admin
         env:
           CI_NEEDS: ${{ toJSON(needs) }}

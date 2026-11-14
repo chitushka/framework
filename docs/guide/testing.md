@@ -21,11 +21,13 @@ make fmt-check
 make vet
 make test
 make coverage
+make fuzz
 make lint
 ```
 
 `make ci` объединяет module vet/tests, docs, positive/negative coverage, полный lint,
-frontend и security. `lint` требует golangci-lint 2.13.0; browser/real-service suites
+fuzz smoke, frontend и security. Coverage wrapper требует Node 22, `lint` —
+golangci-lint 2.13.0; browser/real-service suites
 выполняются отдельно. [Полный контракт gate](quality-gates.md) содержит artifacts,
 security exceptions/expiry и release/required-check ограничения.
 
@@ -90,7 +92,12 @@ Runner выполняет `go test -mod=readonly -race -count=1 -timeout=6m -v .
 
 `scripts/check-coverage.sh` строит профиль всех библиотечных пакетов и исключает `examples`: точки входа примеров тестируются в общем `go test ./...`, но не относятся к ядру фреймворка. Взвешенное statement coverage ядра не может быть ниже 80%.
 
-Порог — страховочная сетка, а не цель для каждого пакета. Новый код должен тестировать значимые ветви, ошибки и инварианты; бессодержательные тесты ради процента не принимаются.
+Тот же профиль обязан отдельно пройти auth ≥85%, session ≥85% и security ≥90%.
+Пропущенный/пустой пакет не принимается; пороги сравниваются до округления.
+Negative gate tests входят в `make coverage-test`; contract/error regressions
+дополняют statement coverage. [Подробности](quality-gates.md).
+
+Пороги — страховочная сетка. Новый код должен тестировать значимые ветви, ошибки и инварианты; бессодержательные тесты ради процента не принимаются.
 
 ## GitHub Actions
 
@@ -98,7 +105,9 @@ Workflow `.github/workflows/ci.yml` запускается для pull request �
 Job `test` — matrix Ubuntu 24.04/Windows 2025 × minimum Go 1.26.11/latest patch
 1.26.x. Все application modules проходят vet/tests, Linux — race, integration —
 compile/vet без runtime services. Windows включает REST process E2E и onboarding.
-Coverage имеет отдельный job с negative wrapper tests.
+Coverage имеет отдельный job с negative wrapper tests и critical package gates.
+Обязательный `fuzz` исполняет восемь targets по 3 секунды; отдельный scheduled
+workflow запускает их по 5 минут еженедельно. `make fuzz` повторяет smoke локально.
 Job `docs` проверяет ссылки/snippets, fresh module и generator output, сохраняет
 JSON test report; `basic`, `advanced-admin`, `rest` имеют отдельные starter E2E jobs.
 Независимый `lint` проверяет все четыре modules. `frontend` и `security` включают

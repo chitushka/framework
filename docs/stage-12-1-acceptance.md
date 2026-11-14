@@ -62,17 +62,29 @@ suite также прошла. Docs: 50 Markdown documents, 493 links и 3 sourc
 isolated onboarding/generated compilation и Windows REST process E2E прошли.
 Actionlint проверил оба workflow до сбоя Docker; policy/gate Node tests прошли.
 
-Docker Desktop во время Linux full suite вернул HTTP 500/EOF. Real-service suite
-не смог завершить startup; cleanup также получил EOF. Это инфраструктурный failure,
-а не passed/skip; до повторного успешного прогона Linux/service/browser gates
-считаются непроверенными. Локальные artifacts находятся в `.cache/security`,
-`.cache/quality-coverage.out`; remote reports появятся только после push.
+13.11 Docker Desktop во время Linux full suite вернул HTTP 500/EOF; тот run не
+принимался. **14.11 Docker Desktop запущен, локальная приёмка повторена успешно**:
+Linux root/adapters/Admin vet/race, REST process E2E, integration compile/vet и
+полный lint четырёх modules (0 issues); полный real-service baseline с SQL/AR/
+generator/process/crash/queue/OTel tests; Basic Chromium 3/3 и Admin SQL/race плюс
+Chromium 4/4. Frontend lint/build/test/audit прошёл, advisories/waivers — 0.
+Windows core vet/tests прошли, включая повтор вне sandbox для doccheck TempDir.
+Govulncheck text/test во всех четырёх modules: 0 достижимых symbol findings;
+module/package-only advisories не приравниваются к достижимым и не подавлены.
+Gitleaks worktree/history — без находок. Actionlint проверил все три workflow.
 
-Полная приёмка требует успешных итоговых Linux lint/race/service/browser runs,
-hosted matrix с artifacts, `Required quality gate` и настройки required checks/
+В [12.2](stage-12-2-acceptance.md) усилены coverage/fuzz gates: core profile
+**84,97%**, auth **86,60%**, session **87,31%**, security **94,73%**;
+общий и package thresholds проверяются до округления. Логи повторной Linux
+приёмки — `.cache/quality/12-2`, starter/security logs — `.cache/quality-12-2-*.log`,
+scanner reports — `.cache/security`. Remote reports появятся только после push.
+
+Локальные Linux lint/race/service/browser runs завершены. Полная приёмка всё ещё
+требует hosted matrix с artifacts, `Required quality gate` и настройки required checks/
 release permissions владельцем. Workflow `release-ready` блокируется зависимостью
 quality, но публикация ещё не реализована (этап 13) и ручные действия владельца
 не ограничиваются одним YAML.
 
-12.2 остаётся для critical branch coverage, fuzz/scheduled smoke; negative
-coverage-script часть A4 реализована уже в 12.1. Production-ready v1.0 не объявляется.
+12.2 реализован и проверен локально; scheduled workflow настроен, его hosted run
+здесь не объявляется выполненным. 12.1/A4 остаётся открытым до hosted приёмки и
+настройки required checks владельцем. Production-ready v1.0 не объявляется.

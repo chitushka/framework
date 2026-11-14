@@ -167,7 +167,7 @@ func TestJWTKeyRotationAtomicSnapshotsAndGraceExpiry(t *testing.T) {
 }
 
 func TestJWTRSAAndConfigurationValidation(t *testing.T) {
-	_, _, claims := jwtFixture(t)
+	_, signingKey, claims := jwtFixture(t)
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatal(err)
@@ -182,7 +182,9 @@ func TestJWTRSAAndConfigurationValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, config := range []JWTConfig{{}, {Issuer: "i", Audience: "a", Algorithms: []string{"none"}}, {Issuer: "i", Audience: "a", Algorithms: []string{"HS256"}}, {Issuer: "i", Audience: "a", Algorithms: []string{"EdDSA", "EdDSA"}}, {Issuer: "i", Audience: "a", Algorithms: []string{"EdDSA"}, Leeway: 3 * time.Minute}, {Issuer: "i", Audience: "a", Algorithms: []string{"EdDSA"}, MaxLifetime: 25 * time.Hour}} {
-		if _, err := NewJWTVerifier(config, nil); err == nil {
+		// Supply a key so each case reaches configuration validation instead of
+		// always failing the unrelated empty-key-set check.
+		if _, err := NewJWTVerifier(config, []JWTKey{{ID: "old", Algorithm: "EdDSA", PublicKey: signingKey.Public()}}); err == nil {
 			t.Fatal("unsafe config accepted")
 		}
 	}

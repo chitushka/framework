@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 profile=${1-coverage.out}
 threshold=${2-80}
@@ -40,6 +41,7 @@ awk -v actual="$coverage" -v required="$threshold" 'BEGIN {
   printf "core coverage: %.1f%% (required: %.1f%%)\n", actual, required
   if (actual + 0 < required + 0) exit 1
 }'
+node "$root/scripts/check-critical-coverage.mjs" "$temporary" "$threshold"
 # Only a successful gate replaces the caller's existing profile.
 mv -f "$temporary" "$profile"
 trap - EXIT HUP INT TERM

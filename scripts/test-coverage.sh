@@ -21,7 +21,19 @@ case "$1" in
       empty) : > "$file" ;;
       header-only) printf 'mode: atomic\n' > "$file" ;;
       zero-statements) printf 'mode: atomic\nfixture.go:1.1,1.2 0 0\n' > "$file" ;;
-      *) printf 'mode: atomic\nfixture.go:1.1,1.2 10 1\n' > "$file" ;;
+      critical-below)
+        printf 'mode: atomic\n' > "$file"
+        for pkg in auth session security; do
+          printf 'github.com/chitushka/framework/%s/file.go:1.1,1.2 10 0\n' "$pkg" >> "$file"
+        done ;;
+      *)
+        printf 'mode: atomic\n' > "$file"
+        for pkg in auth session security; do
+          printf 'github.com/chitushka/framework/%s/file.go:1.1,1.2 10 1\n' "$pkg" >> "$file"
+        done
+        if [ "$CASE" = core-rounded ]; then
+          printf 'github.com/chitushka/framework/core/file.go:1.1,1.2 7970 1\ngithub.com/chitushka/framework/core/file.go:2.1,2.2 2001 0\n' >> "$file"
+        fi ;;
     esac ;;
   tool)
     [ "$CASE" != cover-failure ] || exit 43
@@ -31,6 +43,7 @@ case "$1" in
       invalid-total) printf 'total: (statements) NaN%%\n' ;;
       excessive-total) printf 'total: (statements) 101.0%%\n' ;;
       below) printf 'total: (statements) 79.9%%\n' ;;
+      core-rounded) printf 'total: (statements) 80.0%%\n' ;;
       *) printf 'total: (statements) 90.0%%\n' ;;
     esac ;;
   *) exit 44 ;;
@@ -38,7 +51,7 @@ esac
 GO
 chmod +x "$fixture/bin/go"
 export PATH="$fixture/bin:$PATH"
-for CASE in list-failure test-failure cover-failure no-packages empty header-only zero-statements missing-total duplicate-total invalid-total excessive-total below; do
+for CASE in list-failure test-failure cover-failure no-packages empty header-only zero-statements missing-total duplicate-total invalid-total excessive-total below critical-below core-rounded; do
   export CASE
   printf 'previous profile\n' > "$fixture/result"
   if sh "$root/scripts/check-coverage.sh" "$fixture/result" 80 > "$fixture/log" 2>&1; then

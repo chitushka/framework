@@ -1,4 +1,4 @@
-.PHONY: fmt fmt-check test vet lint coverage ci integration basic basic-build basic-e2e admin admin-build admin-e2e rest rest-e2e docs docs-test security frontend coverage-test
+.PHONY: fmt fmt-check test vet lint coverage ci integration basic basic-build basic-e2e admin admin-build admin-e2e rest rest-e2e docs docs-test security frontend coverage-test fuzz
 
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './.cache/*' -not -path './frontend/node_modules/*')
@@ -26,6 +26,11 @@ lint:
 
 coverage-test:
 	sh ./scripts/test-coverage.sh
+	node --test scripts/check-critical-coverage.test.mjs
+
+fuzz:
+	sh ./scripts/test-fuzz.sh
+	sh ./scripts/fuzz.sh 3s
 
 frontend:
 	cd frontend && npm ci --no-audit --no-fund && npm run lint && npm run build && npm test
@@ -38,7 +43,7 @@ security:
 coverage:
 	sh ./scripts/check-coverage.sh coverage.out 80
 
-ci: fmt-check vet test docs-test coverage-test coverage lint frontend security
+ci: fmt-check vet test docs-test coverage-test coverage fuzz lint frontend security
 
 docs:
 	go run ./tools/checkdocs
