@@ -1,0 +1,32 @@
+{
+  "version": "v0.1.0-rc.1",
+  "revision": "90b2c3bf936c5d7f67eb2a4b9216d438b1f40739",
+  "epoch": "1794695666",
+  "platform": "linux/amd64",
+  "sourceSHA256": "95d79daedbda472a6ebdf8a0a2a5e8b984b5ba9888d1fc5ed1b8cb416f3386d8",
+  "sbomGenerator": "docker.io/docker/buildkit-syft-scanner:stable-1@sha256:873a7458c3c8ac8e32c7b796c10e1600b07b963d2aa000a72a2d97aaaa2d6315",
+  "unsignedLocalEvidence": true,
+  "images": {
+    "basic": {
+      "digest": "sha256:147c3fd03a6dca7f718256a8bdd267506c5bbe661635b8fa401e197f331f7f98",
+      "indexDigest": "sha256:b0d55b5f10b65c9a0e6001e158244d115c502e4c35850190af072aad980a4bb8",
+      "archiveSHA256": "cd0cef90c87769e8ef745716436eb4c1ca659b9052ece28cdf19e56f10cc490b",
+      "bytes": 4253696,
+      "reproduced": true
+    },
+    "admin": {
+      "digest": "sha256:e05f27577a88d94aa3d4b04766fab0edc8b66e4faf9e43d001e12bfe67e03759",
+      "indexDigest": "sha256:84ea1c616562ec498633f00b99d8c5dcb9a07ca3fe1d6142ebde5eed69ec1ab8",
+      "archiveSHA256": "d73cba673a51d2242bcf62c8ee779669a76eee05df86450954e66a219aba79ee",
+      "bytes": 5725696,
+      "reproduced": true
+    },
+    "rest": {
+      "digest": "sha256:d0b398b26aa50448fa25f0ba6b1f8f05bee836c99a158a45d225652d6a14e77b",
+      "indexDigest": "sha256:eaf2bd560f417087b8c1297d80500f25c6da083b70492e3bfbaa76ac8a4c59c2",
+      "archiveSHA256": "bafc1f64bc930c60282698ab86fcd7cb0b368fb65f3a2f5e2661ff3bfe1a4052",
+      "bytes": 3127808,
+      "reproduced": true
+    }
+  }
+}
