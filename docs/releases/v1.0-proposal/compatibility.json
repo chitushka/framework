@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "candidate": {
+    "version": "v0.1.0-rc.1",
+    "revision": "90b2c3bf936c5d7f67eb2a4b9216d438b1f40739",
+    "sourceSHA256": "95d79daedbda472a6ebdf8a0a2a5e8b984b5ba9888d1fc5ed1b8cb416f3386d8"
+  },
+  "apiSHA256": "051dab659f86b51fe4f033ed20a00a61ee041a03a2936d58d89aa6262c2e53f7",
+  "sourceCommit": "079d362c0bb5a92aabe86f16a9899c1df7fe6c91",
+  "cleanTree": true,
+  "startedUTC": "2026-11-18T18:14:23.780Z",
+  "passed": true,
+  "runtime": {
+    "files": 95,
+    "sha256": "dd0e9556a05817dcc128a6cf91ed19d9174b20d07a2da1e6fb80dd780525dd3e"
+  },
+  "currentAPI": "API freeze: 27 packages, 991 declarations/selectors verified",
+  "referenceAPI": "API freeze: 27 packages, 991 declarations/selectors verified",
+  "fixtureSHA256": "dbc39bc5ee8c1a81f248a44f99638d3b4cbf23841b66b81789a0d66f2f49f0fe",
+  "versionTagConsumer": true,
+  "dependencyVerification": true,
+  "adminBuild": true,
+  "finishedUTC": "2026-11-18T18:15:50.549Z"
+}

@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "complete": false,
+  "targetVersion": "v1.0.0",
+  "sourceCommit": "079d362c0bb5a92aabe86f16a9899c1df7fe6c91",
+  "startedUTC": "2026-11-18T16:13:55.5244108Z",
+  "runtimeSHA256": "dd0e9556a05817dcc128a6cf91ed19d9174b20d07a2da1e6fb80dd780525dd3e",
+  "nodeVersion": "v22.22.3",
+  "checks": {
+    "windows": {
+      "passed": true,
+      "exitCode": 0,
+      "sourceCommit": "22c0aec8e966ee89ca75ce9640da5421f269cfa5",
+      "command": [
+        "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        ".cache/stage13-3-windows.ps1"
+      ],
+      "finishedUTC": "2026-11-18T16:14:22.1005903Z",
+      "log": "docs/releases/v1.0-proposal/validation/windows.log.gz",
+      "logSHA256": "bf4849f80cd32c9d4c571356891bba2397f45acb1f959e7992bde914552075b0"
+    },
+    "linux": {
+      "passed": true,
+      "exitCode": 0,
+      "sourceCommit": "22c0aec8e966ee89ca75ce9640da5421f269cfa5",
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--mount",
+        "type=bind,source=D:\\workspace\\GolandProjects\\framework,target=/workspace",
+        "-w",
+        "/workspace",
+        "chitu-quality-runtime:12.2",
+        "sh",
+        ".cache/stage13-3-linux.sh"
+      ],
+      "finishedUTC": "2026-11-18T16:25:58.8042370Z",
+      "log": "docs/releases/v1.0-proposal/validation/linux.log.gz",
+      "logSHA256": "926fd2e63d9a8696cc215358e649525b7fe97f56e9cc587095cab349c0bdffbb"
+    },
+    "node": {
+      "passed": true,
+      "exitCode": 0,
+      "sourceCommit": "d7fc5e11d7fc7b022231152e0d52abb2e4bbd0a9",
+      "command": [
+        "node",
+        "--test",
+        "scripts/check-critical-coverage.test.mjs",
+        "scripts/npm-audit.test.mjs",
+        "scripts/operations-report.test.mjs",
+        "scripts/performance-report.test.mjs",
+        "scripts/release-readiness.test.mjs",
+        "scripts/release.test.mjs",
+        "scripts/require-success.test.mjs"
+      ],
+      "finishedUTC": "2026-11-18T17:56:38.1651024Z",
+      "log": "docs/releases/v1.0-proposal/validation/node.log.gz",
+      "logSHA256": "532d3c1c5145bb0cfa3b07aabd43748293d50c7b104c4ff568a3a8bdcef16fae"
+    },
+    "frontend": {
+      "passed": true,
+      "exitCode": 0,
+      "sourceCommit": "d7fc5e11d7fc7b022231152e0d52abb2e4bbd0a9",
+      "command": [
+        "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        ".cache/stage13-3-frontend.ps1"
+      ],
+      "finishedUTC": "2026-11-18T17:56:56.9815903Z",
+      "log": "docs/releases/v1.0-proposal/validation/frontend.log.gz",
+      "logSHA256": "0acccda83d63b7fbc928cd2c2c284046de0102728c4eb1845786034b8bc6be27"
+    },
+    "docs": {
+      "passed": true,
+      "exitCode": 0,
+      "sourceCommit": "079d362c0bb5a92aabe86f16a9899c1df7fe6c91",
+      "command": [
+        "go",
+        "run",
+        "./tools/checkdocs",
+        "-run"
+      ],
+      "finishedUTC": "2026-11-18T18:13:55.8718135Z",
+      "log": "docs/releases/v1.0-proposal/validation/docs.log.gz",
+      "logSHA256": "3da4e197684d7db8d527d3319ffe000403f472664139ba72534d8468c97e61fb"
+    },
+    "security": {
+      "passed": true,
+      "exitCode": 0,
+      "sourceCommit": "079d362c0bb5a92aabe86f16a9899c1df7fe6c91",
+      "command": [
+        "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        ".cache/stage13-3-security.ps1"
+      ],
+      "finishedUTC": "2026-11-18T18:14:23.6140415Z",
+      "log": "docs/releases/v1.0-proposal/validation/security.log.gz",
+      "logSHA256": "a1261a2707f87a9f3f7656ba8d3f50d050c4050f788e43401cd6c974c944c46a"
+    },
+    "compatibility": {
+      "passed": true,
+      "exitCode": 0,
+      "sourceCommit": "079d362c0bb5a92aabe86f16a9899c1df7fe6c91",
+      "command": [
+        "node",
+        "release/compatibility.mjs"
+      ],
+      "finishedUTC": "2026-11-18T18:15:50.5585769Z",
+      "log": "docs/releases/v1.0-proposal/validation/compatibility.log.gz",
+      "logSHA256": "adbefd4ad955cf46047f2d8749f10b1ca4f9cf186830887906a79299c9be929c"
+    }
+  }
+}
