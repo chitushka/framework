@@ -1,0 +1,78 @@
+[
+  {
+    "run": "chitu-ops-1c2c13813a10",
+    "mode": "smoke",
+    "source": {
+      "head": "0415a7b88f2e97a3cfd2a9a46ea98609c716d8bb",
+      "cleanBefore": false,
+      "cleanAfter": false
+    },
+    "appSourceSHA256": "176b290b931daf5715045427d861dac00e54a6e058d599c310e000d82af6405e",
+    "candidate": {
+      "version": "v0.1.0-rc.1",
+      "revision": "90b2c3bf936c5d7f67eb2a4b9216d438b1f40739",
+      "sourceSHA256": "95d79daedbda472a6ebdf8a0a2a5e8b984b5ba9888d1fc5ed1b8cb416f3386d8"
+    },
+    "startedUTC": "2026-11-18T13:46:28.039Z",
+    "finishedUTC": "2026-11-18T13:50:07.460Z",
+    "error": "RabbitMQ readiness exceeded 90000ms: docker exec failed (exit 1): Error response from daemon: container 49364dd3cda7969c39c9cc4378199f927381c6a11a804d2c8365a9647c959832 is not running\n",
+    "cleanupSucceeded": true
+  },
+  {
+    "run": "chitu-ops-7d03ce750ccd",
+    "mode": "smoke",
+    "source": {
+      "head": "0415a7b88f2e97a3cfd2a9a46ea98609c716d8bb",
+      "cleanBefore": false,
+      "cleanAfter": false
+    },
+    "appSourceSHA256": "4e4124fb15c4ec0b49d47c063bee60d995dc589b3cfb83a3fe3cac86f603742e",
+    "candidate": {
+      "version": "v0.1.0-rc.1",
+      "revision": "90b2c3bf936c5d7f67eb2a4b9216d438b1f40739",
+      "sourceSHA256": "95d79daedbda472a6ebdf8a0a2a5e8b984b5ba9888d1fc5ed1b8cb416f3386d8"
+    },
+    "startedUTC": "2026-11-18T14:05:33.632Z",
+    "finishedUTC": "2026-11-18T14:08:34.155Z",
+    "error": "missing container CPU/memory samples",
+    "cleanupSucceeded": true
+  },
+  {
+    "run": "chitu-ops-bc756d042d2f",
+    "mode": "smoke",
+    "source": {
+      "head": "0415a7b88f2e97a3cfd2a9a46ea98609c716d8bb",
+      "cleanBefore": false,
+      "cleanAfter": false
+    },
+    "appSourceSHA256": "000761557f2f42b39a170936f50cfa600fdfc5cfa66d5ca866cbf3a679ead2a5",
+    "candidate": {
+      "version": "v0.1.0-rc.1",
+      "revision": "90b2c3bf936c5d7f67eb2a4b9216d438b1f40739",
+      "sourceSHA256": "95d79daedbda472a6ebdf8a0a2a5e8b984b5ba9888d1fc5ed1b8cb416f3386d8"
+    },
+    "startedUTC": "2026-11-18T13:57:50.426Z",
+    "finishedUTC": "2026-11-18T14:01:55.118Z",
+    "error": "both rolling replicas must serve real load",
+    "cleanupSucceeded": true
+  },
+  {
+    "run": "chitu-ops-edb462c98704",
+    "mode": "smoke",
+    "source": {
+      "head": "0415a7b88f2e97a3cfd2a9a46ea98609c716d8bb",
+      "cleanBefore": false,
+      "cleanAfter": false
+    },
+    "appSourceSHA256": "cafd7495512c0e8ab1c9ace03296c36d5091626bf564557e4e1e78d53ab6a9eb",
+    "candidate": {
+      "version": "v0.1.0-rc.1",
+      "revision": "90b2c3bf936c5d7f67eb2a4b9216d438b1f40739",
+      "sourceSHA256": "95d79daedbda472a6ebdf8a0a2a5e8b984b5ba9888d1fc5ed1b8cb416f3386d8"
+    },
+    "startedUTC": "2026-11-18T13:51:28.268Z",
+    "finishedUTC": "2026-11-18T13:55:57.442Z",
+    "error": "all durable operations processed exceeded 60000ms",
+    "cleanupSucceeded": true
+  }
+]

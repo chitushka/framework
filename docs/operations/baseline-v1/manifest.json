@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "mode": "full",
+  "protocolHash": "d6051561501132ede393ee1b66c9f7d9a2f3ca6a007aad0dbebd889c5786fe78",
+  "candidate": {
+    "version": "v0.1.0-rc.1",
+    "revision": "90b2c3bf936c5d7f67eb2a4b9216d438b1f40739",
+    "sourceSHA256": "95d79daedbda472a6ebdf8a0a2a5e8b984b5ba9888d1fc5ed1b8cb416f3386d8"
+  },
+  "appSourceSHA256": "05a3cfb819a5923a828f496194dd32c25f84ba5a1afcd109937b2bc6452611c4",
+  "source": {
+    "head": "d746704b21a4d260d8e995b22e8c9668e478fa3e",
+    "cleanBefore": true,
+    "cleanAfter": true
+  },
+  "startedUTC": "2026-11-18T14:14:05.454Z",
+  "host": {
+    "cpu": "Intel(R) Core(TM) i5-9300H CPU @ 2.40GHz",
+    "logicalCPUs": 8,
+    "memoryBytes": 8454787072,
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "images": {
+    "reference": "sha256:f36a7edaa64e4277e3063bbfa4a671c54bd74f98891691e39761db040eb56290",
+    "sql": {
+      "configured": "postgres:17-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b",
+      "id": "sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b"
+    },
+    "cache": {
+      "configured": "redis:7.4-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f",
+      "id": "sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f"
+    },
+    "broker": {
+      "configured": "rabbitmq:4.3-alpine@sha256:b1f997f74103d08fc1f20a13890dc44fe6cfa51d528cf521b480ada988d3ffa5",
+      "id": "sha256:b1f997f74103d08fc1f20a13890dc44fe6cfa51d528cf521b480ada988d3ffa5"
+    },
+    "proxy": {
+      "configured": "nginx:alpine@sha256:713fc2ebfd92e8217db451477182ee91944b123d2b1ee9fd5a8c6e91ca6c3a11",
+      "id": "sha256:713fc2ebfd92e8217db451477182ee91944b123d2b1ee9fd5a8c6e91ca6c3a11"
+    }
+  },
+  "docker": {
+    "version": "29.2.0",
+    "kernel": "6.18.58.1-microsoft-standard-WSL2",
+    "cpus": 8,
+    "memoryBytes": 4038758400
+  },
+  "observationSeconds": 600.2712792,
+  "cleanupSucceeded": true,
+  "finishedUTC": "2026-11-18T14:25:24.714Z"
+}

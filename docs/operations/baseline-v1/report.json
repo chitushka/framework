@@ -1,0 +1,236 @@
+{
+  "accepted": true,
+  "mode": "full",
+  "candidate": {
+    "version": "v0.1.0-rc.1",
+    "revision": "90b2c3bf936c5d7f67eb2a4b9216d438b1f40739",
+    "sourceSHA256": "95d79daedbda472a6ebdf8a0a2a5e8b984b5ba9888d1fc5ed1b8cb416f3386d8"
+  },
+  "protocolHash": "d6051561501132ede393ee1b66c9f7d9a2f3ca6a007aad0dbebd889c5786fe78",
+  "source": {
+    "head": "d746704b21a4d260d8e995b22e8c9668e478fa3e",
+    "cleanBefore": true,
+    "cleanAfter": true
+  },
+  "phases": [
+    {
+      "name": "baseline",
+      "seconds": 60,
+      "requests": 1200,
+      "success": 1200,
+      "errors": 0,
+      "errorRate": 0,
+      "p99MS": 132.53859999999986,
+      "lagP99MS": 14.853600000002189,
+      "maxLagMS": 15.35920000000624
+    },
+    {
+      "name": "rolling",
+      "seconds": 60,
+      "requests": 1200,
+      "success": 1199,
+      "errors": 1,
+      "errorRate": 0.0008333333333333526,
+      "p99MS": 168.46579999999085,
+      "lagP99MS": 14.984599999996135,
+      "maxLagMS": 15.643600000010338
+    },
+    {
+      "name": "rotation",
+      "seconds": 60,
+      "requests": 1200,
+      "success": 1199,
+      "errors": 1,
+      "errorRate": 0.0008333333333333526,
+      "p99MS": 156.2045999999973,
+      "lagP99MS": 14.828200000018114,
+      "maxLagMS": 15.762100000021746
+    },
+    {
+      "name": "sql-outage",
+      "seconds": 60,
+      "requests": 1200,
+      "success": 407,
+      "errors": 793,
+      "errorRate": 0.6608333333333334,
+      "p99MS": 757.7161999999953,
+      "lagP99MS": 14.91950000001816,
+      "maxLagMS": 15.982599999988452
+    },
+    {
+      "name": "cache-outage",
+      "seconds": 60,
+      "requests": 1200,
+      "success": 757,
+      "errors": 443,
+      "errorRate": 0.36916666666666664,
+      "p99MS": 306.6681000000099,
+      "lagP99MS": 14.74910000001546,
+      "maxLagMS": 15.494000000006054
+    },
+    {
+      "name": "queue-outage",
+      "seconds": 90,
+      "requests": 1800,
+      "success": 1800,
+      "errors": 0,
+      "errorRate": 0,
+      "p99MS": 159.77600000001257,
+      "lagP99MS": 15.0166999999783,
+      "maxLagMS": 17.261200000008103
+    },
+    {
+      "name": "app-crash",
+      "seconds": 60,
+      "requests": 1200,
+      "success": 1199,
+      "errors": 1,
+      "errorRate": 0.0008333333333333526,
+      "p99MS": 448.4390999999596,
+      "lagP99MS": 14.903999999980442,
+      "maxLagMS": 15.999599999981001
+    },
+    {
+      "name": "final",
+      "seconds": 150,
+      "requests": 3000,
+      "success": 3000,
+      "errors": 0,
+      "errorRate": 0,
+      "p99MS": 131.95859999989625,
+      "lagP99MS": 14.708299999940209,
+      "maxLagMS": 15.426900000020396
+    }
+  ],
+  "total": {
+    "requests": 12000,
+    "success": 10761,
+    "errorRate": 0.10325,
+    "p99MS": 753.1755000000121
+  },
+  "resources": {
+    "samples": 150,
+    "maxRSSBytes": 18694144,
+    "maxHeapBytes": 3578680,
+    "maxGoroutines": 37,
+    "maxSQLConnections": 6,
+    "containers": {
+      "reference-a": {
+        "maxCPUPercent": 22.41,
+        "maxMemoryBytes": 11020533.76
+      },
+      "reference-proxy": {
+        "maxCPUPercent": 10.27,
+        "maxMemoryBytes": 7905214.464
+      },
+      "reference-broker": {
+        "maxCPUPercent": 107.81,
+        "maxMemoryBytes": 112826777.6
+      },
+      "reference-cache": {
+        "maxCPUPercent": 5.92,
+        "maxMemoryBytes": 6643777.536
+      },
+      "reference-sql": {
+        "maxCPUPercent": 95.91,
+        "maxMemoryBytes": 57545850.88
+      },
+      "reference-b": {
+        "maxCPUPercent": 20.35,
+        "maxMemoryBytes": 10695475.2
+      }
+    }
+  },
+  "events": [
+    {
+      "name": "rolling",
+      "passed": true,
+      "durationMS": 24905.751000000004,
+      "additiveMigration": true,
+      "oldRevisionRollback": true,
+      "drainMS": 2217.379099999991
+    },
+    {
+      "name": "rotation",
+      "passed": true,
+      "durationMS": 4077.58719999998,
+      "overlapBothAccepted": true,
+      "retiredKeyRejected": true,
+      "tlsBefore": "67:6A:68:C2:89:1E:A7:F7:44:E1:55:87:31:2F:1D:D3:73:3C:4E:37:40:A0:39:34:21:16:EB:50:EC:FB:FD:4C",
+      "tlsAfter": "11:38:95:0C:57:8D:4E:D7:63:21:26:61:E3:85:A8:A3:56:D7:B9:57:C3:E6:FE:1D:08:2E:A3:FF:9F:93:27:20",
+      "caVerified": true
+    },
+    {
+      "name": "sql-outage",
+      "passed": true,
+      "durationMS": 41025.3462,
+      "downtimeMS": 15000,
+      "recoveryMS": 24782.67590000003,
+      "sameVolume": true
+    },
+    {
+      "name": "cache-outage",
+      "passed": true,
+      "durationMS": 23610.1556,
+      "downtimeMS": 15000,
+      "recoveryMS": 3845.031100000022,
+      "coldCache": true
+    },
+    {
+      "name": "queue-outage",
+      "passed": true,
+      "durationMS": 37033.58779999998,
+      "downtimeMS": 15000,
+      "recoveryMS": 20288.466199999966,
+      "confirmedBeforeRestart": 5097
+    },
+    {
+      "name": "app-crash",
+      "passed": true,
+      "durationMS": 5116.356800000009,
+      "recoveryMS": 6.131600000022445,
+      "restartMS": 2335.881700000027,
+      "secondReplicaSurvived": true
+    },
+    {
+      "name": "reconcile",
+      "passed": true,
+      "durationMS": 467.35009999992326,
+      "accepted": 10761,
+      "persisted": 10763,
+      "ambiguousCommitted": 2,
+      "effectsExactlyOne": true,
+      "duplicateIDChecked": true
+    },
+    {
+      "name": "backup-restore",
+      "passed": true,
+      "durationMS": 10412.940899999929,
+      "rtoMS": 5852.491700000013,
+      "rpoOperations": 0,
+      "rowsSHA256": "f0dd5872c5cabc1acbf9178356a56d1edb41b4dfaa44c61ba4cb690be6285c20",
+      "dumpSHA256": "7f39332ff903b3b170db684ef54bdfe7038c00894f7b7fce6a2a4f293ac7c191",
+      "bytes": 35037,
+      "newDatabase": true,
+      "restoredTLSApp": true
+    },
+    {
+      "name": "migration-recovery",
+      "passed": true,
+      "durationMS": 9260.774099999922,
+      "recoveryMS": 4702.634300000034,
+      "dirtyBlocked": true,
+      "inspectedSchema": true,
+      "exactChecksumResolve": true,
+      "repeatedUpNoop": true,
+      "terminatedSleepingSession": true
+    },
+    {
+      "name": "shutdown",
+      "passed": true,
+      "durationMS": 2025.2086000000127,
+      "gracefulExitZero": true,
+      "noOOM": true
+    }
+  ]
+}

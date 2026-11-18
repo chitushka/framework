@@ -14,7 +14,11 @@
   baseline. Доказательства и ограничения — `docs/stage-*-acceptance.md`.
 - MIT/NOTICE, dependency/asset audit, non-root runtime images, SPDX SBOM,
   build provenance, reproducibility и изолированная version-tag installation.
+- Локальная эксплуатационная приёмка frozen RC: 10 минут/12 000 requests за TLS,
+  SQL outbox, outages, rolling/rollback, JWT/TLS rotation, backup/restore и dirty
+  migration recovery; raw observations и независимый verifier. Границы —
+  [отчёт 13.2](docs/stage-13-2-acceptance.md).
 
-Hosted CI/required checks 12.1/A4, эксплуатационная приёмка 13.2 и freeze/public
-release 13.3 остаются отдельными условиями. Этот changelog не объявляет v1.0
+Hosted CI/required checks 12.1/A4 и freeze/public release 13.3 остаются отдельными
+условиями. Этот changelog не объявляет v1.0
 или подтверждённую production-ready поставку.
