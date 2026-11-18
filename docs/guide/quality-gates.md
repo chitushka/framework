@@ -143,10 +143,17 @@ tools закреплены lockfile; выбран ESLint 9.39.5 без advisory 
 а не через `npm audit fix --force` или автоматическое принятие исключений.
 
 Gitleaks сканирует worktree и всю доступную Git history, с redaction, без inline
-`gitleaks:allow`; исключены только dependency/build directories. Нет baseline
+`gitleaks:allow`; исключены dependency/build directories. Нет baseline
 fingerprints для application source. CI checkout использует fetch-depth 0 для
 history scan и persist-credentials false. Не загружайте неотредактированные secrets
 в artifacts; reports security gate уже редактируются scanner.
+
+Единственная дополнительная metadata classification — exact published SHA-256
+API inventory в поле `apiSHA256` двух release JSON files. Путь И exact field/value
+проверяются вместе только правилом generic-api-key; application paths и другие
+значения/поля не исключены. [Canary check](../../scripts/test-secret-policy.mjs)
+запускает настоящий scanner: checksum проходит, случайный credential в том же
+файле, то же значение в другом поле и application path блокируются.
 
 ## Контролируемые обновления
 

@@ -8,3 +8,13 @@ useDefault = true
 [[allowlists]]
 description = "Generated dependencies and local build artifacts"
 paths = ['''(^|/)(\.git|\.cache|node_modules|public)(/|$)''']
+
+# SHA-256(release/api-v1.json) is public data, not an API credential.
+# Path AND exact field/value must match; real credentials remain scanned.
+[[allowlists]]
+description = "Reviewed public API inventory checksum in release metadata"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)release/freeze-v1\.json$''', '''(^|/)docs/releases/v1\.0-proposal/compatibility\.json$''']
+regexes = ['''^\s*(?:\+\s*)?"a[p]iSHA256"\s*:\s*"051dab659f86b51fe4f033ed20a00a61ee041a03a2936d58d89aa6262c2e53f7"\s*,?\s*$''']
