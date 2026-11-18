@@ -93,7 +93,8 @@ read-only, используйте `--read-only --cap-drop=ALL
   Admin migrate/seed/login, REST external JWT CRUD и SIGTERM exit=0. Порты только
   localhost, SQL data временные, ресурсы имеют уникальные имена и удаляются.
   HTTP smoke вручную переносит Secure cookies; полноценный TLS/browser контракт
-  проверяется отдельными E2E jobs. Это не эксплуатационная приёмка 13.2.
+  проверяется отдельными E2E jobs. Эксплуатационная приёмка 13.2 выполняется
+  отдельным [стендом с SLO и recovery](operations.md).
 
 Локальные provenance unsigned, не удостоверяют личность builder и не объявляют
 SLSA level. SPDX scanner дополняет, но не заменяет license audit и vulnerability

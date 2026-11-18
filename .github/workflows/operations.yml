@@ -1,0 +1,43 @@
+name: RC operational acceptance
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: "40 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  operations:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22.22.3"
+      - name: Test operational acceptance gates
+        run: node --test scripts/operations-report.test.mjs
+      - name: Observe frozen RC for ten minutes
+        run: node release/operations/run.mjs full
+      - name: Retain operational evidence without credentials
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: operations-${{ github.sha }}
+          include-hidden-files: true
+          if-no-files-found: error
+          path: |
+            .cache/operations/*/manifest.json
+            .cache/operations/*/report.*
+            .cache/operations/*/events.json
+            .cache/operations/*/resources.json
+            .cache/operations/*/requests.ndjson
+            .cache/operations/*/SHA256SUMS.json
+            .cache/operations/*/backup.dump
+            .cache/operations/*/*.log

@@ -88,3 +88,12 @@ rest-e2e:
 
 release-check:
 	node release/prepare.mjs
+
+.PHONY: operations operations-smoke
+operations:
+	node --test scripts/operations-report.test.mjs
+	node release/operations/run.mjs full
+
+operations-smoke:
+	node --test scripts/operations-report.test.mjs
+	node release/operations/run.mjs smoke

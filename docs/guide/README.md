@@ -19,6 +19,8 @@ Production readiness ещё не подтверждена: сначала про
    handling, required checks и контролируемые dependency updates.
 10. [Performance](performance.md) — frozen workload, benchmarks, SQL fault soaks и comparison budgets.
 11. [Release policy](releases.md) — лицензии, RC images, SBOM/provenance и воспроизводимость.
+12. [Эксплуатационная приёмка](operations.md) — TLS, SLO/load, rolling update,
+    key rotation, backup/restore и восстановление зависимостей.
 
 Практика: [generator quickstart](generator-quickstart.md) создаёт и компилирует
 model/CRUD без SQL-сервера. [API migration guide](api-migration.md) сводит breaking
