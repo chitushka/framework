@@ -3,7 +3,7 @@ module github.com/chitushka/framework/integration
 go 1.26.11
 
 require (
-	github.com/chitushka/framework v0.1.0-rc.1
+	github.com/chitushka/framework v1.0.0
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/prometheus/common v0.73.1
@@ -42,7 +42,7 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
-	github.com/chitushka/framework/adapters v0.1.0-rc.1
+	github.com/chitushka/framework/adapters v1.0.0
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect

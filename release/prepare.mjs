@@ -4,6 +4,8 @@ import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { inspectOCI } from "./verify.mjs"
 import { sha256 } from "./licenses.mjs"
+import { runtimeFingerprint, normalized } from "./compatibility.mjs"
+import { verify as verifyOperations } from "./operations/verify.mjs"
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)))
 // Git for Windows may put GNU tar first on PATH; it treats D: as a remote host.
@@ -12,7 +14,18 @@ const run = (cmd, args, cwd = root, extra = {}) => execFileSync(cmd, args, { cwd
 const git = (...args) => run("git", args, root, { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }).trim()
 if (git("status", "--porcelain").length) throw Error("Commit reviewed source before preparing a candidate")
 const { version, platform, sbomGenerator } = JSON.parse(readFileSync(join(root, "release/version.json")))
-if (!/^v0\.\d+\.\d+-rc\.[1-9]\d*$/.test(version)) throw Error("Expected an explicit prerelease version")
+if (!/^v[01]\.\d+\.\d+(?:-rc\.[1-9]\d*)?$/.test(version)) throw Error("Expected a canonical v0/v1 release or RC version")
+let promotion
+if (!version.includes("-")) {
+  const freeze = JSON.parse(readFileSync(join(root, "release/freeze-v1.json")))
+  const compatibility = JSON.parse(readFileSync(join(root, "docs/releases/v1.0-proposal/compatibility.json")))
+  const api = JSON.parse(readFileSync(join(root, "release/api-v1.json")))
+  if (version !== freeze.targetVersion || sha256(Buffer.from(normalized(join(root, "release/api-v1.json")))) !== freeze.apiSHA256) throw Error("Stable target/API differs from reviewed freeze")
+  if (!compatibility.passed || compatibility.runtime.sha256 !== runtimeFingerprint(root, api).sha256) throw Error("Stable runtime changed since frozen consumer acceptance")
+  const operations = verifyOperations(join(root, freeze.operationalEvidence))
+  if (!operations.accepted || operations.candidate.revision !== freeze.candidate.revision) throw Error("Stable promotion lacks accepted operational RC")
+  promotion = { from: freeze.candidate, runtimeSHA256: compatibility.runtime.sha256, apiSHA256: freeze.apiSHA256 }
+}
 const revision = git("rev-parse", "HEAD"), epoch = git("show", "-s", "--format=%ct", "HEAD")
 mkdirSync(join(root, ".cache/releases"), { recursive: true })
 const out = mkdtempSync(join(root, ".cache/releases", `${version}-`))
@@ -21,7 +34,7 @@ mkdirSync(source)
 const archive = join(out, "source.tar")
 run("git", ["archive", "--format=tar", "-o", archive, "HEAD"])
 run(tar, ["-xf", archive, "-C", source])
-const report = { version, revision, epoch, platform, sourceSHA256: sha256(readFileSync(archive)), sbomGenerator, unsignedLocalEvidence: true, images: {} }
+const report = { version, revision, epoch, platform, publicationStatus: "unpublished-local-draft", ...(promotion ? { promotion } : {}), sourceSHA256: sha256(readFileSync(archive)), sbomGenerator, unsignedLocalEvidence: true, images: {} }
 console.log(`Release output: ${out}`)
 for (let pass = 1; pass <= 2; pass++) {
   for (const starter of ["basic", "admin", "rest"]) {
@@ -60,7 +73,7 @@ for (let pass = 1; pass <= 2; pass++) {
 writeFileSync(join(out, "release.json"), JSON.stringify(report, null, 2) + "\n")
 const checksums = ["source.tar", "release.json", "frontend.spdx.json", ...["basic", "admin", "rest"].flatMap((s) => [`${s}-1.oci.tar`, `${s}.spdx.json`, `${s}.provenance.json`])]
 writeFileSync(join(out, "SHA256SUMS"), checksums.map((file) => `${sha256(readFileSync(join(out, file)))}  ${file}`).join("\n") + "\n")
-run("docker", ["run", "--rm", "--mount", `type=bind,source=${out},target=/release`, "-e", "GOMAXPROCS=2", "-e", "GOFLAGS=-p=2", "-e", "GOTOOLCHAIN=local", "-w", "/release/source/tools/releasecheck", "golang:1.26.11@sha256:7af425da11f4fc1a9308eb704369e3f6d1c44e35bac0f874a59ade3f20fdc07e", "go", "run", "-mod=readonly", ".", "-source", "/release/source", "-output", "/release/module-check", "-version", version])
+run("docker", ["run", "--rm", "--mount", `type=bind,source=${out},target=/release`, "-e", "GOMAXPROCS=2", "-e", "GOFLAGS=-p=2", "-e", "GOTOOLCHAIN=local", "-w", "/release/source/tools/releasecheck", "golang:1.26.11@sha256:7af425da11f4fc1a9308eb704369e3f6d1c44e35bac0f874a59ade3f20fdc07e", "go", "run", "-mod=readonly", ".", "-source", "/release/source", "-output", "/release/module-check", "-version", version, "-compatibility", "/release/source/compatibility"])
 run(process.execPath, [join(root, "release/smoke.mjs"), out])
 writeFileSync(join(root, ".cache/releases/latest.txt"), out + "\n")
 console.log(`PASS reproducible runtime manifests, SBOM/provenance: ${out}`)

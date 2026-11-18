@@ -2,3 +2,4 @@
 
 # Preserve the exact evidence bytes covered by SHA256SUMS on every platform.
 docs/operations/baseline-v1/* -text
+docs/releases/v1.0-proposal/** -text

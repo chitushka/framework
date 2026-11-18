@@ -1,7 +1,9 @@
 # Контракт поддержки и готовности к production
 
-Проект находится до v1.0. Наличие API и прохождение baseline не означают production-ready:
-этапы 7–13 в [плане](../../PLAN.md) содержат незакрытые security, durability и release gates.
+v1.0.0 подготовляется как unpublished draft; [API freeze](stability.md) закреплён
+локально. Production-ready не объявляется до hosted acceptance и подписи
+[release checklist](../release-checklist-v1.md). Этапы безопасности/данных/эксплуатации
+приняты в указанной области; оставшиеся release gates — в [плане](../../PLAN.md).
 Этот контракт задаёт проверяемый минимум совместимости. Область каждого обещания
 ограничена тестами в [реестре гарантий](guarantees.md).
 
@@ -28,7 +30,7 @@
 [RabbitMQ](https://www.rabbitmq.com/release-information).
 
 Обязательны `test`, `lint`, `coverage`, `frontend`, `security`, `integration`, `docs`,
-`rest`, `basic`, `advanced-admin`. Aggregate **Required quality gate** проверяет
+`rest`, `basic`, `advanced-admin`, `performance`, `compatibility`. Aggregate **Required quality gate** проверяет
 их success, включая matrix children. Администратор должен включить его как required
 check и ограничить bypass/release permissions: YAML сам по себе не запрещает ручной
 merge/release. [Контракт gate](quality-gates.md) и [статус приёмки 12.1](../stage-12-1-acceptance.md).
@@ -49,8 +51,9 @@ merge/release. [Контракт gate](quality-gates.md) и [статус при
 - OTLP gRPC, baggage/tracestate propagation и driver-level SQL spans вне baseline.
   Bounded lifecycle/health приняты в 10.2; browser/REST authentication flows — 11.1–11.3,
   с указанными process-local sessions/quotas и application authorization границами.
-- Frontend scaffold и три examples являются демонстрациями; они не входят в контракт
-  готовых production starters. Полный список ограничений — в реестре гарантий.
+- Basic/Admin/REST приняты как source starters с ограничениями из README, включая
+  process-local state. Frontend demo views не объявляются готовым application product.
+  Точная стабильная/экспериментальная область — в [матрице API](stability.md).
 
 ## Развёртывание за TLS reverse proxy
 
@@ -80,7 +83,7 @@ HttpOnly и подходящий SameSite. Не включайте debug toolbar
 | Пользовательский ввод: SQL injection, mass assignment, XSS | Параметры Query Builder, scenario allowlist, html/template и vueState; raw SQL/HTML обходят защиту | Allowlist identifiers, validation, запрет недоверенного raw SQL/HTML |
 | Кража credentials/cookie, CSRF, escalation | Sessions/CSRF/RBAC, bounded Argon2id и credentials/throttling, public-key JWT verifier | Identity persistence/provider, общий limiter, TLS, secrets, MFA, permission/revocation checks |
 | Параллельные записи и повторная доставка | Real SQL/AR conformance, session Redis CAS, pinned migration session lock, lease fencing | Общий session namespace, обработка 409, lease/job budgets, идемпотентные jobs, transaction boundaries, outbox |
-| Отказ SQL/cache/broker/exporter, потеря процесса | Context/deadline API; нет полного outage/durability доказательства | Backup/restore, finite budgets, monitoring, retries с пределом, recovery процедуры |
+| Отказ SQL/cache/broker/exporter, потеря процесса | Baseline conformance/process/outage и single-host operational RC acceptance; power/disk-loss не подтверждён | Backup/restore, finite budgets, monitoring, retries с пределом, recovery процедуры |
 | Утечка secrets/PII, debug endpoint | Production handler блокирует debug/pprof, скрывает framework errors/raw path/panic; production logger редактирует sensitive attrs/opaque objects | Внешний production wrapper, безопасные fixed log messages, redaction application payload/exporters, закрытые metrics, секреты вне кода, least privilege; [checklist](security-audit.md) |
 
 Не покрываются: скомпрометированный host/proxy/dependency, вредоносный модуль приложения,

@@ -21,6 +21,8 @@ Production readiness ещё не подтверждена: сначала про
 11. [Release policy](releases.md) — лицензии, RC images, SBOM/provenance и воспроизводимость.
 12. [Эксплуатационная приёмка](operations.md) — TLS, SLO/load, rolling update,
     key rotation, backup/restore и восстановление зависимостей.
+13. [API stability](stability.md), [upgrade v1](upgrade-v1.md) и
+    [release checklist](../release-checklist-v1.md) — freeze и условия выпуска.
 
 Практика: [generator quickstart](generator-quickstart.md) создаёт и компилирует
 model/CRUD без SQL-сервера. [API migration guide](api-migration.md) сводит breaking

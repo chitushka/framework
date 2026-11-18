@@ -14,7 +14,15 @@ const mode = process.argv[2] ?? "full"
 assert.ok(["full", "smoke"].includes(mode), "usage: node release/operations/run.mjs [full|smoke] [candidate-directory]")
 const frozen = JSON.parse(readFileSync(join(root, "docs/releases/v0.1.0-rc.1/release.json")))
 const latest = join(root, ".cache/releases/latest.txt")
-const suppliedDirectory = process.argv[3] ?? (existsSync(latest) ? readFileSync(latest, "utf8").trim() : undefined)
+let previousAccepted
+if (existsSync(latest)) {
+  const directory = readFileSync(latest, "utf8").trim()
+  const metadata = JSON.parse(readFileSync(join(directory, "release.json")))
+  if (metadata.sourceSHA256 === frozen.sourceSHA256) previousAccepted = directory
+}
+// A later stable draft must not silently become the operational acceptance
+// object. Reconstruct the exact frozen RC when latest points at another release.
+const suppliedDirectory = process.argv[3] ?? previousAccepted
 const candidate = suppliedDirectory ? JSON.parse(readFileSync(join(resolve(suppliedDirectory), "release.json"))) : frozen
 assert.equal(candidate.sourceSHA256, frozen.sourceSHA256, "candidate differs from frozen acceptance object")
 assert.equal(candidate.revision, frozen.revision)

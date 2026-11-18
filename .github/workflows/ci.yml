@@ -50,6 +50,8 @@ jobs:
           done
           go -C integration vet ./...
           go -C integration test -run '^$' ./...
+      - name: Check frozen public Go API
+        run: go run ./tools/apifreeze
       - name: Windows isolated onboarding and REST process E2E
         if: runner.os == 'Windows'
         run: |
@@ -299,16 +301,40 @@ jobs:
           path: .cache/performance/
           include-hidden-files: true
           if-no-files-found: error
+  compatibility:
+    name: Frozen RC consumer compatibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+      - name: Check API, runtime identity and installed consumer contracts
+        run: node release/compatibility.mjs
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: always()
+        with:
+          name: compatibility-report
+          path: .cache/compatibility/*/report.json
+          include-hidden-files: true
+          if-no-files-found: error
   quality-gate:
     name: Required quality gate
     if: always()
-    needs: [test, coverage, fuzz, lint, frontend, security, integration, docs, rest, basic, advanced-admin, performance]
+    needs: [test, coverage, fuzz, lint, frontend, security, integration, docs, rest, basic, advanced-admin, performance, compatibility]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - run: node scripts/require-success.mjs test coverage fuzz lint frontend security integration docs rest basic advanced-admin performance
+      - run: node scripts/require-success.mjs test coverage fuzz lint frontend security integration docs rest basic advanced-admin performance compatibility
         env:
           CI_NEEDS: ${{ toJSON(needs) }}

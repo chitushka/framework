@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "targetVersion": "v1.0.0",
+  "status": "proposed-awaiting-hosted-and-owner",
+  "candidate": {
+    "version": "v0.1.0-rc.1",
+    "revision": "90b2c3bf936c5d7f67eb2a4b9216d438b1f40739",
+    "sourceSHA256": "95d79daedbda472a6ebdf8a0a2a5e8b984b5ba9888d1fc5ed1b8cb416f3386d8"
+  },
+  "apiSHA256": "051dab659f86b51fe4f033ed20a00a61ee041a03a2936d58d89aa6262c2e53f7",
+  "compatibilityFixtureSHA256": "dbc39bc5ee8c1a81f248a44f99638d3b4cbf23841b66b81789a0d66f2f49f0fe",
+  "stableScope": "docs/guide/stability.md",
+  "upgradeGuide": "docs/guide/upgrade-v1.md",
+  "operationalEvidence": "docs/operations/baseline-v1",
+  "repository": "chitushka/framework",
+  "requiredCheck": "Required quality gate",
+  "mandatoryJobs": [
+    "test",
+    "coverage",
+    "fuzz",
+    "lint",
+    "frontend",
+    "security",
+    "integration",
+    "docs",
+    "rest",
+    "basic",
+    "advanced-admin",
+    "performance",
+    "compatibility"
+  ],
+  "requiredArtifacts": [
+    "go-ubuntu-24.04-1.26.11",
+    "go-ubuntu-24.04-1.26.x",
+    "go-windows-2025-1.26.11",
+    "go-windows-2025-1.26.x",
+    "coverage",
+    "fuzz-smoke",
+    "frontend-security",
+    "security-reports",
+    "integration-report",
+    "docs-test-report",
+    "rest-e2e-report",
+    "basic-browser-report",
+    "admin-browser-report",
+    "performance-report",
+    "compatibility-report"
+  ],
+  "p0": [
+    {
+      "id": "queue-handler-panic",
+      "status": "closed",
+      "test": "queue/worker_resilience_test.go",
+      "evidence": "docs/stages-8-9-acceptance.md"
+    },
+    {
+      "id": "sql-reserve-nack-race",
+      "status": "closed",
+      "test": "integration/queue_conformance_test.go",
+      "evidence": "docs/stages-8-9-acceptance.md"
+    },
+    {
+      "id": "dead-letter-before-ack",
+      "status": "closed",
+      "test": "integration/worker_crash_test.go",
+      "evidence": "docs/stages-8-9-acceptance.md"
+    },
+    {
+      "id": "migration-lock-dirty-recovery",
+      "status": "closed",
+      "test": "integration/migration_process_test.go",
+      "evidence": "docs/stages-8-9-acceptance.md"
+    }
+  ]
+}

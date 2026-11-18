@@ -28,3 +28,7 @@
 Проверки модуля: `go vet ./...`, `go test -race ./...` из adapters.
 Полная приёмка SDK находится в integration и запускается scripts/integration.sh
 либо scripts/integration.ps1 на изолированных сервисах.
+
+Для v1.0 proposed stable scope ограничен baseline Redis 7.4 / RabbitMQ 4.3 /
+SDK OTLP HTTP. Cluster/Sentinel, OTLP gRPC и другие backend configurations не
+получают стабильных гарантий. [Полная матрица](../docs/guide/stability.md).

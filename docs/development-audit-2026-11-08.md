@@ -2,7 +2,11 @@
 
 Исторический срез на 08.11.2026. Найденные cache/queue/data дефекты и этапы 8–9
 закрыты последующими инкрементами: [приёмка 09.11.2026](stages-8-9-acceptance.md).
-Открытые observability/application/CI пункты сохранены в актуальном PLAN.md.
+Observability/application закрыты в этапах 10.1–10.2; CI 12.1/A4 остаётся
+открытым до hosted runs/required checks. Актуальный статус — в PLAN.md;
+исторические формулировки «открыто» в таблице ниже сохранены как срез аудита.
+Известные P0, tests и evidence для выпуска сведены в
+[release freeze](../release/freeze-v1.json) и [checklist](release-checklist-v1.md).
 
 Проверены текущий план, архитектура, CI, документация и критические пути cache,
 queue, migrations, Active Record, lifecycle и observability. Это аудит исходников

@@ -1,6 +1,19 @@
 # Changelog
 
-## Unreleased — candidate v0.1.0-rc.1
+## Unreleased — v1.0.0 draft
+
+- Frozen public API: 27 packages / 991 declarations/selectors; compiled inventory,
+  consumer compatibility и source/external dependency identity относительно RC1.
+- Документированы stable/experimental scope, RC1→v1 upgrade и ранние 0.x migrations.
+- Собственные module pins подготовлены к v1.0.0; runtime code/external dependencies
+  сохранены. Stable draft проходит version-tag installation и production smoke.
+- Release readiness проверяет evidence, hosted matrix/artifacts/required checks,
+  identity и owner signoff; незаполненные условия блокируют release status.
+
+Это unpublished draft. Push/tags/registry/GitHub Release и подпись владельца
+не выполнены; [checklist](docs/release-checklist-v1.md) остаётся обязательным.
+
+## v0.1.0-rc.1 — локально принятый RC, не опубликован
 
 Первый подготовленный RC; tag и artifacts ещё не опубликованы. API до v1.0
 может меняться; перенос с учебного scaffold требует проверки guide.

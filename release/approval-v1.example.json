@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "targetVersion": "v1.0.0",
+  "sourceCommit": null,
+  "apiSHA256": null,
+  "candidateRevision": null,
+  "hostedCI": null,
+  "requiredChecks": null,
+  "ownerSignoff": null,
+  "publicationPermission": null
+}

@@ -6,11 +6,12 @@
 
 ## Версии и условия публикации
 
-`release/version.json` задаёт текущий candidate и platform. До v1.0 выпускаются
-только RC, без обещания стабильности API. Семантика версий/deprecation —
+`release/version.json` задаёт draft version и platform. Сейчас это unpublished
+v1.0.0; public tags/registry/Release ещё не созданы. До разрешённой публикации
+номер в local manifest не объявляет стабильную поставку. Семантика версий/deprecation —
 [support](support.md). Tag корневого модуля — `vX.Y.Z-rc.N`; вложенные Go-модули
-используют префикс каталога: `adapters/vX.Y.Z-rc.N` и
-`examples/advanced-admin/vX.Y.Z-rc.N`. Их requirements должны указывать ту же
+используют префикс каталога: `adapters/vX.Y.Z` и
+`examples/advanced-admin/vX.Y.Z`, с тем же RC suffix для prerelease. Их requirements должны указывать ту же
 версию root. Workspace replaces помогают разработке, но не действуют у consumer.
 Admin — source scaffold: используйте checkout или `go get` и `go build` внутри
 своего модуля; `go install ...@version` для модуля с replace не поддерживается.
@@ -42,6 +43,14 @@ node release/prepare.mjs
 собирает три runtime images, затем повторяет сборку с `--no-cache`. Обе серии
 используют один pinned Go toolchain, asset builder, npm lock, SBOM scanner digest,
 linux/amd64, version/revision labels и `SOURCE_DATE_EPOCH` source commit.
+
+Stable draft требует совпадения API/runtime с [freeze](stability.md) и принятого
+operational RC. Допускается только собственная module version promotion;
+новый runtime/external dependency требует нового RC. Manifest имеет
+`publicationStatus=unpublished-local-draft` и `promotion` с identity исходного RC.
+Это локальная подготовка reviewable artifacts. [Readiness](../release-checklist-v1.md)
+отдельно проверяет hosted/owner/publish условия и ничего не публикует.
+
 `CGO_ENABLED=0`, `-trimpath -buildvcs=false -ldflags='-s -w -buildid='` исключают
 host paths и изменяемые VCS/build IDs. Runtime images — scratch, UID/GID 65532,
 статический binary, CA certificates, LICENSE/NOTICE, dependency notices и только

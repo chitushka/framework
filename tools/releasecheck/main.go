@@ -9,10 +9,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/zip"
 )
@@ -32,15 +34,50 @@ func main() {
 	source := flag.String("source", "", "clean archived release source")
 	output := flag.String("output", "", "new verification directory")
 	version := flag.String("version", "", "candidate version")
+	compatibility := flag.String("compatibility", "", "optional directory of public consumer compatibility tests")
 	flag.Parse()
-	if err := run(*source, *output, *version); err != nil {
+	if err := run(*source, *output, *version, *compatibility); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func run(source, output, version string) error {
-	if source == "" || output == "" || module.CanonicalVersion(version) != version || !strings.Contains(version, "-rc.") {
-		return fmt.Errorf("explicit source/output and canonical RC version required")
+var versionPattern = regexp.MustCompile(`^v[01]\.[0-9]+\.[0-9]+(?:-rc\.[1-9][0-9]*)?$`)
+
+func validVersion(version string) bool {
+	return module.CanonicalVersion(version) == version && versionPattern.MatchString(version)
+}
+
+func run(source, output, version, compatibility string) error {
+	if source == "" || output == "" || !validVersion(version) {
+		return fmt.Errorf("explicit source/output and canonical v0/v1 release or RC version required")
+	}
+	for _, sub := range []string{"", "adapters", "examples/advanced-admin"} {
+		data, err := os.ReadFile(filepath.Join(source, sub, "go.mod"))
+		if err != nil {
+			return err
+		}
+		file, err := modfile.Parse("go.mod", data, nil)
+		if err != nil {
+			return err
+		}
+		expected := "github.com/chitushka/framework"
+		if sub != "" {
+			expected += "/" + sub
+		}
+		if file.Module == nil || file.Module.Mod.Path != expected {
+			return fmt.Errorf("module path mismatch: %s", sub)
+		}
+		if sub != "" {
+			matched := false
+			for _, requirement := range file.Require {
+				if requirement.Mod.Path == "github.com/chitushka/framework" && requirement.Mod.Version == version {
+					matched = true
+				}
+			}
+			if !matched {
+				return fmt.Errorf("%s must require framework %s", sub, version)
+			}
+		}
 	}
 	if _, err := os.Stat(output); !os.IsNotExist(err) {
 		return fmt.Errorf("output must not already exist")
@@ -110,7 +147,7 @@ func run(source, output, version string) error {
 	if err := os.MkdirAll(consumer, 0o755); err != nil {
 		return err
 	}
-	code := `package consumer
+	code := `package compatibility
 import (
  "testing"
  "github.com/chitushka/framework/web"
@@ -122,6 +159,29 @@ func TestInstalledRouter(t *testing.T) { if web.NewRouter() == nil { t.Fatal("mi
 `
 	if err := os.WriteFile(filepath.Join(consumer, "installed_test.go"), []byte(code), 0o644); err != nil {
 		return err
+	}
+	if compatibility != "" {
+		entries, err := os.ReadDir(compatibility)
+		if err != nil {
+			return err
+		}
+		copied := 0
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), "_test.go") {
+				continue
+			}
+			data, err := os.ReadFile(filepath.Join(compatibility, entry.Name()))
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(consumer, entry.Name()), data, 0o644); err != nil {
+				return err
+			}
+			copied++
+		}
+		if copied == 0 {
+			return fmt.Errorf("compatibility directory contains no consumer tests")
+		}
 	}
 	// Only project modules bypass the public checksum database. Other dependencies
 	// continue to use the standard proxy and sum.golang.org validation.

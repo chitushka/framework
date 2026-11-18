@@ -97,3 +97,13 @@ operations:
 operations-smoke:
 	node --test scripts/operations-report.test.mjs
 	node release/operations/run.mjs smoke
+
+.PHONY: compatibility api-check release-status
+api-check:
+	go run ./tools/apifreeze
+
+compatibility:
+	node release/compatibility.mjs
+
+release-status:
+	node release/readiness.mjs

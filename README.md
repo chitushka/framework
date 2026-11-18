@@ -4,6 +4,8 @@
 [NOTICE](NOTICE). Подготовка RC и проверка поставки описаны в
 [release policy](docs/guide/releases.md), приватные сообщения об уязвимостях —
 [SECURITY](SECURITY.md). Stable v1.0 пока не выпущен.
+Подготовлен unpublished v1.0.0 draft: [API stability](docs/guide/stability.md),
+[upgrade guide](docs/guide/upgrade-v1.md), [release checklist](docs/release-checklist-v1.md).
 
 Chitu — модульный веб-фреймворк с module path `github.com/chitushka/framework`. Архитектура и удобство разработки опираются на Yii2, а реализация следует идиоматическому Go без буквального переноса динамических PHP-механизмов. Фреймворк включает web-слой, доступ к данным, прикладные подсистемы, генераторы и production-инструменты.
 
