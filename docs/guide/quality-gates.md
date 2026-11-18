@@ -70,6 +70,15 @@ commit и JWT configuration дополнительно закреплены regr
 source, который не должен попадать в root `./...`, lint или coverage. Library code
 и coverage threshold не исключаются ради зелёного результата.
 
+Npm registry может некоторое время отдавать уже отозванный GHSA. Для каждого
+finding gate читает canonical GitHub Advisory API по фиксированному HTTPS origin,
+сверяет ID/package/ecosystem и сохраняет provenance. Только свежий (≤5 минут)
+проверенный `withdrawn_at` исключает запись из active findings; исходный npm JSON
+не меняется. Network/status/JSON/identity/timestamp errors блокируют проверку.
+Active high/critical по-прежнему запрещены, policy exceptions не пополняются.
+Например, [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
+официально withdrawn 18.11.2026, хотя npm ещё возвращал его; это не waiver.
+
 ## Fuzzing критических парсеров
 
 `make fuzz` запускает тот же [runner](../../scripts/fuzz.sh), что обязательный

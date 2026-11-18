@@ -152,11 +152,15 @@ jobs:
         working-directory: frontend
       - run: node --test scripts/*.test.mjs
       - run: node scripts/npm-audit.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         if: always()
         with:
           name: frontend-security
-          path: .cache/security/npm-audit.json
+          path: |
+            .cache/security/npm-audit.json
+            .cache/security/npm-advisories.json
           include-hidden-files: true
           if-no-files-found: warn
   security:
