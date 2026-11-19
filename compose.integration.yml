@@ -29,7 +29,7 @@ services:
       timeout: 3s
       retries: 60
   redis:
-    image: redis:7.4-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    image: redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
     command: [redis-server, --requirepass, integration, --save, "", --appendonly, "no"]
     healthcheck:
       test: [CMD-SHELL, "REDISCLI_AUTH=integration redis-cli ping | grep -q PONG"]
