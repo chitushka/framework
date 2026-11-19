@@ -32,7 +32,10 @@ jobs:
           daemon-config: |
             {"features":{"containerd-snapshotter":true}}
       - name: Reproduce, attest and smoke candidate locally
-        run: node release/prepare.mjs
+        run: |
+          # Preserve the reviewed Windows source archive profile on every runner.
+          git config core.autocrlf true
+          node release/prepare.mjs
       - name: Retain candidate evidence (no publication)
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5

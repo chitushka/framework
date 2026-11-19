@@ -46,6 +46,11 @@ jobs:
             {"features":{"containerd-snapshotter":true}}
       - name: Verify containerd image store
         run: docker info --format '{{json .DriverStatus}}' | grep -F io.containerd.snapshotter.v1
+      - name: Match the reviewed source archive export profile
+        run: |
+          git config core.autocrlf true
+          test -z "$(git status --porcelain)"
+          test "$(git archive HEAD | sha256sum | cut -d' ' -f1)" = c9ba599adea4098df67c7a74976979eda8612cd836c34efa5bc05f5fcd619aa3
       - name: Reproduce, attest and smoke frozen source
         run: node release/prepare.mjs
       - name: Retain reviewed-source validation evidence
