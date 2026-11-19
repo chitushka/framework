@@ -11,7 +11,7 @@ RUN node release/licenses.mjs frontend /out/licenses/npm \
  && node release/assets.mjs public /out/basic/public src/basic.js \
  && node release/assets.mjs public /out/admin/public src/admin.js
 
-FROM golang:1.26.11@sha256:7af425da11f4fc1a9308eb704369e3f6d1c44e35bac0f874a59ade3f20fdc07e AS backend
+FROM golang:1.27.3@sha256:e519d3b0a5b285e5aa53ab9eef02bc6bbb9cb04608389b743a136a9ce75f0d1e AS backend
 WORKDIR /workspace
 ENV GOMAXPROCS=2 GOFLAGS=-p=2 CGO_ENABLED=0 GOTOOLCHAIN=local
 COPY go.mod go.sum ./
