@@ -1,0 +1,11 @@
+{
+  "revision": "b58e226929e8ba5a556d9aff74973d19ce9f6934",
+  "version": "v1.0.0",
+  "production": true,
+  "nonRoot": true,
+  "readOnly": true,
+  "basicLoginAssets": true,
+  "adminPostgreSQLMigrationSeedLogin": true,
+  "restExternalJWTCRUD": true,
+  "sigtermExitZero": true
+}

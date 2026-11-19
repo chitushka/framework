@@ -18,8 +18,11 @@ Machine-readable binding — [freeze-v1.json](../release/freeze-v1.json).
   владелец перед подписью; local registry не заменяет triage.
 - [Поставка 13.1](stage-13-1-acceptance.md) и [операционная приёмка 13.2](stage-13-2-acceptance.md).
   Runtime promotion допускает только metadata versions, не неявные исправления.
-- Локальные tests, security scans, frozen consumer и stable draft build фиксируются
-  evidence этапа 13.3. Draft artifacts не считаются опубликованным релизом.
+- Локальные tests, security scans и frozen consumer приняты; stable draft из
+  `b58e226` принят 19.11.2026: воспроизводимы три runtime manifests, прошли
+  version-tag consumer и production smoke. [Distribution evidence](releases/v1.0-proposal/distribution/README.md)
+  фиксирует source/artifact identity. Draft artifacts не считаются опубликованным
+  релизом; hosted CI и подпись должны относиться к точному reviewed source.
 
 ## Обязательное закрытие владельцем
 

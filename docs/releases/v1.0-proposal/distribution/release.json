@@ -1,0 +1,42 @@
+{
+  "version": "v1.0.0",
+  "revision": "b58e226929e8ba5a556d9aff74973d19ce9f6934",
+  "epoch": "1795086136",
+  "platform": "linux/amd64",
+  "publicationStatus": "unpublished-local-draft",
+  "promotion": {
+    "from": {
+      "version": "v0.1.0-rc.1",
+      "revision": "90b2c3bf936c5d7f67eb2a4b9216d438b1f40739",
+      "sourceSHA256": "95d79daedbda472a6ebdf8a0a2a5e8b984b5ba9888d1fc5ed1b8cb416f3386d8"
+    },
+    "runtimeSHA256": "dd0e9556a05817dcc128a6cf91ed19d9174b20d07a2da1e6fb80dd780525dd3e",
+    "apiSHA256": "051dab659f86b51fe4f033ed20a00a61ee041a03a2936d58d89aa6262c2e53f7"
+  },
+  "sourceSHA256": "d28f5432afac61ef98d4bf54eb2eb44b03377b17729cca08f6986cff76c02384",
+  "sbomGenerator": "docker.io/docker/buildkit-syft-scanner:stable-1@sha256:873a7458c3c8ac8e32c7b796c10e1600b07b963d2aa000a72a2d97aaaa2d6315",
+  "unsignedLocalEvidence": true,
+  "images": {
+    "basic": {
+      "digest": "sha256:75d59ce92b79bf60b1df1a37cfa5509887aac3584c48feed439882bfb868f5d0",
+      "indexDigest": "sha256:eea506ff1474e04e0ff5afac90b9b6a304adcbacb106744540e87f2ba0a5317e",
+      "archiveSHA256": "e78a41aedb91e69e50940760f58fb292922688b244e5ef447d756c7fe2a92113",
+      "bytes": 4253696,
+      "reproduced": true
+    },
+    "admin": {
+      "digest": "sha256:726f74fb0ecf491747d5ec704749626aa4eaaba09eddae7523d53483855cee6e",
+      "indexDigest": "sha256:ff283e8c2419d2c7b3f21f65857870719e301fe25493955a360e877a6e83f407",
+      "archiveSHA256": "7a53c2ae032fc3e8e0e675364cebcb163abaf15e16e3d8407140755dfa8be0cf",
+      "bytes": 5725696,
+      "reproduced": true
+    },
+    "rest": {
+      "digest": "sha256:864910c589f5d02e9ee36d106f5f5e6881c092273e5fb13b1e3b3ecbcf254d5f",
+      "indexDigest": "sha256:b465c14f3cdc5fb7f8552592d74db53f2cebd20b912c4a03983ce548528a848a",
+      "archiveSHA256": "5687ebf43a9e73e3110dc3477e83fad4f4dee48363f5eb8280b88937d12793e5",
+      "bytes": 3127808,
+      "reproduced": true
+    }
+  }
+}

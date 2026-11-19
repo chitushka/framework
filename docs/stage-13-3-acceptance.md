@@ -52,9 +52,10 @@ registry audit уже вернул ноль findings. Policy exceptions оста
 [Canonical advisory](https://github.com/advisories/GHSA-fc5q-39xc-vjpf).
 
 Gitleaks классифицирует только точное публичное поле `apiSHA256` с зафиксированным
-digest в двух metadata paths. Реальные scanner canaries доказывают, что credential
-в том же файле, то же значение в другом поле или application path остаются
-находками. Правила credentials не отключены. Worktree и полная Git history
+digest в трёх metadata paths, включая stable draft manifest. Реальные scanner
+canaries для каждого пути доказывают, что credential в том же файле, то же
+значение в другом поле, иной digest и application path остаются находками.
+Правила credentials не отключены. Worktree и полная Git history
 проверены; `govulncheck -test` пяти modules не выявил уязвимых вызываемых symbols.
 
 ## Локальная валидация
@@ -65,8 +66,7 @@ Windows vet/tests и REST process E2E прошли. Linux vet/race, lint пят�
 **87.31%**, security **94.73%**. Синтетические profiles negative tests не являются
 измеренным покрытием проекта.
 
-Прошли 20 Node tests, docs/onboarding (после добавления отчёта: 68 документов,
-647 links, 3 source fences),
+Прошли 20 Node tests, docs/onboarding с исполнением трёх source fences,
 frontend lint/build/tests/audit и проверки security. Frozen consumer, current/RC
 API и runtime comparison повторно прошли 19.11.2026 на чистом `26a25fe`.
 
@@ -82,19 +82,48 @@ Admin SQL/race на PostgreSQL/MySQL и Chromium E2E — **4/4**, включая
 
 Все 11 локальных quality checks и их gzip-логи сохранены в
 [local validation](releases/v1.0-proposal/local-validation.json), `complete: true`.
-Stable draft build — следующий локальный шаг; завершение quality checks
-само по себе не подтверждает воспроизводимость релизных образов.
+
+## Локальная приёмка stable draft 19.11.2026
+
+`node release/prepare.mjs` успешно завершён из чистого source commit
+`b58e226929e8ba5a556d9aff74973d19ce9f6934`. Source archive SHA-256:
+`d28f5432afac61ef98d4bf54eb2eb44b03377b17729cca08f6986cff76c02384`.
+Commit с результатами добавляет evidence и точную классификацию публичного
+checksum manifest; runtime/dependencies принятого RC не меняются.
+
+Две сборки каждого starter, Basic с `--no-cache` в каждой серии; все три
+runtime manifest digests совпали. Независимая повторная инспекция обеих серий
+OCI подтвердила blob hashes/sizes, SPDX/provenance subjects, UID/GID и source/version
+labels. Source archive повторно сверен с Git, все SHA256SUMS проверены.
+
+| Starter | OCI с attestations | SPDX packages | Runtime digest, SHA-256 |
+| --- | ---: | ---: | --- |
+| Basic | 4,06 MiB | 54 | `75d59ce92b79bf60b1df1a37cfa5509887aac3584c48feed439882bfb868f5d0` |
+| Admin | 5,46 MiB | 63 | `726f74fb0ecf491747d5ec704749626aa4eaaba09eddae7523d53483855cee6e` |
+| REST | 2,98 MiB | 6 | `864910c589f5d02e9ee36d106f5f5e6881c092273e5fb13b1e3b3ecbcf254d5f` |
+
+Внешний consumer установил root/adapters/Admin по `v1.0.0` через изолированный
+file GOPROXY, выполнил неизменённые compatibility fixtures, `go mod verify`
+и сборку Admin. Production smoke использовал именно проверенные OCI indexes:
+read-only rootfs, UID/GID 65532, Basic login/assets/Secure cookies, Admin
+PostgreSQL migrations/seed/login, REST 401 и external JWT CRUD, SIGTERM exit=0
+всех трёх processes. Test containers и network удалены.
+
+[Manifest, checksums, smoke, independent verification и полный gzip-лог](releases/v1.0-proposal/distribution/README.md)
+сохранены в репозитории. Большие source/OCI archives, predicates и module-check
+остаются локально в `.cache/releases/v1.0.0-rLNIfy`; latest.txt указывает этот
+успешный прогон. Проверена одна platform `linux/amd64`. Provenance локальные
+unsigned; локальная установка по версии не заменяет public installation.
 
 ## Оставшиеся условия выпуска
 
-1. Завершить локальную воспроизводимую сборку draft и production smoke.
-2. По отдельному разрешению отправить reviewed source в
+1. По отдельному разрешению отправить reviewed source в
    `https://github.com/chitushka/framework.git` и получить hosted CI success
    для точного SHA со всеми matrix children и unexpired artifacts.
-3. Включить `Required quality gate` для master со strict/admin enforcement
+2. Включить `Required quality gate` для master со strict/admin enforcement
    и ограничениями bypass/release permissions; закрыть 12.1/A4.
-4. Получить подпись владельца для exact API/upgrade/security/checklist identity.
-5. После отдельного разрешения опубликовать immutable root/nested tags, images
+3. Получить подпись владельца для exact API/upgrade/security/checklist identity.
+4. После отдельного разрешения опубликовать immutable root/nested tags, images
    и Release assets, проверить public installation и digests.
 
 [Checklist](release-checklist-v1.md) содержит незаполненную подпись и формат

@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "targetVersion": "v1.0.0",
+  "sourceCommit": "b58e226929e8ba5a556d9aff74973d19ce9f6934",
+  "publicationStatus": "unpublished-local-draft",
+  "sourceSHA256": "d28f5432afac61ef98d4bf54eb2eb44b03377b17729cca08f6986cff76c02384",
+  "runtimeSHA256": "dd0e9556a05817dcc128a6cf91ed19d9174b20d07a2da1e6fb80dd780525dd3e",
+  "verifiedUTC": "2026-11-19T11:14:18.844Z",
+  "sourceArchiveVerified": true,
+  "checksumsVerified": true,
+  "independentOCIInspection": true,
+  "versionTagConsumer": true,
+  "dependencyVerification": true,
+  "adminBuild": true,
+  "productionSmoke": true,
+  "images": {
+    "basic": {
+      "runtimeDigest": "sha256:75d59ce92b79bf60b1df1a37cfa5509887aac3584c48feed439882bfb868f5d0",
+      "spdxPackages": 54,
+      "bytes": 4253696
+    },
+    "admin": {
+      "runtimeDigest": "sha256:726f74fb0ecf491747d5ec704749626aa4eaaba09eddae7523d53483855cee6e",
+      "spdxPackages": 63,
+      "bytes": 5725696
+    },
+    "rest": {
+      "runtimeDigest": "sha256:864910c589f5d02e9ee36d106f5f5e6881c092273e5fb13b1e3b3ecbcf254d5f",
+      "spdxPackages": 6,
+      "bytes": 3127808
+    }
+  },
+  "prepareLog": "prepare.log.gz",
+  "prepareLogSHA256": "39de34b4b5e7b94342854dc626dd8f7c07b6ff504c2c07b2d8516abd2f3634da",
+  "localArtifacts": ".cache/releases/v1.0.0-rLNIfy"
+}
