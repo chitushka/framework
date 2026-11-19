@@ -19,6 +19,8 @@ jobs и aggregate gate перечислены в `.github/workflows/ci.yml`; ski
 
 Файлы `.go` и `.sh` закреплены с LF в `.gitattributes`, чтобы checkout на Windows
 и Linux давал одинаковый результат проверки форматирования.
+Плавающая строка CI `1.26.x` проверяет свежую patch-версию через `check-latest`,
+чтобы устаревший tool cache runner не подменял минимальную версию из `go.mod`.
 
 Уязвимости направляйте приватно по [SECURITY.md](SECURITY.md). Не публикуйте
 exploit, действующие credentials и персональные данные в issue или PR.
