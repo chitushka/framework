@@ -13,7 +13,7 @@ FROM backend AS integration
 WORKDIR /workspace/examples/advanced-admin
 CMD ["go", "test", "-mod=readonly", "-tags=integration", "-race", "-count=1", "-timeout=4m", "-v", "./..."]
 
-FROM mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea AS assets
+FROM mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579 AS assets
 WORKDIR /workspace
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 RUN cd frontend && npm ci --no-audit --no-fund
