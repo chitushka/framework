@@ -25,6 +25,12 @@ jobs:
       - name: Validate candidate tag
         run: |
           node --input-type=module -e 'import fs from "node:fs"; const {version}=JSON.parse(fs.readFileSync("release/version.json")); if(process.env.GITHUB_REF_TYPE === "tag" && process.env.GITHUB_REF_NAME !== version) throw Error("Tag differs from candidate version");'
+      - name: Enable OCI attestations and local index loading
+        uses: docker/setup-docker-action@3f1ab1ab0e29231562e4db4ca600c1a49653bac6 # v5
+        with:
+          version: v29.2.0
+          daemon-config: |
+            {"features":{"containerd-snapshotter":true}}
       - name: Reproduce, attest and smoke candidate locally
         run: node release/prepare.mjs
       - name: Retain candidate evidence (no publication)

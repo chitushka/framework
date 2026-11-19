@@ -1,0 +1,62 @@
+name: Revalidate reviewed v1 source
+
+on:
+  push:
+    branches: [release/v1.0.0-validation]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  release-ready:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: 34138b2144663a3a2df7de2e38fbb320197ed37e
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22.22.3"
+      - name: Verify frozen source and complete quality gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(git rev-parse HEAD)" = 34138b2144663a3a2df7de2e38fbb320197ed37e
+          test -z "$(git status --porcelain)"
+          test "$(git rev-parse 'v1.0.0^{commit}')" = 34138b2144663a3a2df7de2e38fbb320197ed37e
+          gh api repos/chitushka/framework/actions/runs/44559936476/jobs --paginate > "$RUNNER_TEMP/quality-jobs.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          jobs = json.loads((Path(os.environ['RUNNER_TEMP']) / 'quality-jobs.json').read_text())['jobs']
+          quality = [j for j in jobs if j['name'].startswith('quality / ')]
+          assert len(quality) == 20 and all(j['conclusion'] == 'success' for j in quality)
+          print('Accepted exact-source quality jobs:', len(quality))
+          PY
+      - name: Enable OCI attestations and local index loading
+        uses: docker/setup-docker-action@3f1ab1ab0e29231562e4db4ca600c1a49653bac6 # v5
+        with:
+          version: v29.2.0
+          daemon-config: |
+            {"features":{"containerd-snapshotter":true}}
+      - name: Verify containerd image store
+        run: docker info --format '{{json .DriverStatus}}' | grep -F io.containerd.snapshotter.v1
+      - name: Reproduce, attest and smoke frozen source
+        run: node release/prepare.mjs
+      - name: Retain reviewed-source validation evidence
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: reviewed-v1-source-34138b2
+          include-hidden-files: true
+          if-no-files-found: error
+          path: |
+            .cache/releases/*/source.tar
+            .cache/releases/*/*-1.oci.tar
+            .cache/releases/*/*.json
+            .cache/releases/*/SHA256SUMS
