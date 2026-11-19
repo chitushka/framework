@@ -40,7 +40,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .cache/matrix
-          test -z "$(find . -name '*.go' -not -path './.cache/*' -not -path './frontend/node_modules/*' -print0 | xargs -0 gofmt -l)"
+          files="$(find . -name '*.go' -not -path './.cache/*' -not -path './frontend/node_modules/*' -print0 | xargs -0 gofmt -l)"
+          if [ -n "$files" ]; then
+            printf 'Go files require gofmt:\n%s\n' "$files"
+            exit 1
+          fi
           race=()
           if [ "$RUNNER_OS" = Linux ]; then race=(-race); fi
           for module in . adapters examples/advanced-admin tools/releasecheck; do

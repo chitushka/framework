@@ -17,5 +17,8 @@ jobs и aggregate gate перечислены в `.github/workflows/ci.yml`; ski
 обязательный job не считается успешной проверкой. Release-проверки описаны в
 [release policy](docs/guide/releases.md).
 
+Файлы `.go` и `.sh` закреплены с LF в `.gitattributes`, чтобы checkout на Windows
+и Linux давал одинаковый результат проверки форматирования.
+
 Уязвимости направляйте приватно по [SECURITY.md](SECURITY.md). Не публикуйте
 exploit, действующие credentials и персональные данные в issue или PR.
