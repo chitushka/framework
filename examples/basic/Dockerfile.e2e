@@ -6,7 +6,7 @@ RUN go mod download
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -trimpath -o /out/basic ./examples/basic
 
-FROM mcr.microsoft.com/playwright:v1.64.1-noble
+FROM mcr.microsoft.com/playwright:v1.65.1-noble
 WORKDIR /workspace
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 RUN cd frontend && npm ci --no-audit --no-fund
