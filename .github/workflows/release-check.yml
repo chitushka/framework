@@ -31,6 +31,19 @@ jobs:
           version: v29.2.0
           daemon-config: |
             {"features":{"containerd-snapshotter":true}}
+      - name: Preserve the reviewed Docker context notice modes
+        run: |
+          mkdir -p "$RUNNER_TEMP/reviewed-bin"
+          cat > "$RUNNER_TEMP/reviewed-bin/tar" <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          /usr/bin/tar "$@"
+          if [[ "$#" -eq 4 && "$1" == -xf && "$2" == */source.tar && "$3" == -C ]]; then
+            chmod 0755 -- "$4/LICENSE" "$4/NOTICE"
+          fi
+          SH
+          chmod 0755 "$RUNNER_TEMP/reviewed-bin/tar"
+          echo "$RUNNER_TEMP/reviewed-bin" >> "$GITHUB_PATH"
       - name: Reproduce, attest and smoke candidate locally
         run: |
           # Preserve the reviewed Windows source archive profile on every runner.
