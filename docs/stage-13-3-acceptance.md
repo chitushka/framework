@@ -68,17 +68,26 @@ Windows vet/tests и REST process E2E прошли. Linux vet/race, lint пят�
 Прошли 20 Node tests, docs/onboarding (после добавления отчёта: 68 документов,
 647 links, 3 source fences),
 frontend lint/build/tests/audit и проверки security. Frozen consumer, current/RC
-API и runtime comparison прошли на чистом `079d362`.
+API и runtime comparison повторно прошли 19.11.2026 на чистом `26a25fe`.
 
-Service/browser сценарии и stable draft build пока не приняты: при старте
-integration dependencies Docker Engine вернул HTTP 500 и перестал отвечать.
-Application tests этого прогона не запускались. Повторная приёмка и упаковка
-сырых логов выполняются после восстановления Engine; инфраструктурный сбой
-не считается успешной проверкой приложения.
+19.11.2026 Docker Desktop запущен, Engine 29.2.0 отвечает. Полный integration
+suite прошёл под race detector: 29 основных тестов, без skips и failures,
+130,576s исполнения тестов. Проверены PostgreSQL/MySQL, Redis, Memcached,
+RabbitMQ, OpenTelemetry, сбои зависимостей и process/crash recovery. Basic
+Chromium E2E — **3/3**, включая no-JavaScript mobile и production HTTPS;
+Admin SQL/race на PostgreSQL/MySQL и Chromium E2E — **4/4**, включая RBAC,
+отказ повышения прав и сохранение данных после restart. Actionlint прошёл.
+Эти проверки выполнены на `26a25fe`; тестовые containers, networks и volumes
+удалены штатными runners. Исходный сбой Engine не засчитывается как проверка.
+
+Все 11 локальных quality checks и их gzip-логи сохранены в
+[local validation](releases/v1.0-proposal/local-validation.json), `complete: true`.
+Stable draft build — следующий локальный шаг; завершение quality checks
+само по себе не подтверждает воспроизводимость релизных образов.
 
 ## Оставшиеся условия выпуска
 
-1. Завершить service/browser проверки и локальную воспроизводимую сборку draft.
+1. Завершить локальную воспроизводимую сборку draft и production smoke.
 2. По отдельному разрешению отправить reviewed source в
    `https://github.com/chitushka/framework.git` и получить hosted CI success
    для точного SHA со всеми matrix children и unexpired artifacts.
