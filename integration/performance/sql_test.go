@@ -185,7 +185,8 @@ func writeJSON(tb testing.TB, name string, value any) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, name), append(encoded, '\n'), 0o600); err != nil {
+	// Public measurements cross the container/host UID boundary for collection.
+	if err := os.WriteFile(filepath.Join(dir, name), append(encoded, '\n'), 0o644); err != nil {
 		tb.Fatal(err)
 	}
 }

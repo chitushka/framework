@@ -18,7 +18,7 @@ Node/docs/frontend/security/compatibility/service/browser/workflow провер�
 `complete: true`: все 11 локальных quality checks приняты. После запуска Docker
 Desktop 19.11.2026 прошли integration/race (29 основных тестов без skips),
 Basic E2E 3/3, Admin SQL/race на PostgreSQL/MySQL и browser E2E 4/4, actionlint.
-Stable draft из `b58e226` также принят локально: три пары runtime manifests
+Stable draft из `740a769` также принят локально: три пары runtime manifests
 воспроизводимы, version-tag consumer и production smoke прошли.
 [Distribution evidence](distribution/README.md) содержит manifest, checksums,
 smoke, независимую проверку и полный лог. Поле `complete` описывает quality

@@ -1,6 +1,6 @@
 # v1.0.0 — локально проверенный draft
 
-Дата: 19.11.2026. Source: `b58e226929e8ba5a556d9aff74973d19ce9f6934`.
+Дата: 19.11.2026. Source: `740a769f7b039fb04dc5fecf95bde2e8e5207dc7`.
 Platform: `linux/amd64`. Status: `unpublished-local-draft`.
 
 Сохранены неизменённые [release manifest](release.json),
@@ -17,7 +17,7 @@ subject identity и non-root/source/version config; source archive сверен 
 GOPROXY, выполнил compatibility fixtures, dependency verification и сборку Admin.
 Smoke проверил production Basic/Admin/REST и SIGTERM exit=0.
 
-Полные artifacts: `.cache/releases/v1.0.0-rLNIfy`; успешный путь также записан в
+Полные artifacts: `.cache/releases/v1.0.0-UsT3jq`; успешный путь также записан в
 `.cache/releases/latest.txt`. Исходный принятый RC и его operational artifacts
 сохраняются отдельно. Коммит этого evidence не меняет source identity draft.
 

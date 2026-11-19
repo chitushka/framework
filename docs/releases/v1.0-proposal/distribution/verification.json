@@ -1,11 +1,11 @@
 {
   "schema": 1,
   "targetVersion": "v1.0.0",
-  "sourceCommit": "b58e226929e8ba5a556d9aff74973d19ce9f6934",
+  "sourceCommit": "740a769f7b039fb04dc5fecf95bde2e8e5207dc7",
   "publicationStatus": "unpublished-local-draft",
-  "sourceSHA256": "d28f5432afac61ef98d4bf54eb2eb44b03377b17729cca08f6986cff76c02384",
+  "sourceSHA256": "118bdd6c7cfce12fd19115542c49415297f981a15baa0b23bb35ab8578426d0c",
   "runtimeSHA256": "dd0e9556a05817dcc128a6cf91ed19d9174b20d07a2da1e6fb80dd780525dd3e",
-  "verifiedUTC": "2026-11-19T11:14:18.844Z",
+  "verifiedUTC": "2026-11-19T12:21:52.187Z",
   "sourceArchiveVerified": true,
   "checksumsVerified": true,
   "independentOCIInspection": true,
@@ -15,22 +15,22 @@
   "productionSmoke": true,
   "images": {
     "basic": {
-      "runtimeDigest": "sha256:75d59ce92b79bf60b1df1a37cfa5509887aac3584c48feed439882bfb868f5d0",
+      "runtimeDigest": "sha256:12151f671592700c7b040ac2bdb1d909ee92b3d84462e0e7dd490dc8d7223f86",
       "spdxPackages": 54,
       "bytes": 4253696
     },
     "admin": {
-      "runtimeDigest": "sha256:726f74fb0ecf491747d5ec704749626aa4eaaba09eddae7523d53483855cee6e",
+      "runtimeDigest": "sha256:837cd63095fe9b1c3b2c3137df56b9ef4180e786019de4ddf5f8dda231ced507",
       "spdxPackages": 63,
       "bytes": 5725696
     },
     "rest": {
-      "runtimeDigest": "sha256:864910c589f5d02e9ee36d106f5f5e6881c092273e5fb13b1e3b3ecbcf254d5f",
+      "runtimeDigest": "sha256:ed047110173efecd439b212f1087dba0c79dc35a73c5e5b323d62fd1052fad15",
       "spdxPackages": 6,
       "bytes": 3127808
     }
   },
   "prepareLog": "prepare.log.gz",
-  "prepareLogSHA256": "39de34b4b5e7b94342854dc626dd8f7c07b6ff504c2c07b2d8516abd2f3634da",
-  "localArtifacts": ".cache/releases/v1.0.0-rLNIfy"
+  "prepareLogSHA256": "ee498cd845e1abdfb2dc21a5ec11c12660474ea0b72aa91bd5cc560d50c686dd",
+  "localArtifacts": ".cache/releases/v1.0.0-UsT3jq"
 }

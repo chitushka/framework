@@ -1,7 +1,7 @@
 {
   "version": "v1.0.0",
-  "revision": "b58e226929e8ba5a556d9aff74973d19ce9f6934",
-  "epoch": "1795086136",
+  "revision": "740a769f7b039fb04dc5fecf95bde2e8e5207dc7",
+  "epoch": "1795090110",
   "platform": "linux/amd64",
   "publicationStatus": "unpublished-local-draft",
   "promotion": {
@@ -13,28 +13,28 @@
     "runtimeSHA256": "dd0e9556a05817dcc128a6cf91ed19d9174b20d07a2da1e6fb80dd780525dd3e",
     "apiSHA256": "051dab659f86b51fe4f033ed20a00a61ee041a03a2936d58d89aa6262c2e53f7"
   },
-  "sourceSHA256": "d28f5432afac61ef98d4bf54eb2eb44b03377b17729cca08f6986cff76c02384",
+  "sourceSHA256": "118bdd6c7cfce12fd19115542c49415297f981a15baa0b23bb35ab8578426d0c",
   "sbomGenerator": "docker.io/docker/buildkit-syft-scanner:stable-1@sha256:873a7458c3c8ac8e32c7b796c10e1600b07b963d2aa000a72a2d97aaaa2d6315",
   "unsignedLocalEvidence": true,
   "images": {
     "basic": {
-      "digest": "sha256:75d59ce92b79bf60b1df1a37cfa5509887aac3584c48feed439882bfb868f5d0",
-      "indexDigest": "sha256:eea506ff1474e04e0ff5afac90b9b6a304adcbacb106744540e87f2ba0a5317e",
-      "archiveSHA256": "e78a41aedb91e69e50940760f58fb292922688b244e5ef447d756c7fe2a92113",
+      "digest": "sha256:12151f671592700c7b040ac2bdb1d909ee92b3d84462e0e7dd490dc8d7223f86",
+      "indexDigest": "sha256:618c6286a3e254cfc1ec61ee180a9e319799108be0439eef20cee5dbdd2fc49a",
+      "archiveSHA256": "545ffab857dead6887d1847527ab30da903c44a79486292a3e9a384bc6495774",
       "bytes": 4253696,
       "reproduced": true
     },
     "admin": {
-      "digest": "sha256:726f74fb0ecf491747d5ec704749626aa4eaaba09eddae7523d53483855cee6e",
-      "indexDigest": "sha256:ff283e8c2419d2c7b3f21f65857870719e301fe25493955a360e877a6e83f407",
-      "archiveSHA256": "7a53c2ae032fc3e8e0e675364cebcb163abaf15e16e3d8407140755dfa8be0cf",
+      "digest": "sha256:837cd63095fe9b1c3b2c3137df56b9ef4180e786019de4ddf5f8dda231ced507",
+      "indexDigest": "sha256:6489e34def51bf364b420a38e29e3dfddca35eb57619cd9e4d4739db419f5354",
+      "archiveSHA256": "66e4bf4b89471e825c94a418879ebb4572679bf4798de80c1620864f576562d9",
       "bytes": 5725696,
       "reproduced": true
     },
     "rest": {
-      "digest": "sha256:864910c589f5d02e9ee36d106f5f5e6881c092273e5fb13b1e3b3ecbcf254d5f",
-      "indexDigest": "sha256:b465c14f3cdc5fb7f8552592d74db53f2cebd20b912c4a03983ce548528a848a",
-      "archiveSHA256": "5687ebf43a9e73e3110dc3477e83fad4f4dee48363f5eb8280b88937d12793e5",
+      "digest": "sha256:ed047110173efecd439b212f1087dba0c79dc35a73c5e5b323d62fd1052fad15",
+      "indexDigest": "sha256:35baa5be6585542454df8473f355a95c2e0f259788589b14638f5a9cbf073d54",
+      "archiveSHA256": "341be3d47ad9047f33a5e34b138cfcff308ccf6f57f6799ab39e6653a7d26996",
       "bytes": 3127808,
       "reproduced": true
     }

@@ -86,10 +86,11 @@ Admin SQL/race на PostgreSQL/MySQL и Chromium E2E — **4/4**, включая
 ## Локальная приёмка stable draft 19.11.2026
 
 `node release/prepare.mjs` успешно завершён из чистого source commit
-`b58e226929e8ba5a556d9aff74973d19ce9f6934`. Source archive SHA-256:
-`d28f5432afac61ef98d4bf54eb2eb44b03377b17729cca08f6986cff76c02384`.
-Commit с результатами добавляет evidence и точную классификацию публичного
-checksum manifest; runtime/dependencies принятого RC не меняются.
+`740a769f7b039fb04dc5fecf95bde2e8e5207dc7`. Source archive SHA-256:
+`118bdd6c7cfce12fd19115542c49415297f981a15baa0b23bb35ab8578426d0c`.
+Commit с результатами добавляет evidence; runtime/dependencies принятого RC
+не меняются. В `740a769` исправлена только политика LF для Windows checkout,
+диагностика CI и соответствующая инструкция для contributors.
 
 Две сборки каждого starter, Basic с `--no-cache` в каждой серии; все три
 runtime manifest digests совпали. Независимая повторная инспекция обеих серий
@@ -98,9 +99,9 @@ labels. Source archive повторно сверен с Git, все SHA256SUMS �
 
 | Starter | OCI с attestations | SPDX packages | Runtime digest, SHA-256 |
 | --- | ---: | ---: | --- |
-| Basic | 4,06 MiB | 54 | `75d59ce92b79bf60b1df1a37cfa5509887aac3584c48feed439882bfb868f5d0` |
-| Admin | 5,46 MiB | 63 | `726f74fb0ecf491747d5ec704749626aa4eaaba09eddae7523d53483855cee6e` |
-| REST | 2,98 MiB | 6 | `864910c589f5d02e9ee36d106f5f5e6881c092273e5fb13b1e3b3ecbcf254d5f` |
+| Basic | 4,06 MiB | 54 | `12151f671592700c7b040ac2bdb1d909ee92b3d84462e0e7dd490dc8d7223f86` |
+| Admin | 5,46 MiB | 63 | `837cd63095fe9b1c3b2c3137df56b9ef4180e786019de4ddf5f8dda231ced507` |
+| REST | 2,98 MiB | 6 | `ed047110173efecd439b212f1087dba0c79dc35a73c5e5b323d62fd1052fad15` |
 
 Внешний consumer установил root/adapters/Admin по `v1.0.0` через изолированный
 file GOPROXY, выполнил неизменённые compatibility fixtures, `go mod verify`
@@ -111,9 +112,26 @@ PostgreSQL migrations/seed/login, REST 401 и external JWT CRUD, SIGTERM exit=0
 
 [Manifest, checksums, smoke, independent verification и полный gzip-лог](releases/v1.0-proposal/distribution/README.md)
 сохранены в репозитории. Большие source/OCI archives, predicates и module-check
-остаются локально в `.cache/releases/v1.0.0-rLNIfy`; latest.txt указывает этот
+остаются локально в `.cache/releases/v1.0.0-UsT3jq`; latest.txt указывает этот
 успешный прогон. Проверена одна platform `linux/amd64`. Provenance локальные
 unsigned; локальная установка по версии не заменяет public installation.
+
+## Hosted приёмка: устранённые инфраструктурные дефекты
+
+Первый [CI run](https://github.com/chitushka/framework/actions/runs/44520088465)
+выявил преобразование всех 254 Go-файлов в CRLF при Windows checkout. В `740a769`
+закреплён LF; свежий checkout с `core.autocrlf=true` подтвердил 254 ошибки до
+исправления и 0 после. В [повторном CI](https://github.com/chitushka/framework/actions/runs/44521185098)
+все четыре Go/OS children, lint, service/browser, security и остальные обычные
+проверки прошли: 18 основных jobs. Performance measurements завершились exit=0,
+но сборщик и uploader не смогли прочитать root-owned `runtime.json` с `0600`.
+Этот run не принят.
+
+Публичные performance JSON переведены на `0644`; настоящий reader с UID/GID
+65534 воспроизвёл ошибку до исправления и прочитал результат после него.
+Регрессия добавлена перед каждым performance run; vet/lint performance harness
+и три Node report gate tests прошли. Полная hosted приёмка требует нового
+успешного run для исправленного source и настройки required checks.
 
 ## Оставшиеся условия выпуска
 
@@ -129,4 +147,6 @@ unsigned; локальная установка по версии не заме�
 [Checklist](release-checklist-v1.md) содержит незаполненную подпись и формат
 receipt. Правило локальных commits и отдельного push/publication из
 [PLAN](../PLAN.md) сохраняется. Репозиторий GitHub доступен, `origin` настроен;
-на момент подготовки удалённый репозиторий пуст, отправок агент не выполнял.
+19.11.2026 владелец отдельно разрешил push, hosted CI и required checks.
+Коммиты `5e39a56` и исправление Windows CI `740a769` отправлены в master;
+публикация tags/images/Release и подпись checklist требуют отдельного решения.

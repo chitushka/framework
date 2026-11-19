@@ -124,6 +124,11 @@ Smoke использует 1x/count=1/cpu=2, phases в десять раз ко�
 Full run требует чистого закоммиченного дерева до и после исполнения. Среда и
 workload автоматически записываются в уникальный `.cache/performance/run-*`.
 
+JSON-результаты содержат публичные измерения и создаются с правами `0644`:
+host collector и CI uploader читают их после root-контейнера под другим UID.
+Перед измерениями runner проверяет эту границу настоящим reader-процессом
+с UID/GID 65534; проверка не требует SQL services.
+
 `latest.json` указывает на последний успешный full run; `latest-smoke.json` — на
 последний smoke. Неуспешный run не заменяет успешный pointer и возвращает ненулевой
 код. Все owned containers/networks/volumes удаляются в finally; ошибка cleanup
