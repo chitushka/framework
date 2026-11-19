@@ -59,7 +59,7 @@ jobs:
           go test -tags e2e ./examples/rest-api
       - name: Upload matrix reports
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: go-${{ matrix.os }}-${{ matrix.go }}
           path: .cache/matrix/
@@ -82,7 +82,7 @@ jobs:
       - run: sh scripts/test-coverage.sh
       - run: node --test scripts/check-critical-coverage.test.mjs
       - run: sh scripts/check-coverage.sh coverage.out 80
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage
           path: coverage.out
@@ -100,7 +100,7 @@ jobs:
           go-version-file: go.mod
       - run: sh scripts/test-fuzz.sh
       - run: sh scripts/fuzz.sh 3s
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: fuzz-smoke
@@ -154,7 +154,7 @@ jobs:
       - run: node scripts/npm-audit.mjs
         env:
           GH_TOKEN: ${{ github.token }}
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: frontend-security
@@ -185,7 +185,7 @@ jobs:
             examples/advanced-admin/go.sum
             tools/security/go.sum
       - run: sh scripts/security.sh
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: security-reports
@@ -205,7 +205,7 @@ jobs:
       - run: |
           mkdir -p .cache/integration
           sh scripts/integration.sh 2>&1 | tee .cache/integration/tests.log
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: integration-report
@@ -228,7 +228,7 @@ jobs:
           mkdir -p .cache/docs
           go test -race -count=1 -json ./internal/doccheck ./examples/guide/... | tee .cache/docs/tests.json
           go run ./tools/checkdocs -run
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: docs-test-report
@@ -249,7 +249,7 @@ jobs:
       - run: |
           mkdir -p .cache/rest-e2e
           go test -race -tags e2e -count=1 -json ./examples/rest-api | tee .cache/rest-e2e/results.json
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: rest-e2e-report
@@ -265,7 +265,7 @@ jobs:
         with:
           persist-credentials: false
       - run: sh scripts/basic-e2e.sh
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: basic-browser-report
@@ -281,7 +281,7 @@ jobs:
         with:
           persist-credentials: false
       - run: sh scripts/admin-e2e.sh
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: admin-browser-report
@@ -301,7 +301,7 @@ jobs:
           node-version: "22"
       - run: node --test scripts/performance-report.test.mjs
       - run: node scripts/performance.mjs full
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: performance-report
@@ -325,7 +325,7 @@ jobs:
           node-version: "22"
       - name: Check API, runtime identity and installed consumer contracts
         run: node release/compatibility.mjs
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: compatibility-report
