@@ -1,4 +1,4 @@
-FROM golang:1.26.11@sha256:7af425da11f4fc1a9308eb704369e3f6d1c44e35bac0f874a59ade3f20fdc07e
+FROM golang:1.27.3@sha256:e519d3b0a5b285e5aa53ab9eef02bc6bbb9cb04608389b743a136a9ce75f0d1e
 WORKDIR /workspace
 COPY go.mod go.sum ./
 COPY integration/go.mod integration/go.sum ./integration/
